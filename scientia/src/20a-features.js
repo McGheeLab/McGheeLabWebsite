@@ -166,9 +166,14 @@ const PV = {
     preview: () => [h('div.pv-edge', h('span.l', '‹‹'), run3({ stamp: null, body: 'The edge collapsed.' }), h('span.r', '››'))] });
 
   /* V4.20 — the lab's pills in every build (lab-mode.js §11; vendor/lab-pills.js + 99z-pills.js where the lab layer isn't) */
-  D({ id: 'pills', group: 'pen', label: 'Pills', isNew: true, presets: { simple: true }, desc: 'Four round buttons on every note that you drag anywhere: ✎ the hand (zoom, move, pen, highlighter, lasso, and a cog for the pen’s colours and widths), ＋ the Quick cast (Pull in, Flag and Label, then what you add most — it takes the bottom bar’s place), ✦ tools (timer, head start, calculator, equation, split, full screen) and ⊕ zoom (in, 100 %, out, fit). A wheel left open rolls into a row; drop a pill against an edge and its row turns into a column. The layout is yours, the same in every note and on every computer. Off: no pills — the bottom bar and the row of buttons at the top right come back.',
+  D({ id: 'pills', group: 'pen', label: 'Pills', isNew: true, presets: { simple: true }, desc: 'Four round buttons on every note that you drag anywhere: ✎ the hand (zoom, move, pen, highlighter, lasso, and a cog for the pen’s colours and widths), ＋ the Quick cast (Pull in, Flag and Label, then what you add most — it takes the bottom bar’s place), ✦ tools (timer, head start, calculator, equation, split, full screen) and ⊕ zoom (in, 100 %, out, fit). A wheel left open rolls into a row; drop a pill against an edge and its row turns into a column. The layout is yours, the same in every note and on every computer. Off: no pills — the bottom bar and the row of buttons at the top right come back. Place them on the empty note here: the layout is kept in the notebook, so every device has it; a note held upright keeps its own places, and they glide back when it turns again.',
     changed: v => { try { PILLS.changed(v); } catch (e) { } },
+    // V4.35 — a note held upright keeps its own places (lab-mode §11 labPills.portrait), or shares one layout (labPills.one)
+    tune: [T('one', 'Portrait and landscape', 'seg', { isNew: true, def: 'own', opts: [['own', 'Each keeps its own places'], ['same', 'The same places']],
+      d: 'A note taller than it is wide — a tablet turned, or the app turned by Rotate — has pills of its own, and turning back finds yours as they were',
+      get: () => (typeof PILLCANVAS !== 'undefined' && PILLCANVAS.one()) ? 'same' : 'own', set: v => { try { PILLCANVAS.setOne(v === 'same'); } catch (e) { } } })],
     preview: () => {
+      if (FEAT.on('pills') && typeof PILLCANVAS !== 'undefined') return [PILLCANVAS.el()];   // V4.35 — an empty note to place them on, kept in the notebook (every device)
       const on = FEAT.on('pills'), pill = (g, cls, extra) => h('span.pv-pill' + (cls ? '.' + cls : ''), g, extra || null);
       const note = h('div.pv-pills' + (on ? '' : '.off'), run3({ stamp: null, body: 'Seed at 40k/cm² on the 30 kPa gels.' }),
         on ? [pill('⊕', 'tl', h('i', '100%')), pill('✦', 'tr'), pill('＋', 'bc'), pill('✎', 'br')]

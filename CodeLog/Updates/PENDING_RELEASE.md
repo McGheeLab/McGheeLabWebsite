@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (133 changes — ready to push)
+## Pending (134 changes — ready to push)
+
+- **Pills that follow the turn (V4.35):** turn a tablet (or the app, with Rotate) and the pills glide to their places for a note held upright, then back to yours when it turns again. Settings → Pills shows an empty note where you place them, and every device keeps that layout. A note's bridge circles now show over the pills.
 
 - **Freewrite: your own words and rules (V4.34):** in a freewrite, select words with the mouse or pen and say what they are — a new component (a Method, a barrier…) or one you already have, even in another note (it is bridged in) — just for this freewrite or for every one. Settings → Freewrite → Rules lists every rule with an example: add your own, change or switch off the built-in ones, and restore them.
 

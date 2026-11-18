@@ -4,6 +4,43 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.35] — 2026-11-18 — Scientia: the pills follow the turn and come back; your pill layout on an empty note in Settings; bridges over the pills
+
+Gabe (18 Nov 2026): "Switching from horizontal to vertical layout on a tablet via rotation of the device (now with the rotate button) should allow pills to move dynamically with that system and go back to their original position. Also, the settings tab should have an empty note canvas in which you can place your pill layout, which will be remembered across devices. Bridge half moons and dots when in full screen should appear over the pills."
+
+App, and the lab layer's pills (`rm/scientia/lab-mode.js` §11 — Gabe's request; Alex reviews), cut unchanged into `scientia/vendor/lab-pills.js`.
+
+### Added
+- **§11, the note's shape:**
+  - `portrait(host)` (height > 1.05 × width, unless `labPills.one`) and `lay(host)`.
+  - `labPills.portrait {pos, orient}` is read by `layoutLoad` and written by `layoutSave` and by a drop in an upright note; `pillEl` reads the portrait place first.
+  - A `ResizeObserver` on each note host repaints the pills (debounced 90 ms) when the note changes shape.
+  - `paintPills` glides each pill from its old `offsetLeft/Top` (Web Animations, 320 ms; none with reduced motion).
+  - "Put the pills back" clears both shapes.
+  - `LAB.pillDefs` (the starting places) and `LAB.pillLayout.portrait(host)`.
+- **`PILLCANVAS` (`scientia/src/20c-pillcanvas.js`, new; `34-pillcanvas.css`, new):**
+  - the preview of Settings → Pills is an empty note in the shape of a note on this screen, with the four pills (`.pcv-pill`) where they sit (`place(name, port)`: the saved share, else `LAB.pillDefs[name].at(W, H)`);
+  - a real drag places one (`save` → `settings().labPills`, then `pillLayout.load()` + `paintPills()`);
+  - an edge docks it as a column or a row;
+  - Landscape / Portrait and Reset;
+  - every canvas on screen redraws after a change.
+- **Settings → Pills → "Portrait and landscape":** Each keeps its own places / The same places (`labPills.one`).
+
+### Changed
+- **Bridges over the pills** (`34-pillcanvas.css`): `.canvas-host .paper > .bw-edge, .bw-threads { z-index: 22 }` (the pills are 21); `.canvas-host > .lab-pills.fan-open { z-index: 23 }`.
+- **`scientia/MANUAL.md`:** the pills' paragraph (upright notes, the canvas, the bridges).
+
+### Tests
+| Test | Result |
+|---|---|
+| `pl_t` lab build, 1400 px, real drags:<br>- ✎ dragged → `labPills.pos`<br>- the window upright (820 × 1240) → painted again, same shares<br>- the glide<br>- ✦ dragged upright → `labPills.portrait`, landscape untouched<br>- back to 1400 × 900 → ✎ and ✦ at their landscape places<br>- Rotate a quarter → ✦ at its portrait place, and back<br>- a bridge circle over a pill is on top; an open wheel is over it<br>- the Settings canvas: its pills where they sit; a drag places ⊕; Portrait shows ✦'s portrait place; Reset<br>- "The same places"<br>- ⊕ on a note where the canvas put it<br>- the preview off<br>- `FEAT.audit()` | 22/22 |
+| `pl_t` without the lab layer (the cut, `SIS_PILLS`) | 22/22 |
+| `t_995` (Settings) · `fe_t1` (pills; its preview check now counts the canvas's pills) lab · plain · `fe_t2` (Rotate) · `lbl_t` (Label) · `fa_t1` | 27/27 · 25/25 · 25/25 · 24/24 · 37/37 · 11/11 |
+| On the whole stack V4.29–V4.35, lab build: `ra_t29` · `ra_t30` (Reader) · `rb_t31` · `rb_t32` (read beside) · `fw_t33` · `fw_t34` (Freewrite) · `pl_t` | 47/47 · 38/38 · 41/41 · 50/50 · 69/69 · 24/24 · 22/22 |
+| …without the lab layer: `ra_t29` · `ra_t30` · `rb_t31` · `rb_t32` · `fw_t33` · `fw_t34` · `pl_t` · `fe_t1` · `dt_t` | 47/47 · 38/38 · 41/41 · 50/50 · 69/69 · 24/24 · 22/22 · 25/25 · 46/46 |
+| Earlier suites on the stack: Settings `t_995` · pills `fe_t1` (it now counts four fixed Quick cast entries: Pull in, Flag, Label, Freewrite) · Rotate `fe_t2` · Label `lbl_t` · Challenge `cg_t` · synthesis `fb_t416` · References Map `ff_t` · side fold `sf_t` · reader tabs `sync9_rdr` (three runs) · Lit reviews `lr_t` · data tree `dt_t` · banners `tb_t` · section headers `sb_t` · ⋯ and the editing bar `fa_t1` · Report tag `rep_t` · activity `fd_t` · milestones `fc_t18` · experiments `fb_t415` · Library `lib_t1001` | 27/27 · 25/25 · 24/24 · 37/37 · 28/28 · 26/26 · 33/33 · 29/29 · 37/37 ×3 · 18/18 · 46/46 · 30/30 · 18/18 · 11/11 · 19/19 · 27/27 · 23/23 · 23/23 · 114/114 |
+| v3869 lab-mode harness · v3880 notes harness, the whole stack | 287/287 · 13/13 |
+
 ## [V4.34] — 2026-11-18 — Scientia: Freewrite — your own associations by highlight, and the rules in Settings
 
 Gabe (18 Nov 2026), the end of his Freewrite message (V4.33 has the rest): "The user may also add freewrite components via highlights, and once the highlight is done, will be asked to associate it to a new or existing component. That association will be asked if it is temporary (i.e., just for that freewrite) or permanent (i.e., for all future freewrites). Additional freewrite association rules can be added, modified, or deleted in Settings."
