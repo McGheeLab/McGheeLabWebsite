@@ -198,18 +198,18 @@ const PV = {
         PV.cap(res ? 'Snipped out of a report: a Result, and counted as one.' : 'Snipped out of a report: a plain image panel.')];
     } });
 
-  // V4.14 (13zzyb): the Problem kind — a barrier in the literature, cited by its paper(s), never counted as a barrier towards your project
-  D({ id: 'problems', group: 'structures', label: 'Problems', isNew: true, desc: 'A component can be a Problem: a barrier in the literature, with room for improvement or a solution (double-click the label left of its title). It must be cited by the paper(s) that show it — until then its header says “cite a paper”. A Problem is never counted as a barrier towards your project, and neither is a barrier you mark inside one. Off: Problem is not offered and the reminder goes; what you labelled keeps its kind.',
+  // V4.14 (13zzyb), renamed in V4.24: the Challenge kind — a barrier in the literature, cited by its paper(s), never counted as a barrier towards your project
+  D({ id: 'challenges', group: 'structures', label: 'Challenges', isNew: true, desc: 'A component can be a Challenge: a barrier in the literature, with room for improvement or a solution (double-click the label left of its title). It must be cited by the paper(s) that show it — until then its header says “cite a paper”. A Challenge is never counted as a barrier towards your project, and neither is a barrier you mark inside one. Off: Challenge is not offered and the reminder goes; what you labelled keeps its kind.',
     tune: [T('cite', 'What counts as its citation', 'seg', { isNew: true, def: 'any', opts: [['any', 'A cite, a quote or a wire'], ['text', 'A cite in its text']], d: 'A cite of a Library paper in its text; or also a quote from a PDF and a wire to a paper', changed: () => { try { App.refresh(); } catch (e) { } } })],
     changed: () => { try { App.refresh(); } catch (e) { } },
     preview: () => {
-      const on = FEAT.on('problems'), any = FEAT.tune('problems', 'cite') !== 'text', c = typeof PROBLEM !== 'undefined' ? PROBLEM.COLOR : '#7D7A16';
-      const chip = () => { const s = h('span.pb-cite'); s.innerHTML = typeof PROBLEM !== 'undefined' ? PROBLEM.ICON : ''; s.append('cite a paper'); return s; };
-      return [h('div.pv-pb', { style: { display: 'grid', gap: '8px' } },
-        PV.box({ num: on ? 'Problem' : 'Block', label: 'Traction maps blur at the cell edge', style: on ? { '--kc': c } : {}, head: [], body: ['Displacement fields lose resolution within 2 µm of the edge ', h('span.pv-cite', '(Style 2014)'), '.'] }),
-        PV.box({ num: on ? 'Problem' : 'Block', label: 'No standard for gel stiffness checks', style: on ? { '--kc': c, borderLeftStyle: 'dashed' } : {}, head: on ? [chip()] : [], body: any ? 'Labs measure their gels in different ways (no citation yet).' : 'A quote from a PDF, without a cite in its text.' }),
-        h('div.pv-pbn', h('span', 'Open barriers in the project: 0'), h('span', '·'), h('span', on ? 'Problems are the literature’s, not yours' : 'Problem is not offered'))),
-        PV.cap(!on ? 'Off: Problem is not offered; a Problem you made keeps its kind.' : any ? 'Cited by a cite, a quote from a PDF or a wire to a paper. The second one needs its paper.' : 'Only a cite written in its own text counts.')];
+      const on = FEAT.on('challenges'), any = FEAT.tune('challenges', 'cite') !== 'text', c = typeof CHALLENGE !== 'undefined' ? CHALLENGE.COLOR : '#7D7A16';
+      const chip = () => { const s = h('span.cg-cite'); s.innerHTML = typeof CHALLENGE !== 'undefined' ? CHALLENGE.ICON : ''; s.append('cite a paper'); return s; };
+      return [h('div.pv-cg', { style: { display: 'grid', gap: '8px' } },
+        PV.box({ num: on ? 'Challenge' : 'Block', label: 'Traction maps blur at the cell edge', style: on ? { '--kc': c } : {}, head: [], body: ['Displacement fields lose resolution within 2 µm of the edge ', h('span.pv-cite', '(Style 2014)'), '.'] }),
+        PV.box({ num: on ? 'Challenge' : 'Block', label: 'No standard for gel stiffness checks', style: on ? { '--kc': c, borderLeftStyle: 'dashed' } : {}, head: on ? [chip()] : [], body: any ? 'Labs measure their gels in different ways (no citation yet).' : 'A quote from a PDF, without a cite in its text.' }),
+        h('div.pv-cgn', h('span', 'Open barriers in the project: 0'), h('span', '·'), h('span', on ? 'Challenges are the literature’s, not yours' : 'Challenge is not offered'))),
+        PV.cap(!on ? 'Off: Challenge is not offered; a Challenge you made keeps its kind.' : any ? 'Cited by a cite, a quote from a PDF or a wire to a paper. The second one needs its paper.' : 'Only a cite written in its own text counts.')];
     } });
 
   // V4.5 (14g): any component can also be a reference — /reference finds it from any note; the Atlas lists them (and the Reports)

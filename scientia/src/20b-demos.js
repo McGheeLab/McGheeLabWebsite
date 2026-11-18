@@ -560,12 +560,12 @@ FEAT.demo("split", { by: "", at: "2026-11-18", use: "Work in two to four notes a
 /* /demo:split */
 /* demo:structures */
 FEAT.demo("structures", { by: "", at: "2026-11-18", use: "Give selected words a meaning (claim, evidence, barrier, question…) so the notebook can find, count and follow them.",
-  video: "demos/structures.mp4", poster: "demos/structures.jpg", v: "150a16c2", w: 1280, h: 800, dur: 47.8, kb: 597,
+  video: "demos/structures.mp4", poster: "demos/structures.jpg", v: "d5295f9b", w: 1280, h: 800, dur: 46.3, kb: 580,
   steps: [
-    [0,"Select “collapsed at 10 ng/mL”, press Ctrl+Enter, then C: it is a claim, in the claim’s colour"],
-    [8.6,"Mark “3 of 3 fields” as evidence (E): it asks what the evidence comes from"],
-    [20.1,"“gels tear above 40 kPa” is a barrier (B); later “a thicker backing layer” is its resolution (R)"],
-    [36.4,"Double-click a component’s “Block” label: its kind, as a Hypothesis (Problem and the others are here too)"]] });
+    [1.1,"Select “collapsed at 10 ng/mL”, press Ctrl+Enter, then C: it is a claim, in the claim’s colour"],
+    [8.9,"Mark “3 of 3 fields” as evidence (E): it asks what the evidence comes from"],
+    [19.3,"“gels tear above 40 kPa” is a barrier (B); later “a thicker backing layer” is its resolution (R)"],
+    [34.9,"Double-click a component’s “Block” label: its kind, as a Hypothesis (Challenge and the others are here too)"]] });
 /* /demo:structures */
 /* demo:synthesis */
 FEAT.demo("synthesis", { by: "", at: "2026-11-18", use: "The one or two sentences you would tell your advisor, kept at the top of every note.",

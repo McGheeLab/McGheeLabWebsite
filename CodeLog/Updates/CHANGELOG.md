@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.24] — 2026-11-18 — Scientia: Problem is now Challenge
+
+Gabe (18 Nov 2026): "Instead of Problem, name it Challenge."
+
+App only (no lab-layer file changes).
+
+### Changed
+- **The kind V4.14 made is a Challenge:** `scientia/src/13zzyb-problem.js` → `13zzyb-challenge.js`, `PROBLEM` → `CHALLENGE`, the kind `problem` → `challenge` (label Challenge), the feature `problems` → `challenges` (Settings → Features → Structures → Challenges, with its preview), `.pb-cite` / `.pb-uncited` → `.cg-cite` / `.cg-uncited`, `body.f-off-problems` → `body.f-off-challenges` (`24-kinds.css`). What it does is unchanged: cited by its paper(s) ("cite a paper" until then), olive, never counted as a barrier towards your project.
+- **`demokit/structures.mjs`:** its caption names Challenge; the Structures recording is taken again.
+
+### Added
+- **`CHALLENGE.migrate()`** (idempotent): components of kind `problem` → `challenge`; `settings().feat.on.problems` (and a device's own `feat`) → `challenges`; `tune['problems.cite']` → `challenges.cite`; `settings().ckinds` entries linking to (or saved over) `problem` → `challenge`. It runs with `ensureStandardTemplates` (boot, a changed profile, an import) and, debounced 1.5 s, after `DB.put('blocks', …)` stores a component of kind `problem` — what a device still on V4.14–V4.23 sends. `CHALLENGE.is` reads both ids until then.
+
+### Tests
+| Test | Result |
+|---|---|
+| `cg_t` 1400 px, real mouse events (V4.14's `fa_t2` renamed, plus the migration): two components written as `problem` become Challenges by themselves; the switch, "What counts as its citation" and a kind of your own move to the new names; then every V4.14 check under the new name — the kind and its colour, a double-click offers Challenge, "cite a paper" → the picker → cited, a quote or a wire cites it, Settings narrows it, never a barrier (Portfolio, Today, theme health, Monthly review, Pull in), off and on, the live preview, the Atlas | 28/28 |
+| `cg_t` 400 px | 28/28 |
+| `t_995` (Settings) | 27/27 |
+
 ## [V4.23] — 2026-11-18 — Scientia: a recording on the page of 64 features — each used in a made-up note, step by step
 
 Gabe: "Read the GitHub to understand what each feature does and come back to me with your own proposed workflow. I will give you the numbers and a description of the ones I would like you to change." — then, on the proposal for all 65: "go ahead".
