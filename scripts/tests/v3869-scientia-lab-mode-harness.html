@@ -811,17 +811,18 @@
     check('…and recovering joins them into the recording', !!(await until(function () { return ev("REC.r(M.block('" + rid2 + "')).state") === 'saved' && !!ev("REC.r(M.block('" + rid2 + "')).file"); }, 6000)) && W.__hubCalls.some(function (c) { return c.path === 'api/rec/compose' && new RegExp('rid=' + rid2).test(c.full); }));
     /* 17. V3.889 — Lit reviews: a canvas per topic, linked to any number of projects */
     var tabKs = [].map.call(D.querySelectorAll('#tabs .tab'), function (a) { return a.dataset.k; });
-    check('a Lit reviews tab sits right after Portfolio', tabKs.indexOf('litreviews') === tabKs.indexOf('portfolio') + 1 && /Lit reviews/.test(q('#tabs .tab[data-k="litreviews"]').textContent), JSON.stringify(tabKs));
+    var lrTab = q('#tabs .tab[data-k="litreviews"]');   /* V4.27 (Gabe: "Remove the Lit Reviews tab"): the lab layer still adds it; the app hides it where the row is drawn */
+    check('no Lit reviews tab in the row (V4.27): reviews live in the Portfolio', !lrTab || lrTab.hidden || !lrTab.getClientRects().length, JSON.stringify(tabKs));
     go('#/litreviews');
     var newBtn = await until(function () { var b = [].filter.call(D.querySelectorAll('.lab-lr button'), function (x) { return /New review/.test(x.textContent); })[0]; return b; }, 6000);
-    check('…its page: no reviews yet, and one + New review', !!newBtn && /No literature reviews yet/.test(q('.lab-lr').textContent) && q('#tabs .tab[data-k="litreviews"]').classList.contains('on'));
+    check('…its page still opens from a link: no reviews yet, and one + New review; the Portfolio tab is lit', !!newBtn && /No literature reviews yet/.test(q('.lab-lr').textContent) && q('#tabs .tab[data-k="portfolio"]').classList.contains('on'));
     newBtn.click();
     var rvId = await until(function () { var m = /#\/doc\/(.+)$/.exec(W.location.hash); return m && ev("SIS_LAB.reviews.isReview(M.doc('" + m[1] + "'))") && m[1]; }, 6000);
     var rv = rvId ? JSON.parse(ev("JSON.stringify(M.doc('" + rvId + "'))")) : {};
     check('+ New review opens a blank canvas at once: a literature note outside any project, marked a review', !!rvId && rv.type === 'literature' && !rv.projectId && rv.review && rv.review.topic === '' && rv.review.projectIds.length === 0 && /^Literature review · /.test(rv.title), JSON.stringify(rv.review));
     var rh = await until(function () { return head(rvId) && head(rvId).classList.contains('lab-hrev') && head(rvId); }, 6000);
     check('…its first block holds Title, Topic and Projects (no type or template to pick)', !!rh && !!rh.querySelector('.lab-h-title') && !!rh.querySelector('.lab-h-topic') && !!rh.querySelector('.lab-h-link') && !rh.querySelector('.lab-h-type') && !rh.querySelector('.lab-h-tpl'));
-    check('…and the Lit reviews tab stays lit while it is open', q('#tabs .tab[data-k="litreviews"]').classList.contains('on') && !q('#tabs .tab[data-k="portfolio"]').classList.contains('on'));
+    check('…and the Portfolio tab is lit while it is open (V4.27: no tab of its own)', q('#tabs .tab[data-k="portfolio"]').classList.contains('on'));
     var tp = rh.querySelector('.lab-h-topic'); tp.value = 'Does an ERK pulse set off a mechanical chain reaction?'; tp.dispatchEvent(new W.Event('change', { bubbles: true }));
     check('the topic is kept on the review', !!(await until(function () { return ev("M.doc('" + rvId + "').review.topic") === 'Does an ERK pulse set off a mechanical chain reaction?'; }, 3000)));
     var nOnly3 = W.SIS_LAB.kick.onlys.length;
@@ -836,7 +837,7 @@
       + " mk('c_lrpdf1', { kind: 'pdf', label: 'Hino 2020 · PDF', h: 700 }); mk('c_lrq1', { label: 'Quote · p. 3', quote: { src: 'c_lrpdf1', kind: 'pdf', page: 3, exact: 'ERK waves' } }); DB.put('documents', d); changed(); })()");
     go('#/litreviews');
     var card = await until(function () { return q('.lab-lrcard[data-doc="' + rvId + '"]'); }, 6000);
-    check('the tab lists it: title, topic, papers · quotes · notes, its projects', !!card && /Does an ERK pulse/.test(card.textContent) && /1 paper · 1 quote · 1 note/.test(card.textContent) && card.querySelectorAll('.lab-lr-ps a.pill').length === 2, card ? card.textContent : 'none');
+    check('the page lists it: title, topic, papers · quotes · notes, its projects', !!card && /Does an ERK pulse/.test(card.textContent) && /1 paper · 1 quote · 1 note/.test(card.textContent) && card.querySelectorAll('.lab-lr-ps a.pill').length === 2, card ? card.textContent : 'none');
     var filt = q('.lab-lr-filter'); filt.value = 'rm-p-source-and-sink';
     check('…a project filter offers only projects reviews are linked to', !!filt && !filt.querySelector('option[value="rm-p-source-and-sink"]') && !!filt.querySelector('option[value="pj1"]'));
     filt.value = 'pj1'; filt.dispatchEvent(new W.Event('change', { bubbles: true }));
@@ -849,6 +850,14 @@
     await openRow('pj1');
     var litP = !!(await until(function () { return q('.pf-det .pf-lit .pf-n[data-doc="' + rvId + '"]'); }, 4000));
     check('the Portfolio shows it in every linked project’s Lit reviews and counts it', litG && litP && /1 lit review/.test(litStats), litStats);
+    /* V4.27: + Lit review in a project's Lit reviews: the lab layer's own new review, linked to that project */
+    var lrAdd = q('.pf-det .pf-lit .pf-lit-add');
+    if (lrAdd) lrAdd.click();
+    var rv2 = await until(function () { var m = /#\/doc\/(.+)$/.exec(W.location.hash); return m && m[1] !== rvId && ev("SIS_LAB.reviews.isReview(M.doc('" + m[1] + "'))") && m[1]; }, 6000);
+    var rv2d = rv2 ? JSON.parse(ev("JSON.stringify(M.doc('" + rv2 + "'))")) : {};
+    check('+ Lit review in a project’s Lit reviews (V4.27): a new review, linked to that project, its first block the lab’s', !!lrAdd && !!rv2 && rv2d.review && JSON.stringify(rv2d.review.projectIds) === JSON.stringify(['pj1']) && !!(await until(function () { return head(rv2) && head(rv2).classList.contains('lab-hrev'); }, 6000)), JSON.stringify(rv2d.review || null));
+    if (rv2) { ev("(function () { var d = M.doc('" + rv2 + "'); d.deleted = true; DB.put('documents', d); changed(); })()"); }
+    go('#/portfolio'); await until(function () { return prow('pj1'); }, 6000);
     await openRow('quick');
     check('…and never among the Quick notes', !q('.pf-det .pf-n[data-doc="' + rvId + '"]') && !ev("GENERAL.docs().some(function (d) { return d.id === '" + rvId + "'; })"));
     go('#/project/pj1');

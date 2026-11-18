@@ -4,6 +4,38 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.27] — 2026-11-18 — Scientia: no Lit reviews tab — a project's Lit reviews in the Portfolio, with + Lit review
+
+Gabe (18 Nov 2026): "Remove the Lit Reviews tab."
+
+App, the manual and one lab-tooling file (the v3869 harness). No lab-layer file changes: the lab layer still adds its tab, and the app hides it.
+
+### Removed
+- **The Lit reviews tab, in every build.** `15c-litreviews.js` no longer splices it into `TABS`. `FEAT.tabOn('litreviews')` is false, so `20a`'s `renderTabs` hides the tab the lab layer adds, and `PV.tabs` leaves it out of previews. The litrev feature loses `tab: 'litreviews'`.
+
+### Added
+- **+ Lit review in each project's Lit reviews** (`15-portfolio.js`, `PFLIST.items`): the section is drawn for every project (All with every theme, or the Lit reviews switch), with the button beside its heading and, when empty, "No lit review yet — + Lit review starts one, linked to this project". `LITREV.start(projectIds)` (`15c`) uses the lab layer's `SIS_LAB.reviews.create` where loaded, else `LITREV.create`.
+- **A review linked to no project** is listed with the notes outside any project (`PFLIST.parts`, general row), still not a quick note.
+- **Settings → Lit reviews:** a working switch (off: no + Lit review, no empty sections; the reviews stay listed), a new description, a live preview of the Portfolio's section with + Lit review and a tab row without Lit reviews (`.pv-lrv`, `31-banners.css`).
+
+### Changed
+- **What lights:** a review on screen, or `#/litreviews`, lights the Portfolio tab (`TABOF.doc` / `TABOF.litreviews` → `portfolio` during the draw, inside the lab layer's wrapper). The page still opens from a link or search.
+- **`scientia/MANUAL.md`:** the Portfolio's paragraph (+ Lit review; no tab; unlinked reviews with the notes outside any project).
+- **`demokit/litrev.mjs`:** starts in the Portfolio with + Lit review; recorded again.
+- **`scripts/tests/v3869-scientia-lab-mode-harness.html` §17** (for Alex to review):
+  - "a Lit reviews tab sits right after Portfolio" → "no Lit reviews tab in the row (V4.27)";
+  - the page from a link and the open review light the Portfolio tab;
+  - "the tab lists it" → "the page lists it";
+  - new: + Lit review in a project's Lit reviews makes the lab layer's review, linked to that project (then deleted, so the checks after it are unchanged).
+
+### Tests
+| Test | Result |
+|---|---|
+| `lr_t` lab build, 1400 px, real clicks: no Lit reviews tab (the lab layer's hidden), none in previews; an empty project's section with its box, + Lit review under the pointer and its line; + Lit review → a new review, outside any project, linked to it; its first block (the lab layer's) asks the topic and shows the project; the Portfolio tab lit; listed and counted on return; the Lit reviews switch; another project's empty section; an unlinked review with the notes outside any project, not a quick note; `#/litreviews` still opens, Portfolio lit; Settings off/on and the preview; `FEAT.audit()` | 18/18 |
+| `lr_t` without the lab layer (the app's own head block and page) | 18/18 |
+| `t_995` (Settings) · `sb_t` (V4.26) · `tb_t` (V4.25) · `fb_t416` (V4.16) | 27/27 · 18/18 · 30/30 · 26/26 |
+| v3869 lab-mode harness (§17 as above) · v3880 notes harness | 287/287 (286 before, plus §17’s new check) · 13/13 |
+
 ## [V4.26] — 2026-11-18 — Scientia: the Portfolio's section headers in colour-coded rounded boxes, the same colours in every project
 
 Gabe (18 Nov 2026): "The experiments, syntheses, notes, and lit reviews should all have their section header (meaning symbol and title) be in a rounded rectangle box that is color-coded universally across projects for users to see fast."
