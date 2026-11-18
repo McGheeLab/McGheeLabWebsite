@@ -165,7 +165,7 @@ const PFLIST = {
       add(PFLIST.section(row, c, pick ? h('div.pf-flat', pick.map(e => PFLIST.entry(e, row))) : h('div.pf-groups', PFLIST.group('Experiments', S.exps, row, c), PFLIST.group('Notes', S.notes, row, c))));
     });
     if ((type === 'lit' || (type === 'all' && th === 'all')) && P.lit.length)
-      add(h('div.pf-sec.pf-lit', h('div.pf-sh', h('span.pf-sn', 'Lit reviews'), h('span.pf-c', P.lit.length)), PFKIT.entries(P.lit, order).map(e => PFLIST.note(e.doc || e.docs[0], row))));
+      add(h('div.pf-sec.pf-lit', h('div.pf-sh', h('div.pf-gl', { 'data-g': 'lit' }, h('span', 'Lit reviews'), h('span.pf-c', P.lit.length))), PFKIT.entries(P.lit, order).map(e => PFLIST.note(e.doc || e.docs[0], row))));   // V4.26: its heading is a .pf-gl like the groups', so the four headers share one box
     if (!out.length) add(h('div.pf-none', type === 'lit' ? 'No lit review here yet' : th !== 'all' ? 'Nothing of this kind in this theme yet' : row.general ? 'Notes outside any project come here: meetings, seminars, broad ideas.' : 'No notes yet — + Note'));
     return out;
   },

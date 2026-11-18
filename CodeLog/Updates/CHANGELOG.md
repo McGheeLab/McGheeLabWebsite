@@ -4,6 +4,33 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.26] — 2026-11-18 — Scientia: the Portfolio's section headers in colour-coded rounded boxes, the same colours in every project
+
+Gabe (18 Nov 2026): "The experiments, syntheses, notes, and lit reviews should all have their section header (meaning symbol and title) be in a rounded rectangle box that is color-coded universally across projects for users to see fast."
+
+App only (no lab-layer file changes).
+
+### Added
+- **Section colours** (`31-banners.css`): `--sec-exp` blue (#005A8F / dark #5BB6F0), `--sec-syn` plum (#923670 / #E08FC0), `--sec-notes` ochre (#844B00 / #F0A848), `--sec-lit` green (#006A4A / #3FCB9C), with `--sec-tint` 12% / 15%. They are defined on `:root`, under `prefers-color-scheme: dark` (unless `data-theme="light"`) and under `data-theme="dark"`. Text in each colour on its box is 4.5 : 1 or more in both themes; `forced-colors` uses the system's colours.
+- **`.pf-gl.pf-box[data-sk]`:** each header's symbol, word and count in a rounded box (7 px radius, `max-content` wide) of its kind's tint, with an inset edge and the symbol and words in its colour. `PFICON.boxed()` and `PFICON.dress` (`15f-banners.js`) add it wherever a group is drawn.
+- **The type switch:** the symbol of each button not chosen is in its kind's colour (`.pf-seg button[aria-pressed="false"] > .pf-ico`).
+- **Settings → Section headers** (`pficons`, `20a-features.js`; it was "Section icons"):
+  - "Colour-coded boxes" On (default) / Off — the symbols alone;
+  - the description names the four colours;
+  - the live preview shows the switch and the four boxes, following the switch and the setting.
+
+  `FEAT.audit()` is empty.
+
+### Changed
+- **The Lit reviews heading in the Portfolio** (`15-portfolio.js`) is a `.pf-gl` keyed `lit`, like the groups' headers, instead of a `.pf-sn` title. `PFICON.dress` finds it there.
+
+### Tests
+| Test | Result |
+|---|---|
+| `sb_t` 1400 px, real clicks: the four boxes (symbol, word, count, rounded, as wide as their words, an edge); four colours; the symbol in the box's colour; 4.5 : 1 or more in light; the switch's symbols in the same colours; another project — the same colours; the chosen kind's symbol on the dark pill; dark — four lighter colours, 4.5 : 1 or more; light chosen by hand; boxes off (symbols stay), the feature off (words alone), on again; the preview follows both; `FEAT.audit()` | 18/18 |
+| `sb_t` 400 px | 18/18 |
+| `tb_t` (V4.25; its icon check finds the Lit reviews symbol in its heading) · `fb_t416` (V4.16) · `fd_t` (V4.19) | 30/30 · 26/26 · 27/27 |
+
 ## [V4.25] — 2026-11-18 — Scientia: thinner theme banners, with the theme's name inside at the left
 
 Gabe (18 Nov 2026): "Banners should be thinner and have the title within it (specifically to the left horizontally, and the middle vertically)."

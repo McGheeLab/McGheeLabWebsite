@@ -3,6 +3,22 @@
 .pf-ico svg{display:block}
 .pf-gl > .pf-ico{align-self:center;margin-right:-2px}
 .pf-lit > .pf-sh > .pf-ico{color:var(--ink-2)}
+/* V4.26: each kind of section's header — symbol, word, count — in a rounded box of its own colour, the same in every project.
+   Text in each colour passes 4.5 : 1 on its box (light: on --surface with a 12% tint; dark: 15%). The word and the symbol carry the kind too, never the colour alone. */
+:root{--sec-exp:#005A8F;--sec-syn:#923670;--sec-notes:#844B00;--sec-lit:#006A4A;--sec-tint:12%}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){--sec-exp:#5BB6F0;--sec-syn:#E08FC0;--sec-notes:#F0A848;--sec-lit:#3FCB9C;--sec-tint:15%} }
+:root[data-theme="dark"]{--sec-exp:#5BB6F0;--sec-syn:#E08FC0;--sec-notes:#F0A848;--sec-lit:#3FCB9C;--sec-tint:15%}
+[data-sk="exp"],.pf-seg button[data-k="exp"]{--sec:var(--sec-exp)} [data-sk="syn"],.pf-seg button[data-k="syn"]{--sec:var(--sec-syn)}
+[data-sk="notes"],.pf-seg button[data-k="notes"]{--sec:var(--sec-notes)} [data-sk="lit"],.pf-seg button[data-k="lit"]{--sec:var(--sec-lit)}
+.pf-gl.pf-box{display:inline-flex;align-items:center;gap:6px;width:max-content;max-width:calc(100% - 20px);box-sizing:border-box;margin:8px 0 4px 10px;padding:4px 9px 4px 7px;border-radius:7px;
+  background:color-mix(in srgb,var(--sec) var(--sec-tint),var(--surface));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--sec) 32%,transparent);color:var(--sec);font-weight:600;letter-spacing:.12em}
+.pf-gl.pf-box > .pf-ico{color:var(--sec);margin-right:0}
+.pf-gl.pf-box > .pf-c{color:inherit;opacity:.72;font-weight:500}
+.pf-lit > .pf-sh{padding:0}
+.pf-lit > .pf-sh > .pf-gl{margin-top:2px}
+.pf-lit > .pf-sh > .pf-gl:not(.pf-box){margin-left:10px}
+.pf-seg button[aria-pressed="false"] > .pf-ico{color:var(--sec,inherit)}
+@media (forced-colors:active){ .pf-gl.pf-box{border:1px solid CanvasText;background:Canvas;color:CanvasText} }
 .pf-seg button > .pf-ico{display:inline-flex;vertical-align:-2px;margin-right:5px;color:inherit}
 body.f-off-pficons .pf-ico{display:none}
 
@@ -34,6 +50,8 @@ body.f-off-tbanner .tb-ban{display:none}
 .pv-pfi-seg i{font:400 10px/1 var(--f-m);font-style:normal;opacity:.75}
 .pv-pfi-g{display:flex;gap:14px;flex-wrap:wrap}
 .pv-pfi-g div{display:flex;align-items:center;gap:6px;font:500 9.5px/1 var(--f-m);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
+.pv-pfi-g div.pf-box{padding:4px 9px 4px 7px;border-radius:7px;background:color-mix(in srgb,var(--sec) var(--sec-tint),var(--surface));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--sec) 32%,transparent);color:var(--sec);font-weight:600} .pv-pfi-g div.pf-box .pf-ico{color:var(--sec)}
+.pv-pfi-seg span:not(.on) > .pf-ico{color:var(--sec,inherit)}
 .pv-tb2{display:grid;grid-template-columns:1.4fr 1fr;gap:12px}
 .pv-tb{display:grid;gap:6px;min-width:0;background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:8px}
 .pv-tb-k{font:500 9px/1 var(--f-m);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-4)}

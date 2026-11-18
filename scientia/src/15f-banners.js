@@ -24,23 +24,35 @@
      Portfolio the name is the link to the theme (the header row under the
      banner keeps its pill, score, barriers and weeks, without the name); on
      the theme's page the name in the banner is the page's title.
-   Settings: Section icons (pficons) and Theme banners (tbanner), 20a.
+   - V4.26 (Gabe: "The experiments, syntheses, notes, and lit reviews should
+     all have their section header (meaning symbol and title) be in a rounded
+     rectangle box that is color-coded universally across projects for users
+     to see fast"): each header — its symbol, its word and its count — is a
+     rounded box in its kind's colour (.pf-box; --sec-exp blue, --sec-syn
+     plum, --sec-notes ochre, --sec-lit green, light and dark in
+     31-banners.css), the same in every project; the symbols on the type
+     switch take the same colours. Settings → Section headers → "Colour-coded
+     boxes" turns the boxes off (the symbols stay).
+   Settings: Section headers (pficons) and Theme banners (tbanner), 20a.
    ========================================================================== */
 const PFICON = {
   PATHS: {"flask-conical": "<path d=\"M14 2v6a2 2 0 0 0 .245.96l5.51 10.08A2 2 0 0 1 18 22H6a2 2 0 0 1-1.755-2.96l5.51-10.08A2 2 0 0 0 10 8V2\" /><path d=\"M6.453 15h11.094\" /><path d=\"M8.5 2h7\" />", "document-text": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z\"/>", "book-open": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25\"/>", "rectangle-stack": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M6 6.878V6a2.25 2.25 0 0 1 2.25-2.25h7.5A2.25 2.25 0 0 1 18 6v.878m-12 0c.235-.083.487-.128.75-.128h10.5c.263 0 .515.045.75.128m-12 0A2.25 2.25 0 0 0 4.5 9v.878m13.5-3A2.25 2.25 0 0 1 19.5 9v.878m0 0a2.246 2.246 0 0 0-.75-.128H5.25c-.263 0-.515.045-.75.128m15 0A2.25 2.25 0 0 1 21 12v6a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 18v-6c0-.98.626-1.813 1.5-2.122\"/>"},
   BY: { exp: 'flask-conical', notes: 'document-text', lit: 'book-open', syn: 'rectangle-stack' },
   on: () => typeof FEAT === 'undefined' || FEAT.on('pficons'),
+  /** V4.26: the headers in colour-coded boxes (Settings → Section headers → Colour-coded boxes). */
+  boxed: () => { try { return PFICON.on() && FEAT.tune('pficons', 'box') !== 'off'; } catch (e) { return true; } },
   svg(key, size = 14) { const p = PFICON.PATHS[PFICON.BY[key] || key]; return p ? '<svg viewBox="0 0 24 24" width="' + size + '" height="' + size + '" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' + p + '</svg>' : ''; },
   el(key, size) { const s = h('span.pf-ico', { 'data-ico': key }); s.innerHTML = PFICON.svg(key, size); return s; },
-  /** Put the icons into what PFLIST drew (groups, the Lit reviews heading); idempotent. */
+  /** Put the icons into what PFLIST drew (groups, the Lit reviews heading), each header in its box (V4.26); idempotent. */
   dress(root) {
     if (!root || !root.querySelectorAll) return root;
-    const one = (host, key) => { if (!host || !PFICON.PATHS[PFICON.BY[key] || ''] || host.querySelector(':scope > .pf-ico')) return; host.prepend(PFICON.el(key)); };
+    const box = PFICON.boxed();
+    const one = (host, key) => { if (!host || !PFICON.PATHS[PFICON.BY[key] || '']) return; if (box) { host.classList.add('pf-box'); host.dataset.sk = key; } if (!host.querySelector(':scope > .pf-ico')) host.prepend(PFICON.el(key)); };
     const scan = el => {
       if (el.matches && el.matches('.pf-g[data-g]')) one(el.querySelector(':scope > .pf-gl'), el.dataset.g);
       el.querySelectorAll('.pf-g[data-g]').forEach(g => one(g.querySelector(':scope > .pf-gl'), g.dataset.g));
       const lits = el.matches && el.matches('.pf-lit') ? [el] : [...el.querySelectorAll('.pf-lit')];
-      lits.forEach(l => one(l.querySelector(':scope > .pf-sh'), 'lit'));
+      lits.forEach(l => one(l.querySelector(':scope > .pf-sh > .pf-gl') || l.querySelector(':scope > .pf-sh'), 'lit'));
     };
     scan(root); return root;
   },
