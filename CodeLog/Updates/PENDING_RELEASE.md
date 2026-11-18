@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (127 changes — ready to push)
+## Pending (128 changes — ready to push)
+
+- **The Reader button and reading sets (V4.29):** a book at the top right of every page opens the Reader — in a note, the papers of its project; anywhere else, the last thing you read. Your reading tabs are now kept by project: the project you are in shows its tabs, the other projects fold into chips (click one to open it), and only × on a tab closes it.
 
 - **The data tree (V4.28):** the Data tab is gone. Log the data an experiment used right in its component: ⋯ → Log data… (a folder or files), type /data, or drop the folder on it. It shows as a tree of folders and files with their sizes and dates, and nothing is copied. On a computer it can check the folder again and mark what is new, changed or missing.
 

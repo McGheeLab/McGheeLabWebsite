@@ -1086,8 +1086,10 @@
     go('#/doc/' + cn); var back = await until(function () { return q('.embed-max.rd-docked'); }, 8000);
     check('…coming back, it is beside the note again, on the side you chose', !!back && D.body.classList.contains('rd-right'));
     if (q('.rd-x')) q('.rd-x').click();
-    var closed = await until(function () { return !q('.rd-dock') && q('.box[data-id="c_fig"] .pdf-stage'); }, 6000);
-    check('Close: the paper goes back into its card, and the note forgets it', !!closed && W.localStorage.getItem('sis:rdock:' + cn) === 'null' && !D.body.classList.contains('rd-on'));
+    /* V4.29 (Gabe: "Clicking close on the tab is the only way to close the PDF, HTML, etc… from that reading set"): the reader's own ✕ keeps
+       every tab now, so another tab of this note's set (one an earlier section left open) may stay beside; the closed paper leaves */
+    var closed = await until(function () { return q('.box[data-id="c_fig"] .pdf-stage') && ev("RDOCK.S_.tabs.indexOf('c_fig')") < 0; }, 6000);
+    check('Close: the paper goes back into its card and leaves its reading set, and the note forgets it', !!closed && W.localStorage.getItem('sis:rdock:' + cn) === 'null' && !q('.rd-dock .rd-tab[data-id="c_fig"]'), ev('JSON.stringify(RDOCK.S_.tabs)'));
     var fb2 = F2 && await until(function () { return q('.box[data-id="' + F2.id + '"] .clip-from'); }, 4000); if (fb2) fb2.click();
     var sc20 = await until(function () { var st = q('.box[data-id="c_fig"] .pdf-stage'), sl = cardSlot(2); return st && sl && q('.box[data-id="c_fig"] .clip-flash') && Math.abs(sl.getBoundingClientRect().top - st.getBoundingClientRect().top) < st.clientHeight; }, 6000);
     check('“from …, p. 2” on a clip scrolls the card to page 2 and outlines where it came from', !!sc20);
