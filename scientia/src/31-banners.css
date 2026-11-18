@@ -1,4 +1,4 @@
-/* 31 · V4.17 (15f): the Portfolio's section icons, and every theme's banner (1600 × 320 px, 5 : 1) */
+/* 31 · V4.17 (15f): the Portfolio's section icons, and every theme's banner (V4.25: 1600 × 200 px, 8 : 1, with the theme's name inside) */
 .pf-ico{display:inline-flex;align-items:center;justify-content:center;flex:none;color:var(--ink-3)}
 .pf-ico svg{display:block}
 .pf-gl > .pf-ico{align-self:center;margin-right:-2px}
@@ -6,17 +6,24 @@
 .pf-seg button > .pf-ico{display:inline-flex;vertical-align:-2px;margin-right:5px;color:inherit}
 body.f-off-pficons .pf-ico{display:none}
 
-.tb-ban{position:relative;display:block;aspect-ratio:5 / 1;margin:0 10px 9px;border-radius:10px;overflow:hidden;background:var(--surface-2);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 7%,transparent)}
+.tb-ban{position:relative;display:block;aspect-ratio:8 / 1;min-height:52px;margin:0 10px 9px;border-radius:10px;overflow:hidden;background:var(--surface-2);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 7%,transparent)}
 .tb-ban > svg{display:block;width:100%;height:100%}
 .tb-ban > .tb-im{display:block;width:100%;height:100%;object-fit:cover}
 .tb-ban[role="button"]{cursor:pointer}
 .tb-ban[role="button"]:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
-.tb-ban[data-place="page"]{margin:0 0 16px;border-radius:12px}
+.tb-ban[data-place="page"]{margin:2px 0 14px;border-radius:12px}
+/* V4.25: the theme's name inside, at the left and halfway down, over a wash of the page's colour (it reads on any image, light or dark) */
+.tb-ban::before{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,color-mix(in srgb,var(--surface) 84%,transparent) 0,color-mix(in srgb,var(--surface) 62%,transparent) 30%,transparent 62%)}
+.tb-ban > .tb-name{position:absolute;left:clamp(12px,2.2%,24px);top:50%;transform:translateY(-50%);max-width:min(64%,calc(100% - 140px));margin:0;padding:0;font:650 clamp(15px,1.7vw,21px)/1.15 var(--f-d);letter-spacing:-.005em;color:var(--ink);text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 0 color-mix(in srgb,var(--surface) 70%,transparent)}
+.tb-ban[data-place="page"] > .tb-name{font-size:clamp(19px,2.4vw,28px)}
+a.tb-name:hover,a.tb-name:focus-visible{text-decoration:underline;text-underline-offset:3px;outline:0}
+.pf-sec.tb-has > .pf-sh > .pf-sn{display:none}
+.pf-sec.tb-has > .tb-ban{margin-bottom:6px}
 /* the size, after a second's rest on it (nothing shows by itself) */
-.tb-ban[role="button"]::after{content:"1600 × 320 px · click to change";position:absolute;right:8px;bottom:7px;font:500 10px/1 var(--f-m);letter-spacing:.04em;color:var(--ink-2);background:color-mix(in srgb,var(--surface) 86%,transparent);border-radius:999px;padding:4px 8px;opacity:0;transition:opacity .18s;pointer-events:none}
+.tb-ban[role="button"]::after{content:"1600 × 200 px · click to change";position:absolute;right:8px;bottom:7px;font:500 10px/1 var(--f-m);letter-spacing:.04em;color:var(--ink-2);background:color-mix(in srgb,var(--surface) 86%,transparent);border-radius:999px;padding:4px 8px;opacity:0;transition:opacity .18s;pointer-events:none}
 .tb-ban[role="button"]:hover::after{opacity:1;transition-delay:1s}
 body.f-off-tbanner .tb-ban{display:none}
-@media (max-width:760px){ .tb-ban{margin:0 8px 8px;border-radius:8px} }
+@media (max-width:760px){ .tb-ban{margin:0 8px 8px;border-radius:8px;aspect-ratio:6 / 1} .tb-ban[role="button"]::after{display:none} }
 @media (prefers-reduced-motion:reduce){ .tb-ban::after{transition:none} }
 
 /* Settings previews */
@@ -30,7 +37,7 @@ body.f-off-tbanner .tb-ban{display:none}
 .pv-tb2{display:grid;grid-template-columns:1.4fr 1fr;gap:12px}
 .pv-tb{display:grid;gap:6px;min-width:0;background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:8px}
 .pv-tb-k{font:500 9px/1 var(--f-m);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-4)}
-.pv-tb .tb-ban.pv-tb-ban{margin:0;border-radius:7px}
+.pv-tb .tb-ban.pv-tb-ban{margin:0;border-radius:7px;min-height:30px} .pv-tb .tb-ban > .tb-name{font-size:12.5px;left:9px}
 .pv-tb-sh{display:flex;align-items:center;gap:8px;font-size:12px}
 .pv-tb-t{font-size:15px}
 @media (max-width:760px){ .pv-tb2{grid-template-columns:1fr} }

@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.25] — 2026-11-18 — Scientia: thinner theme banners, with the theme's name inside at the left
+
+Gabe (18 Nov 2026): "Banners should be thinner and have the title within it (specifically to the left horizontally, and the middle vertically)."
+
+App only (no lab-layer file changes).
+
+### Changed
+- **`BANNER` (`scientia/src/15f-banners.js`):** 1600 × 200 px (8 : 1; V4.17: 1600 × 320). The menu ("Choose an image… 1600 × 200 px (8 : 1)… The theme's name is written over its left side"), the toast for another size ("shown cropped to 8 : 1") and the aria label read `BANNER.W/H`.
+- **`31-banners.css`:** `aspect-ratio: 8 / 1` (min 52 px); 6 : 1 and no size hint on a phone; the hint says 1600 × 200.
+- **Settings → Theme banners** (`20a-features.js`): the description and the preview — the name inside each mock banner, the page's mock under its eyebrow, "1600 × 200 px, the theme's name inside at the left".
+
+### Added
+- **`BANNER.name(t, place)`:** the theme's name inside its banner, at the left and halfway down, one line with an ellipsis, over a wash of `--surface` from the left (`.tb-ban::before`). In the Portfolio `a.tb-name` (the link to the theme; its click stops before the banner's menu) and the section's `.tb-has` hides `.pf-sn` in the row under it; on the theme page `h1.tb-name` replaces the page's `h1.title`, under the eyebrow (one title; `.page.tb-has`).
+
+### Tests
+| Test | Result |
+|---|---|
+| `tb_t` 1400 px, real mouse events (V4.17's `fc_t17` for 1600 × 200, plus V4.25): banners at 8 : 1; the name inside at the left (10–30 px) and halfway down (±2 px); the row under it keeps pill, score and weeks without the name; a click on the name opens the theme, not the menu; images at 1600 × 200 and another size; Remove; Enter; dark (the drawn colours, light ink); the theme page — the banner under the eyebrow, its `h1` the only title, the name larger; "Show the banner"; off and on; icons; previews; `FEAT.audit()` | 30/30 |
+| `tb_t` 400 px (6 : 1, no hover hint) | 30/30 |
+| `fd_t` (V4.19 activity) · `fc_t18` (V4.18 milestones) · `fb_t416` (V4.16 synthesis) | 27/27 · 23/23 · 26/26 |
+
 ## [V4.24] — 2026-11-18 — Scientia: Problem is now Challenge
 
 Gabe (18 Nov 2026): "Instead of Problem, name it Challenge."
