@@ -1403,6 +1403,9 @@
           items.push({ icon: k.icon, label: k.name + ' — the cursor becomes the ' + (k.id === 'float' ? 'cloud' : 'golden tag') + '; click a component to make it ' + (k.id === 'float' ? 'a float' : 'a reference') + (LABELS.opt('keep', true) !== false ? ' (hold Ctrl to label several)' : ''),
             sub: true, subIdx: j, subN: LK.length, cls: 'lab-lbl-' + k.id, sel: LABELS.armed === k.id, run: function () { LP.lbl = false; LABELS.arm(k.id); } }); });
       }
+      /* V4.33 (Gabe) — Freewrite, after Label: a blank page over the whole app for typing and the voice, turned into
+         components (the app's FREEW, 14j-freewrite.js; its icon is the app's) */
+      if (typeof FREEW !== 'undefined' && FREEW.on()) items.push({ icon: FREEW.ICON, label: 'Freewrite — a blank page for typing and your voice; it becomes components', cls: 'lab-fw', run: function () { FREEW.open(d, { pane: pane }); } });
       qcRows(d).forEach(function (x) { var lab = typeof x.label === 'function' ? x.label(d) : x.label;
         items.push({ icon: INS_PICS[x.id] && PILL_ICONS[INS_PICS[x.id]] ? pic(INS_PICS[x.id]) : '<span class="lab-insic">' + esc(x.icon || '•') + '</span>', label: lab + (x.sub ? ' — ' + x.sub : ''), run: function () { x.run(d, centerAt(pane), pane); } }); });
       items.push({ icon: pic('ellipsis-horizontal'), label: 'Everything that can go in this note — the bolt on a row puts it in your Quick cast', run: function (el) { INSERT.menu(pane, el); } });
