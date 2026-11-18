@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (120 changes — ready to push)
+## Pending (121 changes — ready to push)
+
+- **The References Map (V4.22):** in a PDF you read, rest the pointer on a citation to see the paper it points to, and click it to jump to that reference at the end of the paper (‹ Back returns you). The Highlights panel lists every reference with how often it is cited. It works from the PDF's own links, and finds superscript or bracketed citations in older papers without them.
 
 - **Rotate (V4.21):** the ⊕ zoom pill has a Rotate button that turns the whole notebook 90° clockwise each tap (for a tablet or screen held the other way); press Esc three times to put it upright again.
 

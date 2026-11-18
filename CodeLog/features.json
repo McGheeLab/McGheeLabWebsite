@@ -1881,18 +1881,21 @@
     "scientia/src/13zzb-reader.js",
     "scientia/src/17e-readtabs.js",
     "scientia/src/17g-sidefold.js",
+    "scientia/src/17h-refmap.js",
     "scientia/vendor/page-layout.js",
-    "scientia/vendor/page-regions.js"
+    "scientia/vendor/page-regions.js",
+    "scientia/vendor/paper-cite.js"
    ],
    "related": [
     "scientia.core",
     "rm.paper-reader",
     "scientia.media",
     "scientia.library",
-    "scientia.calc"
+    "scientia.calc",
+    "rm.paper-builder"
    ],
    "distinct_from": {
-    "rm.paper-reader": "A PDF that lives on a Scientia note: its highlights are that note's quote components and its clips land on that note's canvas. It reuses the reader's detectors (page-layout.js / page-regions.js, copied by the build, never forked) and its equation process (equationOcr, through lab-mode §16).",
+    "rm.paper-reader": "A PDF that lives on a Scientia note: its highlights are that note's quote components and its clips land on that note's canvas. It reuses the reader's detectors (page-layout.js / page-regions.js, copied by the build, never forked), its citation finder for the References Map (V4.22: rm/js/paper-citations.js and pdf-viewer.js's headless reading, cut unchanged into vendor/paper-cite.js) and its equation process (equationOcr, through lab-mode §16).",
     "rm.figure-board": "Clips go onto a Scientia note as Gabe's image panels / equation components, not onto a paper's figure board.",
     "scientia.reader": "That is the library's paper reader (retiring into RM's); this reads a PDF component on a note, beside the note."
    },

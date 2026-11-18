@@ -492,6 +492,25 @@ const PV = {
           PV.cap((f ? 'Folded: the page has the room; click the strip to open the panel. ' : 'Open: › folds the panel to a strip at the side. ') + (start === 'open' ? 'A file you open starts with it open.' : start === 'folded' ? 'A file you open starts with it folded.' : 'A file you open finds it as you left it.') + ' Try it here.')); };
       draw(); return [wrap];
     } });
+  // V4.22 (17h): the References Map — a PDF's citations, hovered, show their paper; clicked, go to it; listed in the Highlights panel
+  const rfmRefresh = () => { try { REFMAP.refresh(); } catch (e) { } };
+  D({ id: 'refmap', group: 'reading', label: 'References Map', isNew: true, presets: { simple: true }, changed: rfmRefresh,
+    desc: 'In a PDF you read — maximised, beside a note, or in the Library’s reader — a citation in the text shows its paper when you rest the pointer on it, and a click takes you to that reference at the end of the paper (‹ Back returns you). The Highlights panel gains the References Map: every reference, numbered as in the paper, with how often it is cited. It uses the PDF’s own links when it has them; without links (older papers) it finds the citations in the text — numbered superscripts, [12], (12), Smith et al. 2014 — the journal saying which style to expect. Off: no map, no card, a click on a citation does nothing.',
+    tune: [T('delay', 'The card shows after resting on a citation for', 'seg', { isNew: true, def: '1000', opts: [['600', '0.6 s'], ['1000', '1 s'], ['1500', '1.5 s']], d: 'Moving away before then shows nothing', changed: rfmRefresh }),
+      T('find', 'Citations come from', 'seg', { isNew: true, def: 'both', opts: [['both', 'Its links, then the text'], ['links', 'The PDF’s links only']], d: 'The text: numbered superscripts, [12], (12), author and year — for papers without links', changed: rfmRefresh })],
+    preview: () => {
+      const wrap = h('div'), on = FEAT.on('refmap'), links = tune('refmap', 'find') === 'links', d = (+tune('refmap', 'delay') || 1000) / 1000;
+      let shown = false;
+      const draw = () => {
+        const cite = (t, sup) => h(sup ? 'sup.cite' : 'span.cite', { class: shown && on ? 'on' : '', on: { click: e => { e.stopPropagation(); if (!on) return; shown = !shown; draw(); } } }, t);
+        const pg = h('div.pv-rfm-pg', 'Cells pull hardest at the leading edge', cite('1,2', true), ' and relax behind it, as traction maps show', cite('3', true), '.',
+          shown && on ? h('div.pv-rfm-card', h('span.mono.tiny.muted', '1 · Style et al. · 2014'), h('b', 'Traction force microscopy in physics and biology'), h('span.tiny', h('i', 'Soft Matter'), ' · In your Library')) : null);
+        const side = h('div.pv-rfm-side', h('h6', 'References Map'), h('div', h('i', '1'), 'Style 2014', h('span', '×2')), h('div', h('i', '2'), 'Plotnikov 2012', h('span', '×1')), h('div', h('i', '3'), 'Legant 2010', h('span', '×1')));
+        wrap.replaceChildren(h('div.pv-rfm' + (on ? '' : '.off'), pg, on ? side : null),
+          PV.cap(!on ? 'Off: no map, no card; a click on a citation does nothing.' : (shown ? 'The card of reference 1 — it shows after resting ' + d + ' s on a citation; a click in the paper goes to the reference. ' : 'Click a citation here to see its card (in a paper, rest the pointer ' + d + ' s). ') + (links ? 'Citations come from the PDF’s links only.' : 'From the PDF’s links, or found in the text for older papers.')));
+      };
+      draw(); return [wrap];
+    } });
   /* =============================== Widgets =============================== */
   const W = (id, label, desc, rows, pv, o = {}) => D(Object.assign({ id, group: 'widgets', label, desc: desc + ' Off: it leaves + Insert and the / commands; those already in your notes stay.', inserts: rows, preview: pv }, o));
   W('equations', 'Equations', '∑ Equation in a note, or in the text, and the registered equations shared by every note.', ['equation', 'equation-reg'],
