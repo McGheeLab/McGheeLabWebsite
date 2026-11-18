@@ -4,6 +4,60 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.28] — 2026-11-18 — Scientia: the Data tab leaves; the data an experiment used is logged in its component, as a tree of folders and files
+
+Gabe: "Remove the data tab. Instead, data used in the experiment gets logged in the note component as a list of folders or files as a directory, appearing as a data tree."
+
+App only (no lab-layer file changes).
+
+### Added
+- **`DTREE` (`scientia/src/13zzyc-datatree.js`, new; `CodeLog/features.json` under `scientia.data`).**
+  - **The record:** `b.dtree = { items, mig }` on the component itself, so it syncs with the note. A folder entry has `dir`, `k` and `more`; a file has `s` and `m`. Top-level entries also carry `id`, `at`, `via` and `h`. A rescan adds `st` and `was`.
+  - **Listings:**
+    - `fromDir` (FileSystemDirectoryHandle), `fromEntry` (`webkitGetAsEntry`), `fromFiles` (`<input>` with `webkitRelativePath`): six folders deep, `MAX` 1500 entries, hidden files left out, folders first;
+    - `count` / `say`: "2 folders · 41 files · 3.4 GB"; a folder holding only folders says "5 folders".
+  - **Writing:**
+    - `log(b, entries, via, handles)`: an entry of the same name is logged again;
+    - `remove(b, path, topId)`, `drop(b)` (an empty tree), `makeAt(d, p)` (a component labelled "Data");
+    - `save(cur)` + `oneStep(at, bid)`: a change and the moves the note's settle then makes (later undo groups of their own) become one undo step, merged as `13zz4` does.
+  - **Rescan:**
+    - `keep` / `handle`: this device's handles, in `blobs` `dth:<id>`;
+    - `rescan(b)`: asks for read access when needed; `diff(old, fresh)` marks new, changed (with `was`) and gone;
+    - `accept(b)`; `pending(list)`.
+  - **Drawing:**
+    - `el(b, { ro, pv })`: the header (summary, "as logged <day>", N changes + Accept, ⟳, +, × for an empty tree) and the rows (`row`: chevron, folder or file icon, name, mark, count or size, date, × on hover, the full path in the tooltip; folders are `treeitem`s with `aria-expanded`, Enter / → / ←);
+    - `toggle` / `redraw`: in place, kept per device (`_ls dtOpen`). The first level is open (Settings: or not); deeper folders start folded; 12 entries, then "+ n more".
+  - **Ways in:**
+    - ⋯ → **Log data…** (`DocView.boxMenu`, before "Data, materials & code…" / "Materials & data of this run…") → `ask(b, x, y)`: Add a folder… (`pickFolder`) / Add files… (`pickFiles`), with an `<input>` fallback (`input`);
+    - **`/data`** (aliases `datatree`, `log-data`): in a component, its tree; without one, a new "Data" component (`askSoon`);
+    - **`/datasets`**: the old page;
+    - **drops** (capture listeners on `document`, ahead of 13zzs's): on a tree, Alt on a component, or a drop holding a folder (anywhere on a component; on the paper, a new "Data" component). Everything is read during the event (`getAsFileSystemHandle`, `webkitGetAsEntry`, `getAsFile`); files alone pass through. The tree, or the box, lights while dragging.
+  - **`migrate()`** (wrapped round `ensureStandardTemplates`): `binds.datasets` and a dataset's `producedBy` come into that component's tree, by folder (`root` and path segments, `ds` on each file), once (`dtree.mig`).
+  - **Wrapped:** `DocView.box` (the tree before `.chips`, `.has-dt`), `M.removeEmptyBlock` (a component with a tree is kept), `VAULT.component` (`md(b)`: the tree as a list in the folder's Markdown).
+- **`scientia/src/33-datatree.css` (new):** `.dt`, `.dt-h`, `.dt-r` (indented by `--d`), marks (`.st-new` / `.st-changed` / `.st-gone`), `.dt-x` on hover, `.dt-more`, `.dt-empty`, `body.f-off-datatree`, the old page's `.dt-gone`.
+- **Settings → Widgets → Data tree** (`datatree`, `presets: { simple: true }`): its description, "A folder you log shows" (`open`: top / none), and a live preview (a component whose tree folds).
+
+### Changed
+- **`scientia/src/11-shell.js`:** no `data` in `TABS`.
+- **`scientia/src/23d-desktoplab.js`:** `DESKLAB.KEEP_TABS = []`. The desktop lab build still restores the app's own Activity and Data pages after the lab layer, but re-adds no tab.
+- **`scientia/src/13i-data.js`:**
+  - the binding dialog's empty texts point to ⋯ → Log data… and /data;
+  - the old Data page opens with a notice (`.dt-gone`): the tab is gone, data goes in a component's tree, and the bound datasets came into those trees.
+- **`scientia/src/20a-features.js`:** "Data & plots" drops `tab: 'data'` and its "the Data tab".
+- **`scientia/MANUAL.md`:** no Data row in the tabs table. §15 "Data: a tree in the component that used it" replaces "Data (raw data by reference)".
+
+### Tests
+
+| Suite | Result |
+|---|---|
+| `dt_t` (V4.28), lab desktop build, 1400 px, real pointer events | 46/46 |
+| `dt_t`, the build without the lab layer | 46/46 |
+| `t_995` (Settings) | 27/27 |
+| On the whole stack (V4.24–V4.28), lab desktop build: `dt_t` · `cg_t` (V4.24) · `tb_t` (V4.25) · `sb_t` (V4.26) · `lr_t` (V4.27) · `t_995` | 46/46 · 28/28 · 30/30 · 18/18 · 18/18 · 27/27 |
+| …the build without the lab layer: `dt_t` · `lr_t` · `fe_t1` (pills) | 46/46 · 18/18 · 25/25 |
+| Earlier suites on the stack: `fa_t1` (⋯ and the editing bar) · `rep_t` (Report tag) · `lbl_t` (Label) · `fe_t1` (pills, lab) · `fe_t2` (Rotate) · `ff_t` (References Map) · `fb_t415` (experiments) · `fd_t` (activity) · `fc_t18` (milestones) | 11/11 · 19/19 · 37/37 · 25/25 · 24/24 · 33/33 · 23/23 · 27/27 · 23/23 |
+| v3869 lab-mode harness · v3880 notes harness, the whole stack | 287/287 · 13/13 |
+
 ## [V4.27] — 2026-11-18 — Scientia: no Lit reviews tab — a project's Lit reviews in the Portfolio, with + Lit review
 
 Gabe (18 Nov 2026): "Remove the Lit Reviews tab."

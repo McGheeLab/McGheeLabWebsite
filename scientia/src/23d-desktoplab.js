@@ -8,13 +8,16 @@
    a lab paper's Read, which opens in this app's reader beside the note
    (RMREAD, below).
    What the lab layer takes away because the website cannot have it, the
-   computer keeps: the Activity and Data tabs (folder handles need the
-   computer). The ✓ stays this app's own (23b), which works offline — the
+   computer keeps: the app's own Activity and Data pages (folder handles
+   need the computer) — as pages, not tabs: V4.19 took the Activity tab
+   away and V4.28 the Data tab (data is logged in a component's data tree,
+   13zzyc), so #/activity and #/data open them from links and search. The ✓ stays this app's own (23b), which works offline — the
    lab's asks the Lab Notebook around it, and there is none here.
    ========================================================================== */
 const DESKLAB = {
   on: () => !!window.SIS_DESKTOP,
   KEEP: ['activity', 'data'],
+  KEEP_TABS: [],   // V4.28: the pages are kept, no tab comes back
   keep: null
 };
 if (DESKLAB.on()) {
@@ -25,7 +28,7 @@ if (DESKLAB.on()) {
     try {
       for (const id of DESKLAB.KEEP) {
         if (DESKLAB.keep.views[id]) VIEWS[id] = DESKLAB.keep.views[id];
-        if (TABS.some(t => t[0] === id)) continue;
+        if (!DESKLAB.KEEP_TABS.includes(id) || TABS.some(t => t[0] === id)) continue;
         const orig = DESKLAB.keep.tabs, i = orig.findIndex(t => t[0] === id); if (i < 0) continue;
         let at = TABS.length;                                   // after the nearest tab that came before it
         for (let j = i - 1; j >= 0; j--) { const k = TABS.findIndex(t => t[0] === orig[j][0]); if (k >= 0) { at = k + 1; break; } }

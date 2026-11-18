@@ -85,7 +85,6 @@ This manual covers everything the notebook can do, from first launch to the pen 
 | **Terms** | Every term, with its forms and lens. |
 | **Atlas** | The notebook as one map: notes, components, structures, terms, people and papers, and how they link. Search lives here. |
 | **Library** | Papers and links. Open a paper's PDF in the reader. |
-| **Data** | Raw-data folders and datasets. |
 | **Materials** | Cell lines, antibodies, gels, reagents… |
 | **Canvas** | Only shown when the spatial-canvas lab is on. |
 | **Settings** | All settings (§23). |
@@ -715,18 +714,21 @@ Open it with the ＋ **Quick cast** → **⋯** (everything that can go in this 
 
 ## 15. Data, materials and provenance
 
-### Data (raw data by reference)
-Your raw files stay where they are.
-- **Add a folder:** **+ Add a data folder** points the app at a folder, such as the microscope's export folder. **Register files…** lists what's inside; tick what you want.
-- **What each dataset records:**
-  - its path, size and date;
-  - its instrument, guessed from the extension (ND2, CZI, LIF…);
-  - a fingerprint of its first and last 4 MB.
-- **Checking files:**
-  - **Rescan** checks for changes.
-  - **Verify fingerprints** re-reads every file's ends.
-  - Moved files are found again; changed files are flagged until you accept them.
-  - After a restart, click Rescan once per folder to give the browser read access again.
+### Data: a tree in the component that used it
+The data an experiment used is logged in its component, as a tree of folders and files. Your raw files stay where they are: nothing is copied.
+- **Log it:**
+  - ⋯ → **Log data…** → **Add a folder…** or **Add files…**;
+  - type **/data** in the component (from the navigation bar with no component chosen, /data makes a component labelled "Data");
+  - or drop files and folders from Explorer or Finder: on a component's tree, or on any component with **Alt** held. A folder dropped anywhere on a component goes into its tree; a folder dropped on the paper makes a "Data" component there. Files alone dropped on the paper are placed as before (images, PDFs, pages).
+- **The tree:** folders and files, indented, with sizes and dates; each folder shows how many files it holds and their size.
+  - Click a folder to fold or unfold it. A folder you log shows its first level, and the folders inside it start folded (Settings → Data tree: or only its name).
+  - A folder with more than 12 entries shows 12 and **+ n more**.
+  - Rest on a row for its full path. **×** takes it out of the tree (Ctrl+Z brings it back).
+- **What it records:** names, places, sizes and modified dates, up to 1,500 entries and six folders deep. It is part of the note, so it syncs.
+- **Checking again:**
+  - On a computer whose browser can keep the folder (Chrome, Edge), **⟳ Rescan** reads it again and marks what is **new**, **changed** or **gone**. **Accept** makes the tree the folder as it is now. After a restart the browser asks once for read access.
+  - On other devices (an iPad, Safari) the tree is as it was logged, and says so.
+- **The Data tab is gone (V4.28).** The datasets bound to a component (⋯ → Data, materials & code…, or a dataset's "produced by" step) came into that component's tree, on the computer that registered them. The old page, with its folders, rescans and fingerprints, still opens with **/datasets**.
 
 ### Materials
 **+ New material** asks for a name, a kind and whether it was made here or bought. It opens as a compact **material sheet**:

@@ -521,8 +521,26 @@ const PV = {
   const W = (id, label, desc, rows, pv, o = {}) => D(Object.assign({ id, group: 'widgets', label, desc: desc + ' Off: it leaves + Insert and the / commands; those already in your notes stay.', inserts: rows, preview: pv }, o));
   W('equations', 'Equations', '∑ Equation in a note, or in the text, and the registered equations shared by every note.', ['equation', 'equation-reg'],
     () => [h('div.pvb.pv-eq', h('div.pvb-h', h('span.pvb-n', 'Equation'), h('b', 'Young’s modulus')), h('div.pv-eqx', 'E = 3G(1 + ν)'))], { presets: { simple: true } });
-  W('data', 'Data & plots', 'Plots, datasets by reference (they stay where they were made) and their bindings, and the Data tab.', ['plot'],
-    () => [h('div.pvb', h('div.pvb-h', h('span.pvb-n', 'Plot'), h('b', 'Traction · Pa')), PV.svg(300, 70, '<polyline points="10,62 50,55 90,57 130,40 170,33 210,20 250,13 290,8" fill="none" stroke="var(--teal)" stroke-width="2" vector-effect="non-scaling-stroke"/>'))], { tab: 'data' });
+  W('data', 'Data & plots', 'Plots, and binding a component to datasets, materials and a code version (⋯ → Data, materials & code…, the provenance chain). The Data tab is gone (V4.28): the data a step used is logged in its component’s data tree; the datasets registered before still open with /datasets.', ['plot'],
+    () => [h('div.pvb', h('div.pvb-h', h('span.pvb-n', 'Plot'), h('b', 'Traction · Pa')), PV.svg(300, 70, '<polyline points="10,62 50,55 90,57 130,40 170,33 210,20 250,13 290,8" fill="none" stroke="var(--teal)" stroke-width="2" vector-effect="non-scaling-stroke"/>'))]);
+  // V4.28 (13zzyc): the data tree — the folders and files a step used, logged in its component (it replaces the Data tab)
+  const dtRefresh = () => { try { App.refresh(); } catch (e) { } };
+  D({ id: 'datatree', group: 'widgets', label: 'Data tree', isNew: true, presets: { simple: true }, changed: dtRefresh,
+    desc: 'The data an experiment used, logged in its component as a directory: ⋯ → Log data… (a folder, or files), /data in the text (or a new “Data” component), or drop files and folders from your computer on the component — on its tree, with Alt held, or a folder anywhere on it (a folder dropped on the paper makes a “Data” component there). The tree lists names, places, sizes and dates; nothing is copied and the files stay where they are. A click folds or unfolds a folder; × takes an entry out. Where the browser can keep the folder (Chrome or Edge on a computer), ⟳ Rescan reads it again and marks what is new, changed or gone until you accept it; elsewhere the tree is as it was logged. It replaces the Data tab: the datasets bound to a component there came into its tree, and the old page opens with /datasets. Off: no trees and no ways in; what was logged stays in the record.',
+    tune: [T('open', 'A folder you log shows', 'seg', { isNew: true, def: 'top', opts: [['top', 'Its first level'], ['none', 'Only its name']], d: 'The folders inside it always start folded; a click unfolds one', changed: dtRefresh })],
+    preview: () => {
+      const on = FEAT.on('datatree'), top = tune('datatree', 'open') !== 'none', day = 86400000, t0 = Date.now();
+      Object.keys(DTREE.st.open).forEach(k => { if (k.startsWith('_pvdt|')) delete DTREE.st.open[k]; });
+      const f = (n, mb, d) => ({ n, s: Math.round(mb * 1048576), m: t0 - d * day });
+      const fake = { id: '_pvdt', kind: 'component', dtree: { items: [
+        { id: 'pv1', n: 'Run 3 · TFM export', dir: 1, at: isoLocal(new Date(t0 - day)), via: 'folder', k: [
+          { n: 'beads', dir: 1, k: [f('field01_beads.nd2', 1880, 1), f('field02_beads.nd2', 1910, 1), f('field03_beads.nd2', 1870, 1)] },
+          { n: 'cells', dir: 1, k: [f('field01_cells.nd2', 940, 1), f('field02_cells.nd2', 955, 1)] },
+          f('traction-run3.csv', .02, 1)] },
+        Object.assign(f('plate-map.xlsx', .03, 2), { id: 'pv2', at: isoLocal(new Date(t0 - day)), via: 'files' })] } };
+      return [PV.box({ num: 'Block', label: 'Imaging, 30 kPa', body: 'Three fields per gel; beads 0.2 µm, 40× water.', extra: on ? [DTREE.el(fake, { pv: true })] : [] }),
+        PV.cap(on ? 'Click a folder here to fold or unfold it. ' + (top ? 'A folder you log shows its first level; the folders inside it start folded.' : 'A folder you log shows only its name until you click it.') + ' Nothing is copied: the tree lists names, sizes and dates.' : 'Off: no data tree in any component, and no Log data… or /data; what was logged stays in the record and shows again when it is on.')];
+    } });
   W('plates', 'Plates & wells', 'Well-plate maps: colours, images in wells, notes on wells, carried from plan to run.', ['plate', 'plate-carry'],
     () => [h('div.pv-plate', Array.from({ length: 24 }, (_, i) => h('i', { style: { background: i % 7 === 0 ? 'var(--teal)' : i % 5 === 0 ? 'var(--mag)' : '' } })))]);
   W('calc', 'Calculators', 'A calculator box with its own history, and the Calculator on a note’s tools.', ['calc'],

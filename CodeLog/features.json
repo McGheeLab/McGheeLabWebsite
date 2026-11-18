@@ -1604,7 +1604,7 @@
    "id": "scientia.data",
    "name": "Scientia Data",
    "side": "scientia",
-   "summary": "Raw data by reference: folder handles, heads and tails, previews (desktop only).",
+   "summary": "The data an experiment used: a component's data tree (V4.28, every build — names, places, sizes and dates, rescanned where the folder's handle is kept), and before it raw data by reference (folder handles, heads and tails, the old Data page).",
    "keywords": [
     "data",
     "dataset",
@@ -1614,13 +1614,13 @@
     "raw"
    ],
    "paths": [
-    "scientia/src/13i-data.js"
+    "scientia/src/13i-data.js",
+    "scientia/src/13zzyc-datatree.js"
    ],
-   "desktop_only": true,
    "related": [
     "rm.outputs"
    ],
-   "note": "V3.869: not a tab in the web build (desktop only)."
+   "note": "V3.869: not a tab in the web build. V4.28: no Data tab in any build — the data tree in a component (13zzyc) replaces it; the old page stays at #/data and /datasets."
   },
   {
    "id": "scientia.materials",

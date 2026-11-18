@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (126 changes — ready to push)
+## Pending (127 changes — ready to push)
+
+- **The data tree (V4.28):** the Data tab is gone. Log the data an experiment used right in its component: ⋯ → Log data… (a folder or files), type /data, or drop the folder on it. It shows as a tree of folders and files with their sizes and dates, and nothing is copied. On a computer it can check the folder again and mark what is new, changed or missing.
 
 - **No Lit reviews tab (V4.27):** lit reviews live in the Portfolio now. Each project's Lit reviews section lists its reviews and has + Lit review to start one; a review linked to no project is listed with the notes outside any project.
 
