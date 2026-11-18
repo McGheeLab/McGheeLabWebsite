@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (132 changes — ready to push)
+## Pending (133 changes — ready to push)
+
+- **Freewrite: your own words and rules (V4.34):** in a freewrite, select words with the mouse or pen and say what they are — a new component (a Method, a barrier…) or one you already have, even in another note (it is bridged in) — just for this freewrite or for every one. Settings → Freewrite → Rules lists every rule with an example: add your own, change or switch off the built-in ones, and restore them.
 
 - **Freewrite (V4.33):** Freewrite in a note's Quick cast (or /freewrite) opens a blank page over the whole app. Type, or press Speak and talk — pause and play back whenever you like, and correct the words by typing. Convert turns your sentences into components and links (“X supports Y”, “One of the barriers is …”, “We found that …”), colours them and shows the note it will make; click coloured words to change them, then Apply. The freewrite stays in the note, folded. Beside the note puts the page in half the window.
 

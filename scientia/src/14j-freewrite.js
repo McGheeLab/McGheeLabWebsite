@@ -33,6 +33,19 @@
    (Chrome, Edge, Safari); without it they are written when the recording stops — the desktop's Whisper (REC.watch →
    REC.apply, added after what you wrote), or Transcribe on the website (the lab's SIS_LAB.transcribe). When the words
    were written as you spoke, a transcript that arrives later keeps only its timings.
+   V4.34 — Gabe: "The user may also add freewrite components via highlights, and once the highlight is done, will be asked
+   to associate it to a new or existing component. That association will be asked if it is temporary (i.e., just for that
+   freewrite) or permanent (i.e., for all future freewrites). Additional freewrite association rules can be added,
+   modified, or deleted in Settings."
+     selChip() / associate(words, a, b) / keepAssoc()  words selected with the pointer → a small button → the question:
+                                   a new component (what it is) or one that exists; just this freewrite (fw.assoc) or every
+                                   freewrite (a phrase rule of yours). A part standing for an existing component (p.block)
+                                   is that component on Apply — bridged in when it lives in another note.
+     store() / rules()             settings().fwRules = { own, edit, off }: yours, your changes to the built-in rules, the
+                                   built-in ones you deleted — the notebook's settings, so they follow you across devices.
+     editor() / form(r, done)      Settings → Freewrite → Rules: every rule with its switch, patterns, what it makes and its
+                                   example; add, change (the example read live, there and in the preview: pvRule), delete,
+                                   restore the built-in ones.
    ========================================================================== */
 const FREEW = {
   st: null, au: null, dict: null, wait: null,
@@ -86,8 +99,12 @@ const FREEW = {
     { id: 'anomalyw', name: 'a sentence with “unexpected”', pats: ['unexpected', 'unexpectedly', 'surprising', 'surprisingly'], whole: true, A: { kind: 'anomaly' }, ex: 'The 2 kPa gel did something unexpected at the edge.' },
     { id: 'questionw', name: 'a sentence ending in “?”', pats: ['?'], whole: true, A: { kind: 'question' }, ex: 'Does EGF move the force or lower it?' },
   ],
-  /** The rules in force (V4.34 adds yours, and your changes to these). */
-  rules() { return FREEW.BUILTIN.map(r => Object.assign({ builtin: true }, r)); },
+  /** V4.34 — yours, in the notebook's settings (so they follow you across devices): { own: [rule], edit: { builtin id: what you
+      changed }, off: [built-in ids you deleted] }. The built-in rules stay in the code, so a later version can improve them. */
+  store() { const s = settings().fwRules; return s && typeof s === 'object' ? { own: Array.isArray(s.own) ? s.own.filter(r => r && r.id) : [], edit: Object.assign({}, s.edit || {}), off: Array.isArray(s.off) ? s.off.slice() : [] } : { own: [], edit: {}, off: [] }; },
+  saveStore(S) { saveSettings({ fwRules: { own: S.own, edit: S.edit, off: S.off } }); },
+  /** The rules in force: the built-in ones as you changed them, less those you deleted, then yours (a rule switched off is kept, not read). */
+  rules() { const S = FREEW.store(); return [...FREEW.BUILTIN.filter(r => !S.off.includes(r.id)).map(r => Object.assign({ builtin: true }, r, S.edit[r.id] || {})), ...S.own.filter(r => (r.pats || []).length).map(r => Object.assign({ own: true }, r))]; },
   /** How many parts a rule's patterns have: 2, 1, or 0 (a word or a phrase). */
   nSlots: pat => (String(pat).match(/\[[AB]\]/g) || []).length,
   _re: new Map(),
@@ -178,6 +195,22 @@ const FREEW = {
       return null;
     };
     FREEW.sentences(text).forEach(s => read(s.from, s.to, null, 0, null));
+    // V4.34 — your associations: this freewrite's (o.assoc) and your phrase rules (every freewrite). Each place the words are written
+    // becomes their part where nothing claimed them; where a rule found exactly those words, they become what you said; out of a
+    // whole sentence a word rule (or "every sentence a component") coloured, they are taken as their own; inside a part a two- or
+    // one-part rule found, they stay part of it.
+    const wordIds = new Set(G.word.map(r => r.id));
+    const force = (p, A) => { if (!A) return; if (A.block) { p.block = A.block; p.as = 'component'; } if (A.as) p.as = A.as; if ('kind' in A) p.kind = A.kind || null; if ('struct' in A) p.struct = A.struct || null; if (p.as === 'bridge' && !p.cands) p.cands = FREEW.cands(p.text, o.docId); };
+    const PH = [...(o.assoc || []).filter(x => x && x.text).map(x => ({ pat: x.text, A: x, id: 'assoc' })), ...G.phrase.flatMap(r => (r.pats || []).map(pat => ({ pat, A: r.A || {}, id: r.id })))];
+    PH.forEach(ph => { const c = FREEW.compile(ph.pat, false); if (!c.re || c.slots.length) return; c.re.lastIndex = 0; let m, guard = 0;
+      while ((m = c.re.exec(text)) && guard++ < 500) {
+        if (!m[0].length) { c.re.lastIndex++; continue; } const a = m.index, b = a + m[0].length, k = FREEW.key(m[0]); let host = null, hs = null, cut = false;
+        parts.forEach(p => p.spans.forEach(s => { if (a >= s.from && b <= s.to) { host = p; hs = s; } else if (a < s.to && b > s.from) cut = true; }));
+        if (cut || links.some(l => l.span && a < l.span[1] && b > l.span[0]) || cues.some(q => a < q.to && b > q.from)) continue;
+        if (host && host.key === k) { force(host, ph.A); continue; }
+        if (host && host.rule && !wordIds.has(host.rule)) continue;
+        if (host) { host.spans = host.spans.filter(s => s !== hs); if (!host.spans.length) { parts.splice(parts.indexOf(host), 1); byKey.delete(host.key); } }
+        const p = part(a, b, {}, ph.id); if (p) force(p, ph.A); } });
     // what was changed by clicking: by the part's words, so a correction elsewhere keeps it
     const over = o.over || {}, lover = o.lover || {};
     parts.forEach(p => { const v = over[p.key]; if (!v) return; if (v.none) p.none = true; else { if (v.as) p.as = v.as; if ('kind' in v) p.kind = v.kind || null; if ('struct' in v) p.struct = v.struct || null; if (v.as === 'bridge' && !p.cands) p.cands = FREEW.cands(p.text, o.docId); } p.changed = true; });
@@ -281,6 +314,7 @@ const FREEW = {
     const save = debounce(() => FREEW.save(), 350);
     st.ta.addEventListener('input', () => { FREEW.chipOff(); FREEW.paint(); save(); });
     st.ta.addEventListener('click', e => FREEW.clickText(e));
+    st.ta.addEventListener('pointerup', () => setTimeout(() => FREEW.selChip(), 0));   // V4.34: words selected with the pointer → asked what they are
     st.ta.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); FREEW.show(); } });
     st.ta.addEventListener('scroll', () => { st.ta.scrollTop = 0; });
     st.key = e => { if (!FREEW.st || e.key !== 'Escape' || e.defaultPrevented) return; if ($('.pop') || $('.ovl') || $('.slash-menu')) return; if ($('.fw-chip')) { FREEW.chipOff(); return; } e.preventDefault(); FREEW.close(); };
@@ -342,7 +376,7 @@ const FREEW = {
     for (const q of conv.cues) if (c >= q.from && c <= q.to) return { t: 'p', k: q.part, from: q.from };
     return null; },
   clickText() {
-    const st = FREEW.st; if (!st || !st.conv) return; const ta = st.ta; if (ta.selectionStart !== ta.selectionEnd) return;
+    const st = FREEW.st; if (!st) return; const ta = st.ta; if (ta.selectionStart !== ta.selectionEnd) return; FREEW.selOff(); if (!st.conv) return;
     const hit = FREEW.at(ta.selectionStart); if (!hit) { if (st.sel) { st.sel = null; FREEW.chipOff(); FREEW.paint(); } return; }
     st.sel = { t: hit.t, k: hit.k }; FREEW.paint();
     requestAnimationFrame(() => { const sp = st.back.querySelector(`[data-from="${hit.from}"]`); if (sp) FREEW.chip(sp); });
@@ -356,6 +390,57 @@ const FREEW = {
     st.page.append(c);
   },
   chipOff() { $$('.fw-chip').forEach(x => x.remove()); },
+  /* ---------------- V4.34 — your own associations, by highlight ---------------- */
+  /** Words selected with the pointer: a small button at the end of the selection asks what they are (nothing opens by itself). */
+  selChip() {
+    const st = FREEW.st; if (!st) return; FREEW.selOff(); const ta = st.ta, v = ta.value; let a = ta.selectionStart, b = ta.selectionEnd;
+    while (a < b && /\s/.test(v[a])) a++; while (b > a && /[\s.,;:!?]/.test(v[b - 1])) b--; if (b - a < 2 || !/\w/.test(v.slice(a, b))) return;
+    const r = FREEW.rectAt(b), words = v.slice(a, b);
+    st.page.append(h('button.fw-chip.fw-assoc', { type: 'button', title: 'Say what these words are: a new component or one that exists, for this freewrite or every one', style: { left: Math.max(0, Math.round(r.x - 24)) + 'px', top: Math.round(r.y + 6) + 'px', '--fc': 'var(--teal)' },
+      on: { mousedown: e => e.preventDefault(), click: e => { e.stopPropagation(); FREEW.selOff(); FREEW.associate(words, a, b); } } }, FREEW.ic('wand', 14), h('b', 'Make these words a component…')));
+  },
+  selOff() { $$('.fw-assoc').forEach(x => x.remove()); },
+  /** Where an offset of the words is on the page (a hidden copy laid out like the words). */
+  rectAt(off) { const st = FREEW.st, m = h('div.fw-back.fw-meas', st.ta.value.slice(0, off)), mk = h('span', '​'); m.append(mk); st.page.append(m); const r = mk.getBoundingClientRect(), pr = st.page.getBoundingClientRect(); m.remove(); return { x: r.left - pr.left, y: r.bottom - pr.top }; },
+  /** What words can become, for the question and the rule editor: [key, label, spec]. */
+  shapes() {
+    const K = (typeof CKINDS !== 'undefined' ? CKINDS.all() : []).filter(k => !k.act && k.id !== 'report' && k.id !== 'iteration');
+    return [['c', 'A component', { as: 'component', kind: null, struct: null }], ['t', 'A task', { as: 'task', kind: null, struct: null }], ['r', 'A Result to add', { as: 'slot', kind: 'result', struct: null }], ['b', 'A bridge from a note', { as: 'bridge', kind: null, struct: null }],
+      ...K.map(k => ['k:' + k.id, k.label, { as: 'component', kind: k.id, struct: null }]), ...KINDS.filter(k => k.id !== 'reminder').map(k => ['s:' + k.id, k.label + ' (on its words)', { as: 'component', kind: null, struct: k.id }])];
+  },
+  /** The question: a new component (what it is) or one that exists; just this freewrite, or every freewrite (a rule). */
+  associate(words, a, b) {
+    const st = FREEW.st; if (!st) return; const S = FREEW.shapes(), here = st.docId; let mode = 'new', shape = 'c', blk = null, keep = 'temp';
+    const opt = (k, l) => h('button.fw-opt' + (shape === k ? '.on' : ''), { type: 'button', 'data-s': k, on: { click: () => { shape = k; draw(); } } }, l);
+    const seg = (opts, cur, set) => h('div.seg', opts.map(([k, l]) => h('button' + (k === cur ? '.on' : ''), { type: 'button', 'data-v': k, on: { click: () => { set(k); draw(); } } }, l)));
+    const picker = optionPicker({ placeholder: 'Search components…', sort: 'fw-assoc',
+      items: q => DB.where('blocks', x => x.status === 'live' && x.kind !== 'freewrite' && x.kind !== 'ink' && (x.kind === 'component' ? !!(((x.body && x.body.text) || '').trim() || x.label) : x.kind === 'ref' || !!WIDGETS[x.kind]) && (!q || (M.blockName(x) + ' ' + ((x.body && x.body.text) || '')).toLowerCase().includes(q)))
+        .sort((p, r) => ((r.docId === here) - (p.docId === here)) || String(r.modified || '').localeCompare(String(p.modified || ''))),
+      render: x => h('div', h('b', M.blockName(x)), ' ', h('span.serif', snippet((x.body && x.body.text) || '', 70)), h('span.s', x.docId === here ? 'This note' : M.docPath(M.doc(x.docId)))), onPick: x => { blk = x.id; draw(); } });
+    const body = h('div.fw-adlg');
+    const draw = () => { const b0 = blk && M.block(blk); body.replaceChildren(
+      h('p.serif.fw-aw', '“' + snippet(words, 90) + '”'),
+      seg([['new', 'A new component'], ['have', 'A component that exists']], mode, v => { mode = v; }),
+      mode === 'new' ? h('div.fw-opts', h('div.fw-og', S.slice(0, 4).map(([k, l]) => opt(k, l))), h('div.fw-oh', 'A kind of component'), h('div.fw-og', S.filter(x => x[0].startsWith('k:')).map(([k, l]) => opt(k, l))),
+          h('div.fw-oh', 'A structure on its words'), h('div.fw-og', S.filter(x => x[0].startsWith('s:')).map(([k, l]) => opt(k, l.replace(' (on its words)', '')))))
+        : h('div', picker, h('div.fw-chosen', b0 ? ['Chosen: ', h('b', M.blockName(b0)), ' — ', b0.docId === here ? 'in this note' : 'in “' + snippet((M.doc(b0.docId) || {}).title || '', 40) + '” (bridged into this note on Apply)'] : 'Choose it in the list')),
+      h('div.fw-akeep', h('span', 'For'), seg([['temp', 'Just this freewrite'], ['perm', 'Every freewrite — a rule in Settings']], keep, v => { keep = v; }))); };
+    draw();
+    modal({ title: 'What are these words?', wide: true, body, actions: [{ label: 'Cancel' }, { label: 'Associate', pri: true, run: () => {
+      if (mode === 'have' && !blk) { toast('Choose the component in the list'); return false; }
+      FREEW.keepAssoc(words, mode === 'have' ? { as: 'component', block: blk } : Object.assign({}, (S.find(x => x[0] === shape) || S[0])[2]), keep === 'perm', a, b); } }] });
+  },
+  /** Temporary: on this freewrite (fw.assoc). Permanent: a rule of yours — those words, its example the sentence they were in. */
+  keepAssoc(words, A, perm, a, b) {
+    const st = FREEW.st; if (!st) return; const key = FREEW.key(words);
+    if (perm) { const T = FREEW.store(), v = st.ta.value, s = FREEW.sentences(v).find(x => a >= x.from && b <= x.to);
+      T.own = T.own.filter(r => !(r.phrase && (r.pats || []).some(p => FREEW.key(p) === key)));
+      T.own.push({ id: uid('fr'), name: '“' + snippet(words, 40) + '”', pats: [words], phrase: true, A, ex: s ? v.slice(s.from, s.to) : words, made: localDate(new Date()) }); FREEW.saveStore(T); }
+    else { const L = (FREEW.fw().assoc || []).filter(x => FREEW.key(x.text) !== key); L.push(Object.assign({ text: words }, A)); FREEW.setFw({ assoc: L }); }
+    const ov = Object.assign({}, FREEW.fw().over || {}); if (ov[key]) { delete ov[key]; FREEW.setFw({ over: ov }); }   // what a click had changed gives way
+    if (!st.shown) { st.shown = true; FREEW.setFw({ shown: true }); }
+    FREEW.paint(); toast(perm ? 'A rule now: these words, in every freewrite — Settings → Freewrite → Rules' : 'Kept for this freewrite', 3600);
+  },
   /** The choices for a part (what it becomes) or a link (which relation, which way, none). */
   pick(sel, anchor) {
     const st = FREEW.st; if (!st || !st.conv) return;
@@ -505,6 +590,15 @@ const FREEW = {
     P.forEach(p => {
       if (live(made[p.key])) { ids[p.key] = made[p.key]; return; }
       const at = L.pos[p.key] || { x: 0, y: 0 }, pos = { x: snap(x0 + at.x), y: snap(y0 + at.y) }, text = p.text;
+      // V4.34 — words associated with a component that exists: that component in this note; from another note, a bridge of it here
+      const ex = p.block && live(p.block), src = ex && (ex.kind === 'ref' && ex.refBlockId && !ex.refItemId ? live(ex.refBlockId) || ex : ex);
+      if (src) {
+        if (src.docId === d.id) { ids[p.key] = src.id; return; }
+        const have = DB.where('blocks', x => x.docId === d.id && x.kind === 'ref' && x.status === 'live' && x.refBlockId === src.id && !x.refItemId && !x.refSpan)[0];
+        if (have) { ids[p.key] = have.id; made[p.key] = have.id; return; }
+        const Wd = WIDGETS[src.kind], br = M._newBlock(d, { kind: 'ref', refItemId: null, refBlockId: src.id, x: pos.x, y: pos.y, w: Wd ? (src.w || Wd.w || 392) : 392, why: 'From the freewrite' });
+        br.fwFrom = fb.id; DB.put('blocks', br); ids[p.key] = br.id; made[p.key] = br.id; fresh.push(br.id); return;
+      }
       let nb = null;
       if (p.as === 'task') nb = M._newBlock(d, { kind: 'task', label: '', x: pos.x, y: pos.y, w: 392, body: { text, marks: [] }, task: { due: null, allDay: false, prio: 'normal', repeat: 'none', subs: [], done: null, log: [] } });
       else if (p.as === 'slot') nb = M._newBlock(d, { kind: 'component', label: snippet(text, 80), ckind: p.kind || 'result', fwslot: 'result', x: pos.x, y: pos.y, w: 392, body: { text: '', marks: [] } });
@@ -589,14 +683,99 @@ const FREEW = {
         h('span.spacer'), ro ? null : h('button.btn.xs.fw-open', { type: 'button', title: 'Open the page again and go on with it', on: { click: e => { e.stopPropagation(); go(); } } }, 'Open')),
       tx);
   },
+  /* ---------------- V4.34 — Settings → Freewrite → Rules: add, change, delete ---------------- */
+  RELS: ['supports', 'contradicts', 'leads', 'causes', 'resolves', 'explains', 'produces', 'tests', 'answers', 'needs', 'reveals', 'illustrates', 'refines', 'fuels', 'related'],
+  pvRule: null,
+  shapeOf(s) { s = s || {}; return s.block ? 'blk' : s.as === 'task' ? 't' : s.as === 'slot' ? 'r' : s.as === 'bridge' ? 'b' : s.kind ? 'k:' + s.kind : s.struct ? 's:' + s.struct : 'c'; },
+  says(s) {
+    s = s || {}; if (s.block) { const b = M.block(s.block); return b ? 'the component “' + snippet(M.blockName(b), 28) + '”' : 'a component that is gone'; }
+    const K = s.kind && typeof CKINDS !== 'undefined' ? CKINDS.get(s.kind) : null, St = s.struct && KIND[s.struct];
+    return s.as === 'task' ? 'a task' : s.as === 'slot' ? 'a Result to add' : s.as === 'bridge' ? 'a bridge from a note' : K && St ? 'a ' + K.label + ' with a ' + St.label.toLowerCase() : K ? 'a ' + K.label : St ? 'a ' + St.label.toLowerCase() : 'a component';
+  },
+  /** What a rule makes, in words: "[A] a component → supports → [B] a component". */
+  makes(r) {
+    const n = Math.max(0, ...(r.pats || []).map(FREEW.nSlots)); if (!n) return (r.whole ? 'The whole sentence: ' : 'Those words: ') + FREEW.says(r.A);
+    if (n === 1) return '[A]: ' + FREEW.says(r.A); const L = r.link && r.link.rel ? (REL[r.link.rel] || { label: r.link.rel }).label : null;
+    return '[A] ' + FREEW.says(r.A) + (L ? (r.link.from === 'B' ? ' ← ' + L + ' — ' : ' → ' + L + ' → ') : ' · ') + '[B] ' + FREEW.says(r.B);
+  },
+  setRule(r, patch) {
+    const T = FREEW.store(), clean = o => { Object.keys(o).forEach(k => { if (o[k] === undefined) delete o[k]; }); return o; };
+    if (r.builtin) { const e = clean(Object.assign({}, T.edit[r.id] || {}, patch)); if (Object.keys(e).length) T.edit[r.id] = e; else delete T.edit[r.id]; }
+    else T.own = T.own.map(x => x.id === r.id ? clean(Object.assign({}, x, patch)) : x);
+    FREEW.saveStore(T);
+  },
+  delRule(r) { const T = FREEW.store(); if (r.builtin) { if (!T.off.includes(r.id)) T.off.push(r.id); delete T.edit[r.id]; } else T.own = T.own.filter(x => x.id !== r.id); FREEW.saveStore(T); toast(r.builtin ? 'Deleted — Restore the built-in rules brings it back' : 'Your rule is deleted'); },
+  /** Every rule — built in and yours — with its switch, its patterns, what it makes and its example; Edit opens it in place. */
+  editor() {
+    const box = h('div.fw-rules'); let open = null;
+    const rp = () => { try { SettingsView.repaint(); } catch (e) { } };
+    const draw = () => {
+      const T = FREEW.store(), list = [...FREEW.BUILTIN.filter(r => !T.off.includes(r.id)).map(r => Object.assign({ builtin: true }, r, T.edit[r.id] || {})), ...T.own.map(r => Object.assign({ own: true }, r))];
+      box.replaceChildren(
+        h('div.fw-rh', h('span', plural(list.filter(r => r.builtin).length, 'built-in rule') + ' · ' + T.own.length + ' of yours'), h('span.spacer'),
+          T.off.length || Object.keys(T.edit).length ? h('button.btn.xs.ghost.fw-rrestore', { type: 'button', title: 'The built-in rules as they came (yours stay)', on: { click: () => { const U = FREEW.store(); U.off = []; U.edit = {}; FREEW.saveStore(U); open = null; FREEW.pvRule = null; draw(); rp(); toast('The built-in rules are back as they came'); } } }, 'Restore the built-in rules') : null,
+          h('button.btn.xs.fw-radd', { type: 'button', on: { click: () => { open = open === 'new' ? null : 'new'; draw(); } } }, '+ Add a rule')),
+        open === 'new' ? FREEW.form(null, () => { open = null; draw(); }) : null,
+        ...list.map(r => {
+          const row = h('div.fw-rr' + (r.on === false ? '.off' : '') + (open === r.id ? '.open' : ''), { 'data-r': r.id },
+            h('input', { type: 'checkbox', checked: r.on !== false, title: r.on === false ? 'Off — tick to read it again' : 'On — untick to stop reading it', 'aria-label': 'Rule on', on: { change: e => { FREEW.setRule(r, { on: e.target.checked ? undefined : false }); draw(); } } }),
+            h('div.fw-rr-t', h('b', r.name || r.pats[0]), h('span.fw-rr-m', FREEW.makes(r)), h('span.fw-rr-p', r.pats.join('  ·  ')), r.ex ? h('i.fw-rr-e', r.ex) : null),
+            h('span.fw-rr-k', r.builtin ? (T.edit[r.id] ? 'built in, changed' : 'built in') : 'yours'),
+            h('button.btn.xs.fw-redit', { type: 'button', on: { click: () => { open = open === r.id ? null : r.id; if (!open) { FREEW.pvRule = null; rp(); } draw(); } } }, open === r.id ? 'Close' : 'Edit'),
+            h('button.btn.xs.ghost.fw-rdel', { type: 'button', title: r.builtin ? 'Delete it (Restore the built-in rules brings it back)' : 'Delete your rule', on: { click: () => { FREEW.delRule(r); if (open === r.id) { open = null; FREEW.pvRule = null; rp(); } draw(); } } }, 'Delete'));
+          return open === r.id ? [row, FREEW.form(r, () => { open = null; draw(); })] : row; }));
+    };
+    draw(); return box;
+  },
+  /** A rule's form: name, patterns, what [A] and [B] become, the link, the example — read live by the rule below it and in the preview. */
+  form(r, done) {
+    const d0 = r ? JSON.parse(JSON.stringify(r)) : { pats: ['[A] blocks [B]'], A: { struct: 'barrier' }, B: {}, link: { rel: 'contradicts', from: 'A', to: 'B' }, ex: 'Bead drift blocks the edge maps.' };
+    const S = FREEW.shapes(), blkA = d0.A && d0.A.block ? d0.A.block : null, rp = () => { try { SettingsView.repaint(); } catch (e) { } };
+    const opts = (L, cur) => L.map(([k, l]) => h('option', { value: k, selected: k === cur }, l));
+    const sel = (cur, blk) => h('select.inp.fw-rsel', opts([...(blk ? [['blk', 'The component “' + snippet(M.blockName(M.block(blk) || { label: 'gone' }), 30) + '”']] : []), ...S.map(([k, l]) => [k, l])], cur));
+    const name = h('input.inp.fw-rname', { value: d0.name || '', placeholder: 'A name (optional)' });
+    const pats = h('textarea.inp.fw-rpats', { rows: 3, value: (d0.pats || []).join('\n'), placeholder: '[A] supports [B]' });
+    const aSel = sel(FREEW.shapeOf(d0.A), blkA), bSel = sel(FREEW.shapeOf(d0.B));
+    const rel = h('select.inp.fw-rrel', opts([['', 'No link'], ...FREEW.RELS.filter(x => REL[x]).map(x => [x, REL[x].label || x])], (d0.link && d0.link.rel) || ''));
+    const dir = h('select.inp.fw-rdir', opts([['A', '[A] → [B]'], ['B', '[B] → [A]']], (d0.link && d0.link.from) || 'A'));
+    const whole = h('select.inp.fw-rwhole', opts([['1', 'the whole sentence'], ['0', 'just those words']], d0.whole ? '1' : '0'));
+    const ex = h('input.inp.fw-rex', { value: d0.ex || '', placeholder: 'An example sentence' });
+    const test = h('div.fw-rtest'), msg = h('div.fw-rmsg', { role: 'status' });
+    const rowB = h('label.f.fw-rb', h('span', '[B] becomes'), bSel), rowL = h('div.fw-rl', h('label.f', h('span', 'The link between them'), rel), h('label.f', h('span', 'Which way'), dir)), rowW = h('label.f.fw-rw', h('span', 'Without parts, the words make'), whole);
+    const parse = v => v === 'blk' ? { block: blkA } : Object.assign({}, (S.find(s => s[0] === v) || S[0])[2]);
+    const read = () => { const o = Object.assign({}, d0, { name: name.value.trim(), pats: pats.value.split('\n').map(x => x.trim()).filter(Boolean), A: parse(aSel.value), B: parse(bSel.value), ex: ex.value.trim() }), n = Math.max(0, ...o.pats.map(FREEW.nSlots));
+      o.link = n === 2 && rel.value ? { rel: rel.value, from: dir.value, to: dir.value === 'A' ? 'B' : 'A' } : null; o.whole = n === 0 && whole.value === '1' ? true : undefined; o.phrase = n === 0 && whole.value !== '1' ? true : undefined; if (n < 2) delete o.B; delete o.builtin; delete o.own; return o; };
+    const check = o => { if (!o.pats.length) return 'Write at least one pattern';
+      for (const p of o.pats) { const sl = p.match(/\[[AB]\]/g) || []; if (sl.length > 2) return '“' + p + '”: two parts at most, [A] and [B]'; if (sl.length === 2 && sl[0] === sl[1]) return '“' + p + '”: the two parts are [A] and [B]'; if (sl.length === 1 && sl[0] === '[B]') return '“' + p + '”: a single part is [A]';
+        if (!p.replace(/\[[AB]\]/g, '').trim()) return '“' + p + '”: it needs some words besides the parts'; if (!FREEW.compile(p, o.whole).re) return '“' + p + '” can’t be read'; }
+      return new Set(o.pats.map(FREEW.nSlots)).size > 1 ? 'The patterns of one rule have the same number of parts' : ''; };
+    const live = () => { const o = read(), n = Math.max(0, ...o.pats.map(FREEW.nSlots)), err = check(o); rowB.hidden = n !== 2; rowL.hidden = n !== 2; rowW.hidden = n !== 0; msg.textContent = err; FREEW.pvRule = err ? null : o;
+      if (err) test.replaceChildren(); else { const c = FREEW.convert(o.ex, { rules: [Object.assign({}, o, { on: true })] }), any = c.parts.length;
+        test.replaceChildren(o.ex ? h('div.fw-pvt', FREEW.spans(o.ex, c)) : h('span.fw-rnote', 'Write an example to see the rule at work'), o.ex && !any ? h('span.fw-rnote', 'This rule does not read the example yet — a pattern with parts describes the whole sentence') : null, any ? FREEW.mini(c, { width: 300 }) : null); }
+      rp(); };
+    [name, pats, aSel, bSel, rel, dir, whole, ex].forEach(el => { el.addEventListener('input', live); el.addEventListener('change', live); });
+    const save = () => { const o = read(), err = check(o); if (err) { msg.textContent = err; return; } if (!o.name) o.name = o.pats[0]; const T = FREEW.store();
+      const keep = x => { const y = {}; ['name', 'pats', 'A', 'B', 'link', 'whole', 'phrase', 'ex', 'on'].forEach(k => { if (x[k] !== undefined) y[k] = x[k]; }); return y; };
+      if (r && r.builtin) T.edit[r.id] = keep(o); else if (r && r.own) T.own = T.own.map(x => x.id === r.id ? Object.assign({ id: r.id }, keep(o)) : x); else T.own.push(Object.assign({ id: uid('fr') }, keep(o)));
+      FREEW.saveStore(T); FREEW.pvRule = null; toast(r ? 'Rule saved' : 'Rule added — every freewrite reads it now'); done(); rp(); };
+    const f = h('div.fw-rf', h('div.fw-rg', h('label.f', h('span', 'Name'), name), h('label.f', h('span', '[A] becomes'), aSel),
+        h('label.f.fw-rp', h('span', 'Patterns, one a line — [A] and [B] are the parts, the rest is matched as written; with no part, a word anywhere'), pats), rowB, rowW, rowL, h('label.f.fw-rpx', h('span', 'An example sentence'), ex)),
+      msg, h('div.fw-rth', 'The example, read by this rule'), test,
+      h('div.fw-rbar', h('button.btn.sm.pri.fw-rsave', { type: 'button', on: { click: save } }, r ? 'Save' : 'Add the rule'), h('button.btn.sm.fw-rcancel', { type: 'button', on: { click: () => { FREEW.pvRule = null; done(); rp(); } } }, 'Cancel')));
+    setTimeout(live, 0); return f;
+  },
   /* ---------------- Settings' live preview ---------------- */
   pv() {
+    const R = FREEW.pvRule;   // V4.34: a rule being edited, at work on its example
+    if (R && R.ex) { const c = FREEW.convert(R.ex, { rules: [Object.assign({}, R, { on: true })] });
+      return [h('div.fw-pv', h('div.fw-pvbar', h('span.fw-pvic', { html: FREEW.ICON }), h('b', 'Rule'), h('span', R.name || R.pats[0])), h('div.fw-pvt', FREEW.spans(R.ex, c)), FREEW.mini(c, { width: 300, empty: 'This rule does not read its example yet.' })),
+        PV.cap('The rule at work on its example — ' + FREEW.makes(R) + '.')]; }
     const plainC = FREEW.opt('plain', 'words') === 'component', live = FREEW.opt('colour', 'convert') === 'live', voice = FREEW.opt('voice', true) !== false, side = FREEW.opt('side', 'right'), fold = FREEW.opt('fold', true) !== false;
     const text = 'Stiffer gels raise traction, which supports the mechanosensing hypothesis. One of the barriers is bead drift at the edge.' + (plainC ? ' We imaged at 37 °C.' : '');
     const conv = FREEW.convert(text, { plain: plainC ? 'component' : 'words' });
     return [h('div.fw-pv', h('div.fw-pvbar', h('span.fw-pvic', { html: FREEW.ICON }), h('b', 'Freewrite'), h('span', voice ? 'Speak: words appear as you speak' : 'Speak: words written when the recording stops'), h('span.spacer'), h('span.fw-pvside', side === 'left' ? '◧ beside, left' : 'beside, right ◨')),
       h('div.fw-pvt', FREEW.spans(text, conv)), FREEW.mini(conv, { width: 300 })),
-      PV.cap((live ? 'Coloured as you write. ' : 'Coloured when you press Convert, then as you correct. ') + 'Two components and a supports link; a barrier' + (plainC ? '; the plain sentence a component too' : '') + '. Apply puts them in the note' + (fold ? ' and the freewrite folds.' : '; the freewrite stays open.'))];
+      PV.cap((live ? 'Coloured as you write. ' : 'Coloured when you press Convert, then as you correct. ') + 'Two components and a supports link; a barrier' + (plainC ? '; the plain sentence a component too' : '') + '. Apply puts them in the note' + (fold ? ' and the freewrite folds.' : '; the freewrite stays open.') + ' ' + plural(FREEW.rules().filter(r => r.on !== false).length, 'rule') + ' read the words (' + FREEW.store().own.length + ' of yours); Edit one below to see it at work here.')];
   },
 };
 WIDGETS.freewrite = { label: 'freewrite', w: 448, body: (b, d, pane, ro) => FREEW.card(b, d, pane, ro), menu: b => [FREEW.on() ? { label: 'Open the freewrite', sub: 'The page again, to go on with it', run: () => FREEW.open(M.doc(b.docId), { block: b.id }) } : null].filter(Boolean) };
