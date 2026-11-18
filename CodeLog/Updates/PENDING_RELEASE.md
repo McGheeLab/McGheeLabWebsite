@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (134 changes — ready to push)
+## Pending (135 changes — ready to push)
+
+- **Close a popup (V4.36):** rest the pointer on a popup window and a × appears at its top right; click it and the paper goes back in its card.
 
 - **Pills that follow the turn (V4.35):** turn a tablet (or the app, with Rotate) and the pills glide to their places for a note held upright, then back to yours when it turns again. Settings → Pills shows an empty note where you place them, and every device keeps that layout. A note's bridge circles now show over the pills.
 
