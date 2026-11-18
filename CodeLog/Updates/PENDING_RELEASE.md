@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (122 changes — ready to push)
+## Pending (123 changes — ready to push)
+
+- **Problem is now Challenge (V4.24):** the kind for a barrier in the literature is called a Challenge. What you marked as a Problem becomes a Challenge by itself, with your settings for it.
 
 - **A recording on almost every Scientia feature's page (V4.23):** in Settings → Features, 64 features now show a short recording of the feature being used, with its steps under it (press Play; click a step to play from there). The ten newest features get theirs next. Also fixed: a web page saved in the browser keeps its own styling in a note, and the Library's search shows a paper as read as soon as you mark it.
 
