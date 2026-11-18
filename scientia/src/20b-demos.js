@@ -497,12 +497,12 @@ FEAT.demo("libsmart", { by: "", at: "2026-11-18", use: "A focus that fills itsel
 /* /demo:libsmart */
 /* demo:litrev */
 FEAT.demo("litrev", { by: "", at: "2026-11-18", use: "A canvas for one question in the literature, linked to every project it serves.",
-  video: "demos/litrev.mp4", poster: "demos/litrev.jpg", v: "4e39063c", w: 1280, h: 800, dur: 55.2, kb: 664,
+  video: "demos/litrev.mp4", poster: "demos/litrev.jpg", v: "0b41694f", w: 1280, h: 800, dur: 46.2, kb: 587,
   steps: [
-    [1.3,"In the Lit reviews tab press + New review, then give it its topic and the project it serves"],
-    [11.7,"Put two papers on the canvas with Insert → PDF, and quote a sentence from each"],
-    [36.6,"Wire the two quotes from one dot to the other and say how they relate"],
-    [50.5,"In the Portfolio the project’s Lit reviews list the review, with its papers and quotes"]] });
+    [1.1,"In the Portfolio, under the project’s Lit reviews, press + Lit review, then give it its topic: it is linked to the project already"],
+    [7.7,"Put two papers on the canvas with Insert → PDF, and quote a sentence from each"],
+    [29.6,"Wire the two quotes from one dot to the other and say how they relate"],
+    [41.4,"In the Portfolio the project’s Lit reviews list the review, with its papers and quotes"]] });
 /* /demo:litrev */
 /* demo:editbar */
 FEAT.demo("editbar", { by: "", at: "2026-11-18", use: "The bar over the component you are writing in: styles, lists, symbols and your favourites, one click away.",

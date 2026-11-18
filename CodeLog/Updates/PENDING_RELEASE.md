@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (125 changes — ready to push)
+## Pending (126 changes — ready to push)
+
+- **No Lit reviews tab (V4.27):** lit reviews live in the Portfolio now. Each project's Lit reviews section lists its reviews and has + Lit review to start one; a review linked to no project is listed with the notes outside any project.
 
 - **Colour-coded sections in the Portfolio (V4.26):** the Experiments, Syntheses, Notes and Lit reviews headers each sit in a rounded box of their own colour — blue, plum, ochre and green — the same in every project, and the switch above them uses the same colours.
 

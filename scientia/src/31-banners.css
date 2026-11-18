@@ -17,6 +17,10 @@
 .pf-lit > .pf-sh{padding:0}
 .pf-lit > .pf-sh > .pf-gl{margin-top:2px}
 .pf-lit > .pf-sh > .pf-gl:not(.pf-box){margin-left:10px}
+/* V4.27: + Lit review beside the heading (there is no Lit reviews tab) */
+.pf-lit > .pf-sh{gap:8px;padding-right:8px}
+.pf-lit > .pf-sh > .pf-lit-add{align-self:center;margin-top:2px}
+.pf-lit > .pf-lit-none{margin:4px 10px 6px;font-size:12.5px}
 .pf-seg button[aria-pressed="false"] > .pf-ico{color:var(--sec,inherit)}
 @media (forced-colors:active){ .pf-gl.pf-box{border:1px solid CanvasText;background:Canvas;color:CanvasText} }
 .pf-seg button > .pf-ico{display:inline-flex;vertical-align:-2px;margin-right:5px;color:inherit}
@@ -59,3 +63,9 @@ body.f-off-tbanner .tb-ban{display:none}
 .pv-tb-sh{display:flex;align-items:center;gap:8px;font-size:12px}
 .pv-tb-t{font-size:15px}
 @media (max-width:760px){ .pv-tb2{grid-template-columns:1fr} }
+/* V4.27: Settings → Lit reviews preview (a project's Lit reviews in the Portfolio, no tab) */
+.pv-lrv{display:grid;gap:8px} .pv-lrv-sec{background:var(--surface);border:1px solid var(--rule);border-radius:9px;padding:6px 8px;display:grid;gap:4px}
+.pv-lrv-sh{display:flex;align-items:center;gap:8px} .pv-lrv-sh > div{display:inline-flex;align-items:center;gap:6px;font:500 9.5px/1 var(--f-m);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+.pv-lrv-sh > div.pf-box{padding:4px 9px 4px 7px;border-radius:7px;background:color-mix(in srgb,var(--sec) var(--sec-tint),var(--surface));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--sec) 32%,transparent);color:var(--sec);font-weight:600} .pv-lrv-sh > div.pf-box .pf-ico{color:var(--sec)}
+.pv-lrv-add{margin-left:auto;font:500 11px/1 var(--f-d);border:1px solid var(--rule-2);border-radius:6px;padding:4px 7px;color:var(--ink-2)}
+.pv-lrv-n{display:flex;align-items:baseline;gap:8px;font-size:12px} .pv-lrv-t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink)}

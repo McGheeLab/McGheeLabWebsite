@@ -425,8 +425,14 @@ const PV = {
   D({ id: 'eqcap', group: 'reading', needs: 'library', label: 'Equation capture', desc: '∑ Capture equation in the Library’s reader: draw a box round an equation on the page, check it, name it — registered with its paper and page.',
     preview: () => [h('div.pv-page', h('div.pv-pl'), h('div.pv-pl.s'), h('div.pv-eqbox', 'E = 3G(1 + ν)'), h('div.pv-pl'), h('div.pv-pl.s')), PV.cap('∑ Capture equation, then a box round it.')] });
 
-  D({ id: 'litrev', group: 'reading', label: 'Lit reviews', tab: 'litreviews', desc: 'Literature reviews: a tab of their own, and each project’s Lit reviews column.',
-    preview: () => [h('table.pv-tbl', h('tr', h('th', 'Paper'), h('th', 'Method'), h('th', 'Finding')), h('tr', h('td', 'Style 2014'), h('td', 'TFM'), h('td', 'review')), h('tr', h('td', 'Plotnikov 2014'), h('td', 'FRET'), h('td', 'focal adhesions')))] });
+  // V4.27: no tab of their own — each project's Lit reviews section in the Portfolio, with + Lit review there
+  D({ id: 'litrev', group: 'reading', label: 'Lit reviews', desc: 'Literature reviews: a canvas for one question in the literature — its papers, the quotes that matter and your notes on them — linked to every project it serves. They live in the Portfolio: each project’s Lit reviews section lists the reviews linked to it, and + Lit review there starts one, linked to that project; a review linked to no project is listed with the notes outside any project. There is no Lit reviews tab (its page still opens from a link or search). Off: + Lit review and the empty sections go; the reviews you made stay where they are.',
+    changed: () => { try { App.refresh(); } catch (e) { } },
+    preview: () => { const on = FEAT.on('litrev'), box = typeof PFICON !== 'undefined' && PFICON.boxed(), ico = typeof PFICON !== 'undefined' && PFICON.on() ? PFICON.el('lit', 13) : null;
+      return [h('div.pv-lrv', h('div.pv-tabs', h('span.on', 'Portfolio'), h('span', 'Review'), h('span', 'Terms'), h('span', 'Library')),
+        h('div.pv-lrv-sec', h('div.pv-lrv-sh', h('div' + (box ? '.pf-box' : ''), { 'data-sk': 'lit' }, ico, h('span', 'Lit reviews'), h('span.pvc', on ? '2' : '2')), on ? h('span.pv-lrv-add', '+ Lit review') : null),
+          h('div.pv-lrv-n', h('span.pv-lrv-t', 'Does the edge peak hold at low ligand?'), h('span.pvc', '2 papers · 3 quotes')), h('div.pv-lrv-n', h('span.pv-lrv-t', 'Gel stiffness checks across labs'), h('span.pvc', '4 papers · 1 quote')))),
+        PV.cap(on ? 'No tab: a project’s lit reviews are in its Portfolio section, and + Lit review starts one linked to it.' : 'Off: no + Lit review; the reviews you made stay listed.')]; } });
 
   D({ id: 'webcap', group: 'reading', label: 'Web capture', inserts: ['website'], desc: 'A web page kept as it was the moment it was saved, in a note: + Insert → Website…, or a page saved from the browser. Off: it leaves + Insert; pages already captured stay.',
     preview: () => [h('div.pvb', h('div.pvb-h', h('span.pvb-n', 'Website'), h('b', 'Traction force microscopy — Wikipedia'), h('span.sp'), h('span.pvb-st', 'kept 13 Nov')), h('div.pv-page', { style: { margin: '0 10px 10px' } }, h('div.pv-pl'), h('div.pv-pl.s'), h('div.pv-pl'), h('div.pv-pl.s')))] });
