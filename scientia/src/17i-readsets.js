@@ -258,7 +258,7 @@ const RSET = {
   };
   const ct = RDOCK.closeTab; RDOCK.closeTab = function (id) {
     const p = RDOCK.paneOf(id), ev = window.event, t = ev && ev.target && ev.target.closest ? ev.target : null;
-    if (RSET.live() && p && p.full && t && t.closest('.rd-bar .rd-x')) return RDOCK.full(p);   // Close on a pane in full screen: back beside, the tab stays
+    if (RSET.live() && p && p.full && t && t.closest('.rd-bar .rd-x') && !(typeof RVIEW !== 'undefined' && RVIEW.tn && RVIEW.tn('fullClose', 'beside') === 'close')) return RDOCK.full(p);   // Close on a pane in full screen: back beside, the tab stays — unless V4.31's Settings → Close, in full screen says Closes the tab
     RSET._closingTab = true; try { return ct.apply(this, arguments); } finally { RSET._closingTab = false; }
   };
   // a tab clicked takes the note to its paper only within the set's project (else it would leave the project, and the set with it)
