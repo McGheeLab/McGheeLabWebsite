@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (124 changes — ready to push)
+## Pending (125 changes — ready to push)
+
+- **Colour-coded sections in the Portfolio (V4.26):** the Experiments, Syntheses, Notes and Lit reviews headers each sit in a rounded box of their own colour — blue, plum, ochre and green — the same in every project, and the switch above them uses the same colours.
 
 - **Thinner theme banners with their name inside (V4.25):** a theme's banner is now 1600 × 200 px, with the theme's name written inside it at the left. In the Portfolio the name opens the theme; on the theme's page it is the page's title.
 
