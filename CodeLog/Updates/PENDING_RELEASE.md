@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (135 changes — ready to push)
+## Pending (136 changes — ready to push)
+
+- **Freewrite keeps your description together (V4.37):** sentences that set off no rule stay in the component you were describing (a verdict, a result…), or become one text component between the links. Click one to take it out. Settings → Freewrite can make every sentence its own component instead.
 
 - **Close a popup (V4.36):** rest the pointer on a popup window and a × appears at its top right; click it and the paper goes back in its card.
 
