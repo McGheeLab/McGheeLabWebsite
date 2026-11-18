@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.36] — 2026-11-18 — Scientia: a popup's close button, shown when the pointer is on it
+
+Gabe (18 Nov 2026): "Popups don't close even when you leave notes or move through the notebook. Add a close button to it when you hover on it."
+
+App only (no lab-layer file changes).
+
+### Added
+- **`RPOP` (`scientia/src/13zzzc-rpopup.js`):** `.rp-x` (× on the top edge beside the top-right corner, `RPOP.X` icon) → `RPOP.remove(p)`: the popup closes, the file is back in its card, `_ls 'rpop'` no longer lists it. `.rp-hov` is set on `pointerenter` after `RPOP.reveal()` (the anchors' rest, Settings) and cleared 0.3 s after `pointerleave`; touch shows it with `.rp-edge`.
+- **`35-rpopup.css`:** `.rp-x` (hidden and `pointer-events: none` at rest; shown with `.rp-hov` / `.rp-edge`; red on hover; hidden while dragging; no transition with reduced motion); `.pv-rp-x` for the preview.
+
+### Changed
+- **Settings → Popup windows:** the description (× at its top right), "The anchors, corners and × show after resting on it for", the preview (× on the mock, the caption).
+
+### Tests
+| Test | Result |
+|---|---|
+| `px_t` lab build, 1400 px, real pointer events: × hidden at rest, on the top edge clear of the corner; the pointer on the popup → × after the rest (not at 0.45 s, yes at 1.35 s), under the pointer, its title; hidden on leaving; a click → the popup closes, the card shows the paper, nothing kept to reopen; in another note the popup is still there and × closes it; Settings' preview, description, label; `FEAT.audit()`; no errors | 15/15 |
+| `px_t` without the lab layer | 15/15 |
+| `rb_t32` (V4.32 popups) | 50/50 |
+
 ## [V4.35] — 2026-11-18 — Scientia: the pills follow the turn and come back; your pill layout on an empty note in Settings; bridges over the pills
 
 Gabe (18 Nov 2026): "Switching from horizontal to vertical layout on a tablet via rotation of the device (now with the rotate button) should allow pills to move dynamically with that system and go back to their original position. Also, the settings tab should have an empty note canvas in which you can place your pill layout, which will be remembered across devices. Bridge half moons and dots when in full screen should appear over the pills."
