@@ -4,6 +4,54 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.23] — 2026-11-18 — Scientia: a recording on the page of 64 features — each used in a made-up note, step by step
+
+Gabe: "Read the GitHub to understand what each feature does and come back to me with your own proposed workflow. I will give you the numbers and a description of the ones I would like you to change." — then, on the proposal for all 65: "go ahead".
+
+App data and tooling (`scientia/src/20b-demos.js`, `scientia/demos/`, `scientia/demokit/`), plus two one-line bug fixes the recordings turned up. No lab-layer file changes.
+
+### Added
+- **64 of the 74 features have a demonstration on their page** in Settings → Features (V4.12 had two): what the feature is for, and a recording of it used in a made-up note of the project "Traction on soft gels", with its steps listed under it. 64 recordings, 36 MB together, none over 55 s; each one is `scientia/demos/<id>.mp4` with its still, written by its script `scientia/demokit/<id>.mjs`.
+  - The description of each is the sentence Gabe approved in the proposal (`by` empty); Floats keeps his own words.
+  - Not recorded: the ten features of V4.13–V4.22 (`expseries`, `synthnotes`, `pills`, `rotate`, `problems`, `milestones`, `refmap`, `pficons`, `tbanner`, `pfactivity`), which wait for a proposal. `FEAT.undemoed()` lists exactly these (and, in the lab's builds, the lab layer's own `labhl`).
+- **The recorder grew what the full set needed** (`scientia/demokit/record.mjs`):
+  - `kit.js` runs in the page before a script's `setup`: `KIT.project / note / box / grid / fill / ago / asset / today` for building test notes, dated in the past where a feature needs history; a title may say `{today}`.
+  - `demokit/assets/` (`make.py`): three made-up two-page papers as PDFs (each with two figures and a display equation), an exported report page and its copy saved as a single-file web page, four micrographs, a computer-spoken clip of a lab meeting. Nothing in them is a real article, person or measurement.
+  - `R.files` answers the app's file window; Ctrl+C / V / Z run Chrome's own editing commands; `R.pen` and `R.touch` send pen strokes (with pressure, the barrel button, the eraser end) and finger taps; `R.cut(fn)` leaves a wait out of the take; `R.offline` takes the network away.
+  - `fullscreen: true` answers the browser's full-screen calls, which headless Chrome lacks, so the app's own full-screen behaviour runs (the focus frame, the edge pan). `server: true` runs the app's own `serve.py` on a spare port with its own settings file and an empty notebook folder in the temp directory, for handwriting, recordings and images in wells; `chrome: [...]` passes flags (a file as the microphone).
+  - Takes are limited to five at once on a computer (`SIS_DEMO_SLOTS`). `all.mjs` records several or all, retries a failed take once, writes the entries one at a time and can make a contact sheet of each.
+  - Frames are timed by when Chrome captured them and thinned to one per frame of the video, so a busy stretch plays at its real speed and the captions' seconds match the picture; a take's video begins on its first moment, not on the first change of the screen.
+- `scientia/CLAUDE.md`: the rule as it is now practised — the use and the steps are proposed and Gabe corrects them by number.
+
+### Bug Fixes
+- **A page saved in the browser lost its own styles** (`13zzs-webcap.js`, the MHTML reader). Chrome writes a page's `<style>` as a part located at `cid:css-…@mhtml.blink` — a Content-Location, not a Content-ID — and `find()` looked `cid:` addresses up by Content-ID only, so the stylesheet counted as "1 part of the page didn't come" and the page showed unstyled. It now falls back to the part's location.
+- **The Library's search missed a reading state just set** (`17e-libsearch.js` `LIBSTATE.set`). The search index is rebuilt when a count of records changes; setting a paper to Read changes none, so `is:read` / `is:unread` and the Reading facet kept the old state until something else changed. `LIBSTATE.set` now drops the index.
+
+### Found, not changed (for Gabe)
+- The help line at the foot of a note is never visible: `21-sync.css` `.hint{position:relative}` (added with its ×) overrides its place, and that place is now where the ＋ pill sits. Its recording shows the feature from its Settings page.
+- Unfolding a component leaves the one below about 119 px lower than it started (`settleNow` in `12-doc.js` and `REFLOW.apply` in `13vb-reflow.js` both apply the push).
+- With "Lock the wording after the day" on, Delete component is still offered, and the lock covers only components that carry a structure.
+- A spatial canvas's header says "0 cards" while cards are drawn on it.
+- "Flag for synthesis" is the last row of a component's right-click menu, which is taller than a 900 px window.
+- A hover card that opens under a moving pointer can stay: `hoverCard` listens for the pointer leaving only after its 260 ms timer.
+- In the Portfolio's dots panel only the "Needs investigation" lines go to their note.
+- Contest (Resurfacing) has no place to say why, and the day note does not record the answer.
+- The live preview of Chores is a fixed sample, not the person's chores.
+- A slash insert (`/plate`) leaves the typed word in the text when Enter comes more than about half a second after the last key.
+- The Library's header keeps "0 entries" after the first paper is added, until the page is drawn again.
+- `MANUAL.md` §13 and `23-tasks.js` still speak of "Activity → Done"; the Activity tab went in V4.19.
+- The Sync dot in the app by itself shows only this device (green) or offline (red); its lab states need a computer paired with the lab cloud and are not recorded.
+
+### Tests
+| Test | Result |
+|---|---|
+| `demos_t`, the app by itself: `FEAT.audit()` empty; the features without a recording are exactly the ten new ones; every entry whole (a use, both files on disk at the size it says, 10–60 s, 2–6 steps in order, captions of 12–140 characters); on each of the 64 pages a still and the steps, nothing fetched before Play, the recording plays at the size and length its entry says, its last step plays from its second; no errors | 8/8 |
+| `demos_t` on the lab's desktop build | 8/8 (there the lab layer's own feature, labhl, is the eleventh without a recording) |
+| `fp_t` (the feature page, V4.12's 33 checks brought up to date), 1400 px | 33/33 (also at 1024 and 400 px, and on the lab's desktop build) |
+| Every take looked at by an independent reviewer, the end of each step and the last frame | 64 takes read by three reviewers: 4 failed a step and 6 promised something not shown — all ten fixed and recorded again, then read again; 30 keep a small blemish (a hover card or toast left over, something cut off at an edge) |
+| `python scripts/scientia_build.py --check` · `python scripts/merge_check.py worktree` | current · clean |
+| `v3869` lab-mode harness · `v3880` notes harness | 286/286 · 13/13 |
+
 ## [V4.22] — 2026-11-17 — Scientia: the References Map — in a PDF, a citation shows its paper on hover and takes you to it on click; the Highlights panel lists the references
 
 Gabe: "If there are embedded links in the PDF from the citation in text to the actual reference at the end of the paper, have a section in the Highlights sidebar that is the References Map, which allows you to hover on a citation and see the associated paper without having to scroll down all the way. If you click on it, it will automatically bring you there. If there is a superscript number or a citation style based on the paper that you can associate to the journal, automatically find the citations if no links are evident for this to still work on older papers."
