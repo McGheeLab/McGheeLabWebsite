@@ -1883,6 +1883,7 @@
     "scientia/src/17g-sidefold.js",
     "scientia/src/17h-refmap.js",
     "scientia/src/17i-readsets.js",
+    "scientia/src/17j-minilib.js",
     "scientia/vendor/page-layout.js",
     "scientia/vendor/page-regions.js",
     "scientia/vendor/paper-cite.js"

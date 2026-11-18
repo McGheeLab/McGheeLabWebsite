@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (128 changes — ready to push)
+## Pending (129 changes — ready to push)
+
+- **The mini library (V4.30):** a paper read full screen keeps its row of tabs, and a thin grip on the left edge pulls out a mini library — the tabs open in this project, then the project's shelves with their papers; click one to read it. Give a shelf its projects with the new project button beside it in the Library.
 
 - **The Reader button and reading sets (V4.29):** a book at the top right of every page opens the Reader — in a note, the papers of its project; anywhere else, the last thing you read. Your reading tabs are now kept by project: the project you are in shows its tabs, the other projects fold into chips (click one to open it), and only × on a tab closes it.
 

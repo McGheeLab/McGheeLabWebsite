@@ -4,6 +4,38 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.30] — 2026-11-18 — Scientia: the maximised reader keeps its tab row; a mini library pulled from the left edge; shelves assigned to projects
+
+Gabe (18 Nov 2026): "When in maximized view, the multi tabs remain, but dragging the interface on the left of your screen brings up a mini library view of the current active shelves in your reader, which become the new system to navigate between PDFs or HTMLs. Shelves in libraries are assigned to projects."
+
+App only (two new modules, the features register, a CSS fix, BUILD) and the registry. No lab-layer file changes; no direct edit to `13zzb-reader.js`, `13zz-maxhl.js` or `17d-libgroups.js`.
+
+### Added
+- **`scientia/src/17j-minilib.js` — `RLIB`:**
+  - the tab row in the maximised view: `body.rs-maxrow` (`RLIB.paint`, `--rs-th`) fixes the reader's row over a pane in full screen; `RDOCK.open` wrapped (opened from the row, + or the mini library while a pane is full: `pane` = that pane, full again), `RDOCK.switchTo` (in full screen → `RLIB.read(id)`), `RDOCK.closeTab` (the next tab stays full screen; not for the bar's Close), `RSET.pick` (a chip over a maximised card reads its set's paper full screen);
+  - a maximised card: `MXHL.open` wrapped → `RLIB.visit(srcId)` (a tab of the set, `from`, `at`) and `RLIB.paintCards()` (`.rs-maxrow` over it: `RSET.band` / `RSET.chip`; tab → `RLIB.read`, × → `RLIB.closeTab`);
+  - the mini library: `RLIB.grip(ov)` (in every maximised view's `.mx-row`), `pull(e, row, grip)` / `push(e, panel)` (pointer drags, a third of the width decides), `open(row)` / `close()` (+ the hidden `.ovl.rs-libguard` while open), `fill(panel)` (open tabs, this project's shelves via `RLIB.shelves(key)`, *All shelves*, foci on no shelf; `RLIB.openable(lib)`), `pick(lib)` → `RDX.embedFor` → `RLIB.read`, `after()` (tune `rlib.after`); Esc (window capture) and a click outside close it;
+  - shelves' projects: `RLIB.projBtn(shelf)` on each shelf row of `LGROUP.side()`, `RLIB.assign(shelf, anchor)` (popover of projects), `RLIB.setProjs(shelf, ids)` → `projectIds` via `LGROUP.save`; `RLIB.settingsNode()`.
+- **`scientia/src/35-minilib.css`:** the fixed row and the pane under it, the card's row, the grip, the panel (slides with `transform`, `visibility`), the tree's project button, Settings' shelf list, the preview.
+- **Settings → Reading & sources → Mini library** (`rlib`): tunes `start` (this project's shelves / all), `after` (closes / stays open), `shelves` (node: every shelf, its projects, its button); preview `.pv-rl`. **Reading sets by project** gains `max` (*The tab row stays in the maximised view*).
+
+### Bug Fixes
+- **The header at 400 px:** V4.29's Reader button pushed the header row 17 px past a 400 px window (a narrow desktop window, not the phone layout). Below 480 px the row's gap is 5 px (`34-readsets.css`).
+
+### Changed
+- `CodeLog/features.json`: `scientia/src/17j-minilib.js` under `scientia.pdf`.
+
+### Tests
+| Test | Result |
+|---|---|
+| `ra_t30` lab build, 1400 px, real pointer events: ⤢ on a pane → the row fixed across the top, the pane under it, a tab under the pointer; a tab clicked → read full screen; a chip → Detection's paper full screen, and back; the grip (left edge, under the pointer, below the bar); the edge pan still over it; a drag pulls the panel out (left 0, ~310 px), this project's shelves (none yet: how to assign; All shelves (2 more)); Esc closes only it; a short pull springs back; a click opens, a click outside closes; dragging it back closes; All shelves (both shelves, foci, papers, foci on no shelf); the tree's project button → ticks Cell mechanics → `projectIds`, the button lit with its count; in Cell mechanics the panel lists its shelf; a paper clicked → a tab through its literature note, read full screen, panel closed; × on the tab read → the next, still full screen; a finger drag from the edge opens it; a maximised card (its ⤢) → the row over it, the card a lit tab, the grip; a tab there → read full screen, the card gone; Settings preview and shelf list; *All shelves* and *Stays open* in use; the switch (no grip; no tree buttons, assignment kept); the row setting off/on; `FEAT.audit()`; no sideways scroll; no errors | 38/38 |
+| `ra_t30` without the lab layer | 38/38 |
+| `ra_t400` (400 px, both builds): the header with the button fits; the phone layout has no button; both previews fit | 6/6 · 6/6 |
+| `ra_t29` (V4.29) lab · without the lab layer | 46/46 · 46/46 |
+| `t_995` · `sf_t` · `ff_t` · `lib_t1001` (both builds) | 27/27 · 29/29 · 33/33 · 114/114 + 114/114 |
+| `sync9_rdr` (V4.2 reader tabs) | 37/37 (a "ResizeObserver loop completed" error event fails its last check in some runs, on the V4.28 base too) |
+| `lr_t` · `fe_t1` (both builds) | 18/18 + 18/18 · 25/25 + 25/25 |
+
 ## [V4.29] — 2026-11-18 — Scientia: the Reader button; reading tabs kept by project, the other projects' sets folded into chips
 
 Gabe (18 Nov 2026): "Add a button in the top right corner, which is to open the Reader (responsible for PDFs, HTMLs, websites, and more). […] Your tabs are organized by projects, so you may have multiple reading sets opened at once. The current project you are in displays that reading set. Project reading sets overlap tabs from the same project, which act similar to regions. Other projects have their reading set region collapsed, Clicking on a collapsed region collapses the previous one while opening this one. Clicking close on the tab is the only way to close the PDF, HTML, etc… from that reading set. If you are opening the reader outside of a project, your most recent visit gets opened. This applies to projects too: the most recent visit from the project you're currently in is opened. If a paper is cited in multiple projects and is opened from a specific project, it may appear in both."
