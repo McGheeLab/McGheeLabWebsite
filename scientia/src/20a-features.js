@@ -517,6 +517,30 @@ const PV = {
       };
       draw(); return [wrap];
     } });
+  /* V4.29 — reading sets by project and the Reader button (17i, 34-readsets.css) */
+  D({ id: 'rsets', group: 'reading', needs: 'rtabs', label: 'Reading sets by project', isNew: true,
+    desc: 'The reader’s tabs are kept by project. A tab belongs to the project of the note it was opened from; a paper opened from two projects is a tab in both. The project you are in shows its set — its tabs together in a band of the project’s colour, like a region — and every other project’s set is folded into one chip with its name and count: click one to open it at the tab you read last there (the open one folds). Clicking a tab takes the note to its paper only inside that project. Only × on a tab closes it: ✕ on the row, leaving the note or closing the reader keeps every set. Off: one row of tabs, as before.',
+    changed: () => { try { RDOCK.save(); RDOCK.S = RDOCK.load(); if (RDOCK.wrap) { if (RDOCK.S_.tabs.length) RDOCK.remount(); else RDOCK.close(true); } } catch (e) { } },
+    tune: [T('follow', 'Going to a note of another project opens its set', 'switch', { isNew: true, def: true, d: 'A project with no set yet: the reader steps aside until you come back or press the Reader button. Off: the set stays as you chose it until you click another chip.' }),
+      T('tint', 'Each project in its own quiet colour', 'switch', { isNew: true, def: true, d: 'The band round the open set and the chips. Off: grey', changed: rdRedraw })],
+    preview: () => {
+      const wrap = h('div', { style: { minWidth: '0' } }), tint = tune('rsets', 'tint') !== false, follow = tune('rsets', 'follow') !== false; let open = 0;
+      const sets = [['Cell mechanics', 205, [['PDF', 'Style 2014'], ['Page', 'Traction force microscopy — Wikipedia']]], ['Detection', 25, [['PDF', 'Plotnikov 2014'], ['PDF', 'Engler 2006'], ['Page', 'Bead tracking']]], ['No project', null, [['PDF', 'Harris 1980']]]];
+      const draw = () => {
+        const row = sets.map(([n, hu, tabs], i) => { const st = hu == null ? {} : { '--rs-h': String(hu) };
+          return i === open ? h('div.rs-set.rs-open' + (hu == null ? '.rs-none' : ''), { style: st }, h('span.rs-nm', n), tabs.map(([k, t], j) => h('span.pv-rd-tab' + (j === 0 ? '.act' : ''), h('i', k), t, h('b', '×'))))
+            : h('button.rs-chip' + (hu == null ? '.rs-none' : ''), { type: 'button', style: st, title: 'Open this set', on: { click: e => { e.stopPropagation(); open = i; draw(); } } }, h('span.rs-nm', n), h('span.rs-n', String(tabs.length))); });
+        wrap.replaceChildren(h('div.pv-rset' + (tint ? '' : '.rs-plain'), h('div.pv-rset-row', row), rdPage()),
+          PV.cap('In a note of ' + sets[open][0] + ': its set is open, the others are folded into chips — click one to open it here. ' + (follow ? 'Going to a note of another project opens its set.' : 'The set stays as you chose it until you click another chip.') + ' Only × closes a tab.')); };
+      draw(); return [wrap];
+    } });
+  D({ id: 'rbtn', group: 'reading', needs: 'rtabs', label: 'Reader button', isNew: true, presets: { simple: true },
+    desc: 'The book at the top right of every page opens the Reader. In a note: the reading set of the note’s project, at the tab you read last — none yet: the papers and pages of that project’s notes to pick from. Anywhere else: the last thing you read — of the project selected in the Portfolio (or whose page you are on), else of any project — beside the note it was opened from. Clicked while the reader is open, it closes it; the tabs stay.',
+    tune: [T('away', 'Outside a note, it opens the last paper', 'seg', { isNew: true, def: 'note', opts: [['note', 'Beside its note'], ['full', 'Full screen']], d: 'Its note: the one it was opened from. Full screen: there too, and Esc comes back beside it' })],
+    preview: () => { const full = tune('rbtn', 'away') === 'full', bk = h('span.pv-rbtn', { title: 'Reader', html: RDOCK.BOOK });
+      return [h('div.pv-hd', h('b', 'Scientia'), h('span.sp'), h('span', '⌕ Search'), h('span', '+ Note'), bk),
+        h('div.pv-rbtn-out', h('b', 'In a note'), h('span', 'Its project’s reading set, at the tab read last'), h('b', 'Elsewhere'), h('span', 'The last paper read — of the project selected — ' + (full ? 'full screen, in the note it was opened from' : 'beside the note it was opened from'))),
+        PV.cap('The book is the last button at the top right. Clicked again, the reader closes and keeps its tabs.')]; } });
   /* =============================== Widgets =============================== */
   const W = (id, label, desc, rows, pv, o = {}) => D(Object.assign({ id, group: 'widgets', label, desc: desc + ' Off: it leaves + Insert and the / commands; those already in your notes stay.', inserts: rows, preview: pv }, o));
   W('equations', 'Equations', '∑ Equation in a note, or in the text, and the registered equations shared by every note.', ['equation', 'equation-reg'],

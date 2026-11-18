@@ -4,6 +4,42 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.29] — 2026-11-18 — Scientia: the Reader button; reading tabs kept by project, the other projects' sets folded into chips
+
+Gabe (18 Nov 2026): "Add a button in the top right corner, which is to open the Reader (responsible for PDFs, HTMLs, websites, and more). […] Your tabs are organized by projects, so you may have multiple reading sets opened at once. The current project you are in displays that reading set. Project reading sets overlap tabs from the same project, which act similar to regions. Other projects have their reading set region collapsed, Clicking on a collapsed region collapses the previous one while opening this one. Clicking close on the tab is the only way to close the PDF, HTML, etc… from that reading set. If you are opening the reader outside of a project, your most recent visit gets opened. This applies to projects too: the most recent visit from the project you're currently in is opened. If a paper is cited in multiple projects and is opened from a specific project, it may appear in both."
+
+App only (two new modules, the features register, BUILD) and the registry. No lab-layer file changes; no direct edit to `13zzb-reader.js` or `13zz-maxhl.js`.
+
+### Added
+- **`scientia/src/17i-readsets.js` — `RSET`, reading sets by project**, wrapping `RDOCK.load / save / open / focus / close / closeTab / follow / tabsRow / layout`, `RDX.goTab` and `DocView.render`:
+  - `_ls 'rtabs'` gains `sets { key: { tabs, at, from, show, act } }` (key = project id, or `-`), `cur`, `mode`; `RDOCK.S.tabs` is the shown set. `RSET.adopt(S, t)` (in `RDOCK.load`) normalises the sets, migrates flat tabs once by `keyOf(note)`, flattens them while the feature is off and reconciles when it comes back; `RSET.sync(S)` writes the row back into its set; `RSET.fill(S)` puts a set into the row (its `show`, else `RSET.recent`).
+  - `RSET.target(b)`: the set a paper opened goes in — the note's project from a note, the shown set from the reader itself (`window.event` target in `.rd-wrap`, `.ovl`, `.rs-lib`, `.rs-maxrow`). `from[id]` = the note it was opened from; `at[id]` updated on open and focus.
+  - `RSET.paintRow(row)`: the shown set's tabs in `.rs-set.rs-open` (its name, `--rs-h: hashHue(projectId)`), the others as `.rs-chip` (name, count) in the Portfolio's project order; `RSET.pick(key)` / `RSET.use(key, { quiet, empty })` switch sets (remount, or step aside when empty).
+  - `RSET.follow()` (after `DocView.render`, on `hashchange`): a note of another project than the last (`lastCtx`) shows its set (tune `rsets.follow`).
+  - `RSET.showEmpty()` / `emptyEl()`: a set with no tab — the papers and pages of that project's notes (`RSET.picks(key)`), + Open a paper or page…
+  - **The Reader button** `#readerbtn` (`RSET.mountBtn`, `RSET.button`, `RSET.goRead`, `RSET.pageKey`): last on `#hd .hrow`; in a note, its project's set at its most recent tab (or the empty set); elsewhere, the page's project's set or the most recent, its most recent tab beside the note it was opened from (tune `rbtn.away`: beside / full screen); nothing read yet → `RDOCK.picker`; clicked while open → `RDOCK.close()`.
+- **`scientia/src/34-readsets.css`:** the button, the band and chips (`--rs-c` from `--rs-h`, dark-theme variants, `.rs-plain`), the empty set, the previews.
+- **Settings → Reading & sources:** `rsets` *Reading sets by project* (tunes `follow`, `tint`; preview `.pv-rset`: one open set, two chips, click to switch) and `rbtn` *Reader button* (tune `away`; preview: the header with the book). Both need Reading tabs.
+
+### Changed
+- **Only × on a tab closes it:** `RDOCK.close()` without `keep` (✕ on the tab row, /close, the last tab of the only set) closes the reader with `keep`, `S.open = false`; the tab row's ✕ says "Close the reader — your tabs stay in their sets". The last tab of a set closed → the reader closes; the other sets keep their tabs (the Reader button, or a note of their project, brings them back). Close on a pane's bar in full screen → back beside (`RDOCK.full`), the tab stays.
+- **A tab clicked follows to its paper's note only inside the set's project** (`RDOCK.follow` wrapped for clicks on `.rd-tab`); the tab menu's "Go to its note" is unchanged.
+- **`RDX.goTab`** (the Library's reader, + outside a note): the tab goes in the set of the note it is read beside.
+- **`RDOCK.save`** keeps the zoom of every set's tabs; **`RDOCK.trimTabs`**' limit counts per set.
+- `CodeLog/features.json`: `scientia/src/17i-readsets.js` under `scientia.pdf`.
+
+- **`scripts/tests/v3869-scientia-lab-mode-harness.html`** (lab tooling, for Alex): its check "Close: the paper goes back into its card, and the note forgets it" becomes "…and leaves its reading set, and the note forgets it" — the reader's own ✕ keeps every tab now, so another tab of the set (one an earlier section left open) may stay beside. Closing a set's last tab closes the reader, its note forgets the paper (`rdock:<note>` null) and the other sets keep their tabs (`RDOCK.close` wrapper).
+
+### Tests
+| Test | Result |
+|---|---|
+| `ra_t29` lab build, 1400 px, real pointer events: the button (last at the top right, “Reader”, under the pointer, clear of ✦); the migration of flat tabs into sets by project, saved as sets; a card's book in a note of Cell mechanics → its set, banded and tinted; a second paper joins; a note of Detection with no set → the reader steps aside; a card there → Detection's set, Cell mechanics a chip with its count; + on the row picks Cell mechanics' paper from Detection → a tab in both sets; the chip → Cell mechanics at its most recent tab, Detection folds; project order; same project keeps the set; ✕ on the row, /close, a maximised card, Close in full screen keep every tab; × closes from one set only; the last tab of a set → the empty set with the other chip; the button in a note of a project with no set → its picks, one picked → its first tab; the button in the Portfolio (Cell mechanics selected) and on Today → the most recent tab beside its note; full screen elsewhere, Esc back; the button closes the reader; Reading sets off → one flat row, on → the sets back; the button's switch; both previews and the colour tune; `FEAT.audit()`; no sideways scroll; no errors | 47/47 |
+| `ra_t29` without the lab layer | 47/47 |
+| `t_995` (Settings) · `sync9_rdr` (V4.2 reader tabs, split, Cited in, citation band) · `sf_t` (side fold) · `ff_t` (References Map) | 27/27 · 37/37 · 29/29 · 33/33 |
+| `lr_t` (Portfolio, Lit reviews) lab · without the lab layer | 18/18 · 18/18 |
+| `fe_t1` (pills) lab · without the lab layer | 25/25 · 25/25 |
+| v3869 lab-mode harness (its Close check as above) · v3880 notes harness, on the whole stack V4.29–V4.35 | 287/287 · 13/13 |
+
 ## [V4.28] — 2026-11-18 — Scientia: the Data tab leaves; the data an experiment used is logged in its component, as a tree of folders and files
 
 Gabe: "Remove the data tab. Instead, data used in the experiment gets logged in the note component as a list of folders or files as a directory, appearing as a data tree."
