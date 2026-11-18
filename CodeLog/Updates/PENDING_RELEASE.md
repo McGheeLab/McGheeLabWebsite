@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (129 changes — ready to push)
+## Pending (130 changes — ready to push)
+
+- **Fit, zoom and full screen beside a note (V4.31):** a paper or page read beside a note now has Fit (its width to the pane, and it stays fitted when the pane changes size), − and +, and the % to go back to 100%; HTML pages and saved websites too. Full screen keeps your page, your place and your zoom, and Close in full screen brings it back beside instead of closing the tab. The new arrow-into-a-box button shows it in a note — its card, at the page you were on — and “◧ Back beside” on that card puts it back where it was.
 
 - **The mini library (V4.30):** a paper read full screen keeps its row of tabs, and a thin grip on the left edge pulls out a mini library — the tabs open in this project, then the project's shelves with their papers; click one to read it. Give a shelf its projects with the new project button beside it in the Library.
 

@@ -4,6 +4,49 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.31] — 2026-11-18 — Scientia: read beside gains Fit, zoom and 100%; full screen from where it is and back; Close in full screen comes back beside; in a note and back
+
+Gabe: "When you maximize a PDF or HTML from the beside view and close it, it goes back in the beside view rather than fully closing it from the tab set." · "Read beside for HTMLs, PDFs, etc… gains a Fit feature along with manual zooms and resetting to 100%. It also gains the option to go full screen from where it is at, while being able to go back and forth between beside, and in the note based on the note selected for where it is related/mentioned."
+
+App only (no lab-layer file changes): a new module and stylesheet, a two-line hook in the reader.
+
+### Added
+- **`RVIEW` (`scientia/src/13zzzb-rview.js`, new; `CodeLog/features.json` under `scientia.pdf`).**
+  - **The zoom:** `isFit(p)`, `pwOf(p)` / `loadPw(p)` (page 1's width in points, `RVIEW.pw` per file; seeds `PDFW.aspect`), `room(p)` (stage width − 16), `abs(p)` (the zoom shown; fitted, room ÷ page width), `rel(p)` (what `PDFW.full` draws at), `mark(p)` (the % and Fit's state), `fit(p)`, `step(z, n)` (n sizes up or down on `RDOCK.ZOOMS`, now `[.5 … 3]`), `start(b)` (a new tab: Fit / last / 100%), `keepLast(z)` (`_ls rview:last`).
+  - **HTML pages:** `hz(p)` (the frame scaled, `.rv-hzoom`), `hfit(p)` (1, or the pane ÷ the page's content width `p._sw`), `SCRIPT` (in every page's copy via `QUOTE.more`: `rv-hi` on load; `rv-ask` → `rv-size {x, y, sw, iw}` on scroll and resize; `rv-to {x, y}`), the parent's `message` listener (asks a pane's page, scrolls a page that should be, learns `p._sw`), `RVIEW.msg` (handlers other modules add).
+  - **The bar:** `dress(p, b)` (− % + Fit for PDFs and pages, `.rv-hgrp`; In a note `.rv-in` before ⇄; Close's capture listener in full screen), `closeTitle(p)`, `resized(p)` (a fitted pane fits again once its width settles; on `resize`).
+  - **In a note:** `noteMenu(p, e)`, `toNote(p, tb)`, `cardAt(id, at)`, `remember` / `cameOf` / `forget` (`_ls rview:came`, 20 at most), `back(id)`, `goAt(p, at)`, `chip(el, b, pane, ro)` ("◧ Back beside" · ×).
+  - **`late(id)`:** a feature this module registers goes after its group's others on the Features board.
+- **`scientia/src/34-rview.css` (new):** `scrollbar-gutter: stable` on a pane's stage, `.rv-fit(.on)`, `.rv-in`, `.rv-hzoom`, `.rv-back` / `.rv-bk` / `.rv-bx`, `body.f-off-rview`, the preview (`.pv-rv*`).
+- **Settings → Reading & sources → Fit, zoom and full screen beside a note** (`rview`, `presets: { simple: true }`): `start` (fit / last / 100), `fullClose` (beside / close); a live preview you can try.
+
+### Changed
+- **`RDOCK` (`13zzb-reader.js`):** `rel: p => p.zoom` (new, overridden by `RVIEW.rel`); `RDOCK.draw` passes `{ get zoom() { return RDOCK.rel(p); } }` to `WIDGETS.pdf.body`, read when the pages are laid out.
+- **Wrapped by `RVIEW`:** `RDOCK.load` (`S.fit`, `S.zv = 2`: zooms kept as shares of the width are let go once), `RDOCK.build` (a new tab's start; `dress`), `RDOCK.draw` (a PDF at a zoom waits for its page width; `mark`, `hz`), `RDOCK.zoom` (ends Fit; HTML pages; steps from a fitted zoom), `RDOCK.full` (`closeTitle`), `RDOCK.open` (forgets "◧ Back beside"), `WIDGETS.pdf.body` / `WIDGETS.html.body` (`chip`), `QUOTE.more` (`SCRIPT`).
+- **The zoom of a pane is the page's own size** (100% = its width in points), so it keeps its size in full screen, a split or a narrower window; the % button goes back to 100% (it was "fit the width").
+
+- **`17i-readsets.js` (V4.29):** its Close on a pane in full screen (back beside) defers to this version's Settings → Close, in full screen: Closes the tab.
+
+### Bug Fixes
+- **Close ✕ on a pane in full screen closed the tab** (`RDOCK.closeTab`); it now brings it back beside, the tab still in the set, at the same page (Settings can keep the old way).
+- **Full screen changed a zoomed page's size:** 115% of a 684 px pane was 785 px; in full screen 115% of the 1085 px column made it 1212 px, wider than the column. It now stays 704 px (115% of 612).
+- **A fitted page was 15 px wider than the pane once its scrollbar appeared** (the width was taken before the pages were laid out); the stage keeps the scrollbar's room.
+
+### Tests
+
+| Test | Result |
+|---|---|
+| `rb_t31` (V4.31), lab desktop build, 1400 px, real pointer events | 41/41 |
+| `rb_t31`, the build without the lab layer | 41/41 |
+| `t_995` (Settings) | 27/27 |
+| `ff_t` (the References Map in the reader) | 33/33 |
+| `sf_t` (the side panel's fold, the reader beside and full screen) | 29/29 |
+| `sync9_rdr` (reading tabs, split, Cited in, the citation band) | 37/37 |
+| `fe_t2` (Rotate) | 24/24 |
+| `fe_t1` (pills), lab build and plain page | 25/25 · 25/25 |
+
+Seen on the base build too, and filtered in `rb_t31`: opening an HTML page beside raises one "ResizeObserver loop completed with undelivered notifications" from the canvas cards' `SLIM` observer (`13zg-slim.js`), when the page's card turns into "Reading beside".
+
 ## [V4.30] — 2026-11-18 — Scientia: the maximised reader keeps its tab row; a mini library pulled from the left edge; shelves assigned to projects
 
 Gabe (18 Nov 2026): "When in maximized view, the multi tabs remain, but dragging the interface on the left of your screen brings up a mini library view of the current active shelves in your reader, which become the new system to navigate between PDFs or HTMLs. Shelves in libraries are assigned to projects."
