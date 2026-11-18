@@ -165,6 +165,17 @@ const PV = {
       return [note, PV.cap(on ? 'Drag a pill anywhere; a wheel left open rolls into a row, and the ＋ Quick cast stands where the bottom bar was.' : 'Off: the bottom bar and the buttons at the top right, as before.')];
     } });
 
+  /* V4.21 — Rotate: the whole app a quarter turn clockwise at a time (13zzz ROTATE; ⊕'s Rotate in lab-mode §11 and the cut) */
+  D({ id: 'rotate', group: 'pen', label: 'Rotate the app', isNew: true, presets: { simple: true }, desc: 'Rotate in the ⊕ zoom pill (and /rotate) turns the whole app 90° clockwise; each tap turns it 90° more, and the fourth puts it upright again — for a tablet or a screen held the other way. Kept on this device. The pen, the canvas, menus and selections all follow the turn. Esc three times, /rotate reset or Upright here puts it back. Off: upright, and no Rotate.',
+    changed: () => ROTATE.sync(),
+    tune: [T('turn', 'On this device, the app is', 'seg', { isNew: true, def: '0', opts: [['0', 'Upright'], ['90', '90°'], ['180', '180°'], ['270', '270°']], d: 'Clockwise, as Rotate turns it',
+      get: () => String(ROTATE.stored()), set: v => ROTATE.set(+v, true) })],
+    preview: () => {
+      const v = FEAT.on('rotate') ? ROTATE.stored() : 0;
+      return [h('div.pv-rot', h('div.pv-rot-scr', h('span.pv-rot-dir', v ? v + '° ↻' : 'upright'), h('div.pv-rot-app', { style: { transform: 'rotate(' + v + 'deg)' } }, h('i'), h('b')))),
+        PV.cap(v ? ROTATE.name(v) + ' — the app’s top is at the screen’s ' + ({ 90: 'right', 180: 'bottom', 270: 'left' }[v]) + '. Rotate turns it 90° more; Esc three times puts it upright.' : 'Upright. Rotate in the ⊕ zoom pill (or /rotate) turns the whole app 90° clockwise.')];
+    } });
+
   /* =============================== Structures =============================== */
   D({ id: 'structures', group: 'structures', core: true, label: 'Structures', desc: 'Selected words given a meaning: claim, barrier, question and the rest, each in its colour and style, with a status where it has one. Your own kinds of component are here too.',
     tune: [T('key', 'Key', 'seg', Object.assign({ opts: [['ctrl+enter', 'Ctrl+Enter'], ['alt+enter', 'Alt+Enter'], ['ctrl+shift+enter', 'Ctrl+Shift+Enter']] }, B('structKey'))),

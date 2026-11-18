@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (119 changes — ready to push)
+## Pending (120 changes — ready to push)
+
+- **Rotate (V4.21):** the ⊕ zoom pill has a Rotate button that turns the whole notebook 90° clockwise each tap (for a tablet or screen held the other way); press Esc three times to put it upright again.
 
 - **The pills on every note, everywhere (V4.20):** the movable ✎ ＋ ✦ ⊕ buttons now come with the app on its own too (Gabe's copy), not only inside the Lab Notebook. Settings → Pills turns them off to get the bottom bar back.
 
