@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.37] — 2026-11-18 — Scientia: Freewrite — sentences no rule reads go on with the component before them, or are one text component between the links
+
+Gabe (18 Nov 2026): "I want the default to be that a string of sentences not recognized are their own text component in between the links. For example, describing a verdict in a sentence and you keep describing in more sentences with no trigger of other components, it remains in that verdict. Manual editing can override that. Keep the other every sentence into a component as a setting."
+
+App only (no lab-layer file changes).
+
+### Changed
+- **`FREEW.convert` (`scientia/src/14j-freewrite.js`):** `o.plain` defaults to `run`. Each sentence's reading is recorded (`recs`: what it made, and whether it made one component and no link). After the V4.34 associations, in `run` mode an unread, unclaimed sentence:
+  - joins the component the sentence before made (`joins`), when that sentence made exactly one and no link;
+  - otherwise starts a text component (`p.run`; `p.split` = the component it was taken from by a click) that the next unread sentences join.
+
+  Joined sentences are folded in after the click overrides: `H.text` grows (each sentence keeps its full stop) and `H.spans` gains `{from, to, own}`. `convert` returns `joins`. `o.over[words]` on a sentence (`as`, a kind, a structure) makes it its own part; `none` leaves it words.
+- **The click (`FREEW.at`, `FREEW.pick`):** a joined stretch answers with its own words. Its menu starts with "✓ Stays in the <kind> before it" (it puts a split one back), offers "Its own component", the kinds and structures, and "Plain words". The preview lights its component.
+- **Settings → Freewrite** (`20a-features.js`): "Sentences no rule reads" — Stay in the component before (default) / Each its own component / Stay words. The live preview shows the barrier and the sentence after it.
+
+### Added
+- **A Verdict rule:** "The verdict is (that) [A]", "Verdict: [A]", "We conclude that [A]", "I conclude that [A]", "In conclusion, [A]", "The answer is (that) [A]" → `{ kind: 'verdict' }`.
+
+### Tests
+| Test | Result |
+|---|---|
+| `fr_t` lab build, 1400 px, real typing and clicks: a verdict and two unread sentences → one Verdict whose words are all three (with their full stops), three stretches with one tag, one preview box; a link sentence and two unread → one text component between, not in the hypothesis; the link and the barrier as before; a click on a joined sentence → "✓ Stays in the Verdict before it", Its own component (out, `split`), Stays… (back); Plain words on one (the next still stays); a kind on a run sentence (out of the run); the three settings via `convert`; the preview follows; Apply → the Verdict component, the run component, the Anomaly; `FEAT.audit()`; no errors | 18/18 |
+| `fr_t` without the lab layer | 18/18 |
+| `fw_t33` (V4.33; the preview's caption) · `fw_t34` (V4.34; a switched-off Question rule leaves text, not a Question), lab · without the lab layer | 69/69 · 69/69 · 24/24 · 24/24 |
+| `t_995` (Settings) | 27/27 |
+
 ## [V4.36] — 2026-11-18 — Scientia: a popup's close button, shown when the pointer is on it
 
 Gabe (18 Nov 2026): "Popups don't close even when you leave notes or move through the notebook. Add a close button to it when you hover on it."
