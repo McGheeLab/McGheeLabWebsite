@@ -4,6 +4,42 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.32] — 2026-11-18 — Scientia: a paper or page read beside becomes a popup window — moved and resized from its border, Fit − + and Maximize when the pointer rests
+
+Gabe: "Each one of these read beside now gains the option to become a popup that is a new window within SiS that can be moved freely (via dragging from four anchor points in the middle of each rectangle line), resized freely (via corners). These buttons only appear when the cursor is on the border of the popup. The popup does not have any buttons otherwise. If it just a rounded-rectangle blending in, but with a minor shadow or display to show it is superposed on top of the SiS. If you’re in the popup space, scrolling scrolls through it, panning pans through it, clicking and dragging through text selects it, interacting with an HTML interacts with it, etc… Holding your mouse still for two seconds within the popup space brings up a minimal interface with buttons for fitting the content to the popup window (horizontal only) along with +/- zoom buttons, maximize, which goes back to your previous read beside or maximize position before the popup was triggered."
+
+App only (no lab-layer file changes): a new module and stylesheet; no edits to the reader's own files.
+
+### Added
+- **`RPOP` (`scientia/src/13zzzc-rpopup.js`, new; `CodeLog/features.json` under `scientia.pdf`).**
+  - **The popup:** `make(b, st)` (a pane object, `p.i = -1`, `p.pop = { from, zoom, fit, at, hs }`; its bar `p.ui`: Fit `p.fitB`, −, `p.zl`, +, Maximize), `mount(p)` (`.rp-pop` › `.rp-body`, `.rp-rim` ×4, `.rp-mv` ×4, `.rp-rz` ×4), `wire(p, body)`, `place(id)` / `fit(g)` / `geo(p, g)` (kept on screen, 260 × 180 at least), `front(p)` (`z-index` 1215 + order), `sync()` (`.rp-away` off notes and on a phone).
+  - **The border and the bar:** `edgeIn` / `edgeOut` / `edgeShow` (`.rp-edge` after `reveal()`; a touch or pen tap: at once, with the bar, 4 s), `drag(p, e, how)` ('move' or nw · ne · sw · se; pointer capture, `body.rp-drag`), `moved(p, e)` / `ui(p, on)` (`.rp-ui-on` after `still()` without a button pressed).
+  - **In and out:** `open(b, st)`, `show(p, clip)`, `fromPane(q)`, `fromMax(b, ov)`, `max(p)` (back to `from`: `RDOCK.open` with the pane / side / split / full screen, or `DOCS.max` / `EMBED.max`), `remove(p, quiet)`, `close(id)`, `dockAll()`, `restore()` (after a reload), `btn(q)` (⧉).
+  - **Kept:** `store()` / `persist()` (`_ls 'rpop'`: `geo` per file, `last`, `open`).
+  - **`SCRIPT`:** in every page's copy (via `QUOTE.more`), silent until a popup asks (`rv-ask` + `moves`): `rv-move {b}`, `rv-down`, `rv-wheel`; handled through `RVIEW.msg`, which also asks a maximised view's page for its scroll (for its popup).
+  - **`preview()`:** a popup over a note as if hovered.
+- **`scientia/src/35-rpopup.css` (new):** `.rp-pop`, `.rp-body`, `.rp-ov` (the pane without its bar or Cited-in strip), `.rp-rim-*` (`--rp-reach`), `.rp-mv`, `.rp-rz` (cursors; their marks fade in under `.rp-edge`; larger under `pointer: coarse`), `.rp-ui` / `.rp-b` / `.rp-z`, `body.rp-drag`, `.rp-btn` / `.rp-mxbtn`, `body.f-off-rpop`, the preview (`.pv-rp*`).
+- **Settings → Reading & sources → Popup windows** (`rpop`): `still` (1000 / 2000 / 3000 ms), `reveal` (0 / 500 / 1000 ms), `reach` (8 / 14 / 22 px); the live preview.
+
+### Changed
+- **Wrapped by `RPOP`:** `RDOCK.paneOf` (popups count, so `RDOCK.has` too), `RDOCK.open` (a file in a popup: the popup to the front; `{ _rp }` from Maximize passes), `RDOCK.closeTab` (a popup's file not in the tabs: the popup closes — its card's "Put it back here"), `RDOCK.build` (⧉ before ⤢), `DOCS.max` / `EMBED.max` ("⧉ Popup" before Close), `WIDGETS.pdf.body` / `WIDGETS.html.body` (the card: "In a popup window"), `PDFW.trim` (a popup's PDF kept), `RVIEW.all` (V4.31 fits, zooms and asks pages in popups too), `DocView.render` (restore, sync), `changed` (a file gone takes its popup), `FEAT.apply` (off by a preset too: back where they came from).
+- **Keys:** ← → page the popup under the pointer.
+
+### Tests
+
+| Test | Result |
+|---|---|
+| `rb_t32` (V4.32), lab desktop build, 1400 px, real pointer events (and one move drag turned 90°, one touch tap) | 50/50 |
+| `rb_t32`, the build without the lab layer | 50/50 |
+| `rb_t400` (V4.31–V4.32 at 400 px: the two features' pages; nothing opens in the phone layout), both builds | 9/9 · 9/9 |
+| `rb_t31` (V4.31), both builds | 41/41 · 41/41 |
+| `t_995` (Settings) | 27/27 |
+| `ff_t` (the References Map in the reader) | 33/33 |
+| `sf_t` (the side panel's fold, the reader beside and full screen) | 29/29 |
+| `sync9_rdr` (reading tabs, split, Cited in, the citation band) | 37/37 (one run in three: 36/37, a "ResizeObserver loop" from the canvas cards' `SLIM` observer — the base commit d3a3e9b does the same, one run in three) |
+| `fe_t2` (Rotate) | 24/24 |
+| `fe_t1` (pills), lab build and plain page | 25/25 · 25/25 |
+
 ## [V4.31] — 2026-11-18 — Scientia: read beside gains Fit, zoom and 100%; full screen from where it is and back; Close in full screen comes back beside; in a note and back
 
 Gabe: "When you maximize a PDF or HTML from the beside view and close it, it goes back in the beside view rather than fully closing it from the tab set." · "Read beside for HTMLs, PDFs, etc… gains a Fit feature along with manual zooms and resetting to 100%. It also gains the option to go full screen from where it is at, while being able to go back and forth between beside, and in the note based on the note selected for where it is related/mentioned."

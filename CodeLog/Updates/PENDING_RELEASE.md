@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (130 changes — ready to push)
+## Pending (131 changes — ready to push)
+
+- **Popup windows (V4.32):** a paper or page you read beside a note — or have maximised — can become a popup: a small window over the app that you move and resize while you keep working in the note. Rest the pointer on its border and handles appear (the middle of each side moves it, the corners resize it; on a tablet, tap the border). Inside it scrolls, selects and highlights like the reader. Hold the pointer still in it and a little bar offers Fit, − and +, and Maximize to put it back where it was.
 
 - **Fit, zoom and full screen beside a note (V4.31):** a paper or page read beside a note now has Fit (its width to the pane, and it stays fitted when the pane changes size), − and +, and the % to go back to 100%; HTML pages and saved websites too. Full screen keeps your page, your place and your zoom, and Close in full screen brings it back beside instead of closing the tab. The new arrow-into-a-box button shows it in a note — its card, at the page you were on — and “◧ Back beside” on that card puts it back where it was.
 
