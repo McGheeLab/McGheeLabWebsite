@@ -42,3 +42,5 @@ body.mobile #readerbtn,body.f-off-rbtn #readerbtn{display:none}
 .pv-hd .pv-rbtn svg{width:15px;height:15px}
 .pv-rbtn-out{display:grid;grid-template-columns:auto 1fr;gap:6px 10px;align-items:center;font-size:11.5px;color:var(--ink-2);padding:8px 2px 0}
 .pv-rbtn-out b{font-family:var(--f-m);font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);font-weight:400}
+/* a narrow window (not the phone layout): the header row tightens a little so the button fits */
+@media (max-width:480px){#hd .hrow{gap:5px}}
