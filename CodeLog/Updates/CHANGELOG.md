@@ -4,6 +4,37 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.34] — 2026-11-18 — Scientia: Freewrite — your own associations by highlight, and the rules in Settings
+
+Gabe (18 Nov 2026), the end of his Freewrite message (V4.33 has the rest): "The user may also add freewrite components via highlights, and once the highlight is done, will be asked to associate it to a new or existing component. That association will be asked if it is temporary (i.e., just for that freewrite) or permanent (i.e., for all future freewrites). Additional freewrite association rules can be added, modified, or deleted in Settings."
+
+App only (the Freewrite module and its styles, the features register, BUILD). No lab-layer file changes.
+
+### Added
+- **Associations by highlight (`scientia/src/14j-freewrite.js`):**
+  - `selChip()` (on `pointerup` in the page; a keyboard selection does not raise it): words selected with the pointer (two letters or more, trimmed to words) put a small button at the end of the selection — "Make these words a component…" — placed with `rectAt(offset)` (a hidden copy laid out like the words); typing or a click elsewhere takes it away (`selOff()`).
+  - `associate(words, a, b)`: the question in a dialog — *A new component* (`shapes()`: a component, a task, a Result to add, a bridge from a note, every component kind, every structure) or *A component that exists* (an `optionPicker` of live components, this note's first); *For*: just this freewrite, or every freewrite.
+  - `keepAssoc(words, A, perm, a, b)`: temporary → `fw.assoc = [{ text, as, kind, struct, block }]` on the freewrite; permanent → a rule of yours `{ id, name, pats: [words], phrase: true, A, ex: the sentence, made }`; a click's change on those words gives way.
+  - `convert()`: after the sentences, every place the words of an association or a phrase rule are written becomes their part where nothing claimed them; where a rule found exactly those words, they become what you said; out of a whole sentence a word rule (or "every sentence a component") coloured, they are taken as their own; inside a part a two- or one-part rule found, they stay part of it.
+  - A part standing for an existing component (`p.block`): coloured green, "In the note: …" / "Bridged: …"; on Apply no new component — that component when it is in this note, else a bridge of it made in the note (a `ref` block, `why: 'From the freewrite'`; one already there is reused), in the same undo group.
+- **The rules, yours (`store()` / `saveStore()` / `rules()`):** `settings().fwRules = { own: [rule], edit: { builtin id: the rule as you changed it }, off: [built-in ids deleted] }` — the notebook's settings, synced, so they follow the person across devices; the built-in rules stay in the code. `rules()`: the built-in ones with your changes, less those deleted, then yours; a rule with `on: false` is kept and not read.
+- **Settings → Freewrite → Rules** (`20a-features.js`, tune `rules`, type `node`, `render: FREEW.editor()`):
+  - `editor()`: the count, + Add a rule, Restore the built-in rules (when one was changed or deleted); each rule a row — its switch (`setRule(r, { on })`), its name, what it makes (`makes(r)`, `says(spec)`), its patterns, its example, "built in" / "built in, changed" / "yours", Edit, Delete (`delRule(r)`: a built-in one goes to `off`, yours is removed).
+  - `form(r, done)`: name, patterns (one a line), what [A] becomes, what [B] becomes and the link (relation from `RELS`, direction) for two parts, "the whole sentence" / "just those words" for none, the example; `check()` (two parts at most, [A] and [B]; one part is [A]; words besides the parts; the same number of parts in every pattern; a pattern that can be read) says why a rule can't be saved; the example read live by the rule under the form (`spans` + `mini`).
+  - `pv()`: while a rule is edited (`pvRule`), the live preview shows it at work on its example; otherwise the default sentence, with how many rules read the words and how many are yours.
+- **`scientia/src/34-freewrite.css`:** the selection's button, the question's choices (`.fw-opt`), the rule rows and form, 760 px and below.
+
+### Changed
+- Settings → Freewrite's description says how to associate words and where the rules are; the feature has six settings.
+
+### Tests
+| Test | Result |
+|---|---|
+| `fw_t34` lab build, 1400 px, real pointer and keyboard events: a real drag over “fresh beads” selects them; a small button at the end of the selection (nothing opens by itself, under the pointer); the question (a new component with its kinds and structures, or one that exists; just this freewrite or every one); Method, just this freewrite → `fw.assoc`, coloured “Method”, no rule; “AFM calibration” → a component that exists, searched and chosen in another note, for every freewrite → a rule of yours in the notebook's settings (the words, that component, its sentence as the example), coloured “Bridged: AFM”; Apply bridges that component in and makes the Method; a new freewrite in another note reads the permanent association and not the temporary one; Settings → Rules (every built-in rule and yours with what it makes); Edit a built-in rule: a pattern more and a new example, read live in the form and in the preview; saved (“built in, changed”, read in every freewrite); a rule switched off is not read; deleted (kept aside); + Add a rule (“[A] blocks [B]”: a barrier, contradicts) read in every freewrite; a pattern that cannot be read says why and is not saved; Restore the built-in rules (yours kept); your rule deleted; the rules in the notebook's settings; 400 px; `FEAT.audit()` empty; no sideways scroll; no errors | 24/24 |
+| `fw_t34` without the lab layer | 24/24 |
+| `fw_t33` (V4.33) lab · without the lab layer | 69/69 · 69/69 |
+| `t_995` (Settings) | 27/27 |
+
 ## [V4.33] — 2026-11-18 — Scientia: Freewrite — a blank page for typing and the voice, read into components, kinds and links
 
 Gabe (18 Nov 2026): "Freewrite is a new button in Quick Cast. It brings up a blank white page which covers the whole Scientia In Situ screen. You may decide to place it beside a note or to close it, saving all changes and appearing in the note it was placed in. Freewrite works with typing and recording your voice, which you can play and pause at any time, as well as correcting with typing. The goal is that the final freewrite product automatically converts into a partial or complete note canvas. Words have identities and transform into note components, kinds, links, etc… […] After the automatic wiring of the transcript or text to associated note components, links, kinds, etc… it becomes color-coded with clicking on color-coded components to change them manually before approving the final freewrite result. A preview is displayed by color code for the user to see how the note will be created, and clicking on a color-coded freewrite component will bring up its translated note component for you to see directly. […] The final result transforms the freewrite into that note canvas preview. The freewrite is kept, automatically collapsed."
