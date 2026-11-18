@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (123 changes — ready to push)
+## Pending (124 changes — ready to push)
+
+- **Thinner theme banners with their name inside (V4.25):** a theme's banner is now 1600 × 200 px, with the theme's name written inside it at the left. In the Portfolio the name opens the theme; on the theme's page it is the page's title.
 
 - **Problem is now Challenge (V4.24):** the kind for a barrier in the literature is called a Challenge. What you marked as a Problem becomes a Challenge by itself, with your settings for it.
 
