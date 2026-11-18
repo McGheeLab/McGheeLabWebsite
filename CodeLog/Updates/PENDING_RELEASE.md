@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (131 changes — ready to push)
+## Pending (132 changes — ready to push)
+
+- **Freewrite (V4.33):** Freewrite in a note's Quick cast (or /freewrite) opens a blank page over the whole app. Type, or press Speak and talk — pause and play back whenever you like, and correct the words by typing. Convert turns your sentences into components and links (“X supports Y”, “One of the barriers is …”, “We found that …”), colours them and shows the note it will make; click coloured words to change them, then Apply. The freewrite stays in the note, folded. Beside the note puts the page in half the window.
 
 - **Popup windows (V4.32):** a paper or page you read beside a note — or have maximised — can become a popup: a small window over the app that you move and resize while you keep working in the note. Rest the pointer on its border and handles appear (the middle of each side moves it, the corners resize it; on a tablet, tap the border). Inside it scrolls, selects and highlights like the reader. Hold the pointer still in it and a little bar offers Fit, − and +, and Maximize to put it back where it was.
 

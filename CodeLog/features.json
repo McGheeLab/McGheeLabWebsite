@@ -1623,6 +1623,30 @@
    "note": "V3.869: not a tab in the web build. V4.28: no Data tab in any build — the data tree in a component (13zzyc) replaces it; the old page stays at #/data and /datasets."
   },
   {
+   "id": "scientia.freewrite",
+   "name": "Scientia Freewrite",
+   "side": "scientia",
+   "summary": "A blank page over the app (or beside the note) for typing and the voice; its sentences are read by rules into components, kinds, structures, links and placeholders, colour-coded with a preview of the note, and applied to the note (V4.33).",
+   "keywords": [
+    "freewrite",
+    "dictation",
+    "rules",
+    "patterns",
+    "convert",
+    "placeholder"
+   ],
+   "paths": [
+    "scientia/src/14j-freewrite.js",
+    "scientia/src/34-freewrite.css"
+   ],
+   "related": [
+    "shared.recorder",
+    "scientia.media",
+    "scientia.core"
+   ],
+   "note": "V4.33: the voice reuses REC (13zn) on the freewrite block and the lab's Transcribe on the web; the layout reuses LAYOUT (12d); the Quick cast entry is one line in lab-mode §11."
+  },
+  {
    "id": "scientia.materials",
    "name": "Scientia Materials",
    "side": "scientia",
