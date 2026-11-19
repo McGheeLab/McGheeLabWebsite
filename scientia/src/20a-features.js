@@ -500,7 +500,7 @@ const PV = {
         PV.cap('A quote, and the same quote bridged to another note: the bridge’s band, then the citation’s. Click it: ' + (beside ? 'the paper opens beside the note, at the quote.' : 'its card scrolls to the quote.'))]; } });
   /* V4.10 — the reader's side panel folds (17g, 30-sidefold.css) */
   const sfPaint = () => { try { SIDEFOLD.paint(SIDEFOLD.start()); } catch (e) { } };
-  D({ id: 'sidefold', group: 'reading', label: 'Fold the side panel', isNew: true, presets: { simple: true }, desc: 'The panel of highlights and notes beside a maximised PDF, HTML page or saved website, and in the Library’s reader, folds to a thin strip at the side with ›, its count written down the strip; click the strip to open it again. Beside a note, › closes it (Highlights opens it). Off: the panel stays open, as before.',
+  D({ id: 'sidefold', group: 'reading', label: 'Fold the side panel', isNew: true, presets: { simple: true }, desc: 'The panel of highlights and notes beside a maximised PDF, HTML page or saved website, and in the Library’s reader, folds away with ›: a small round button stays at the right edge, the count on its badge; click it to open the panel again. Beside a note it folds too (V4.40), with a fold of its own that starts folded, and lies over the paper when open. Off: the panel stays open in full screen and the Library, as before (beside a note it still folds).',
     changed: sfPaint,
     tune: [T('start', 'When a file opens, the panel is', 'seg', { isNew: true, def: 'last', opts: [['last', 'As you left it'], ['open', 'Open'], ['folded', 'Folded']], d: 'As you left it: kept on this device, the same for every reader', changed: sfPaint })],
     preview: () => {
@@ -508,10 +508,10 @@ const PV = {
       const chev = () => { const b = h('button.pv-sf-b', { type: 'button', tabindex: '-1' }); b.innerHTML = SIDEFOLD.CHEV; return b; };
       const draw = () => { const f = document.body.classList.contains('sf-fold'), toggle = e => { e.stopPropagation(); SIDEFOLD.set(!f); draw(); };
         const ann = c => h('div.pv-sf-ann', { style: { '--hc': c } }, h('i'), h('i.s'));
-        const side = f ? h('div.pv-sf-side', { title: 'Open the panel', on: { click: toggle } }, chev(), h('span.pv-sf-rail', '3 highlights · 1 note'))
+        const side = f ? h('div.pv-sf-cap', { title: 'Highlights and notes · 3 highlights · 1 note — click to open', on: { click: toggle }, html: SIDEFOLD.PEN })
           : h('div.pv-sf-side', h('div.pv-sf-top', h('span', 'Highlights and notes'), h('span.sp'), Object.assign(chev(), { title: 'Fold the panel to the side', onclick: toggle })), ann('#F6D55C'), ann('#90BE6D'), ann('#7FB3E8'));
         wrap.replaceChildren(h('div.pv-sf' + (f ? '.f' : ''), rdPage(), side),
-          PV.cap((f ? 'Folded: the page has the room; click the strip to open the panel. ' : 'Open: › folds the panel to a strip at the side. ') + (start === 'open' ? 'A file you open starts with it open.' : start === 'folded' ? 'A file you open starts with it folded.' : 'A file you open finds it as you left it.') + ' Try it here.')); };
+          PV.cap((f ? 'Folded: the page has the room; click the round button at the edge to open the panel. ' : 'Open: › folds the panel to a strip at the side. ') + (start === 'open' ? 'A file you open starts with it open.' : start === 'folded' ? 'A file you open starts with it folded.' : 'A file you open finds it as you left it.') + ' Try it here.')); };
       draw(); return [wrap];
     } });
   // V4.22 (17h): the References Map — a PDF's citations, hovered, show their paper; clicked, go to it; listed in the Highlights panel

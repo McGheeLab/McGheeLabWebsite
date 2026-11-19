@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (138 changes — ready to push)
+## Pending (139 changes — ready to push)
+
+- **A tidier reader bar (V4.40):** a paper's title has its own row, and clicking it takes you to its note while the reader stays open. You can type a page number. The page and zoom controls are smaller. The scissors, Highlights, Close, In a note and Cited in buttons are gone: the Cited in line shows the count, a tab's × closes, and pointing at a figure still offers a clip. Beside a note, the highlights panel folds to a small round button at the edge.
 
 - **Popups stay open (V4.39):** a popup window no longer disappears when you leave the note — it stays over the Portfolio, the Library and every other page until you close it with its ×.
 

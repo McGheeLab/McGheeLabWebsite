@@ -4,6 +4,39 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.40] — 2026-11-19 — Scientia: the reader's bar, tidier — the title on its own row, a page you type, fewer buttons; the side panel folds beside a note
+
+Gabe (19 Nov 2026): "Show it in a note button should be removed, and the cited in should go to the note when you click on the note it is cited in, without closing the reader. Don't show the cited in button anymore, as it already has its own small tab (include the number of cited in on that header instead). Clip already suggests. Remove the Close this tab button, as you can already close the reader or individual papers from the reading set. You should be able to input a page number in the page count and make the UI for that more compact along with the zoom UI. Have the title be on its own row, and the buttons just below it to be able to see more of the title. Clicking on the title brings you to its note. Remove the highlight button and instead, have the right sidebar collapsed in the read beside as well."
+
+App only (no lab-layer file changes).
+
+### Changed
+- **The bar (`RDOCK.build`, 13zzb) is two rows (`.rd-bar2`).** The title is alone on the first row; a click or Enter calls `RDOCK.toNote(p)` (`RSET.carry` if present, then `RDOCK.follow`). The buttons sit underneath in compact 26 px groups.
+- **The page is a box.** `p.pgIn` (`input.rd-pgin`) and `p.pgN`; Enter → `RDOCK.goTo(p, n)` (clamped; `PDFW.go` for page view, else `RDOCK.goPage`); Esc leaves it. `RDOCK.onScroll` writes the number only while the box is not focused, and sizes it to the page count.
+- **Buttons removed from the bar:**
+  - `CLIP.btn` (13zza) and HSNIP's reader-bar scissors (13zzm);
+  - Highlights: `p.hl` hidden (`.rd-hl`), kept as 13zze's anchor;
+  - `.rd-x`: only without reading tabs, as ✕;
+  - In a note (`p.inB`, 13zzzb);
+  - Cited in · N (17e).
+- **Cited in.** `RDX.strip`'s header reads "Cited in · N". The chips and their list rows call `RSET.carry` before `App.jump`.
+- **The side panel (17g):**
+  - beside a note it folds with its own state: `body.sf-fold-b`, `_ls 'sideFoldB'` (default folded), `SIDEFOLD.setB` / `foldedB` / `foldedAt`;
+  - `dock()` now means beside and not a popup;
+  - folded, in every reader, it is a capsule at the right edge: `.sf-ic` with the highlighter icon (`SIDEFOLD.PEN`) and a `.sf-k` badge with the count; a click opens it, › folds it;
+  - beside, open, it lies over the paper;
+  - Fold the side panel off: beside still folds.
+- **Settings:**
+  - `sidefold`: the description and the preview (`.pv-sf-cap`);
+  - `rview`: the description, the preview's two-row bar, and the `fullClose` label (reading tabs off).
+
+### Tests
+| Test | Result |
+|---|---|
+| `rt40_t`, lab build, 1400 px, real pointer and keys. The bar: the title alone on its row, as wide as the bar; no scissors / Highlights / Close / In a note / Cited in; the page box 1 / 6; groups 26 px. Typing a page: 4 + Enter → page 4; 99 → 6; Esc leaves it. Cited in · 1. Beside: folded to a capsule at the right edge, halfway down; a click opens it over the paper (kept); › folds it. Full screen: open in the flow, then the capsule. Feature off: beside still folds. From the second note, a click on the title → the paper's note, its card lit, the reader still on the paper. An HTML page's bar: ✎ Note and Export ink labels, no scissors. The Settings preview. Reading tabs off: ✕. Then `FEAT.audit()`, no sideways scroll, no errors | 23/23 |
+| `rt40_t` without the lab layer | 23/23 |
+| `sf_t40` (V4.10's side-panel walk, the capsule look; beside it folds) · `rb_t31b` (V4.31; ◧ instead of Close; no In a note) · `ra_t29b` (V4.29; ◧ instead of Close) | 29/29 · 33/33 · 47/47 |
+
 ## [V4.39] — 2026-11-19 — Scientia: popups stay on every page — leaving a note no longer hides them
 
 Gabe (19 Nov 2026): "Popups are also closing when I'm leaving a note, which is not how it's supposed to work."
