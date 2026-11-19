@@ -1647,6 +1647,35 @@
    "note": "V4.33: the voice reuses REC (13zn) on the freewrite block and the lab's Transcribe on the web; the layout reuses LAYOUT (12d); the Quick cast entry is one line in lab-mode §11."
   },
   {
+   "id": "scientia.look",
+   "name": "Scientia look and motion (the edge-rail look)",
+   "side": "scientia",
+   "summary": "V4.42+ (Gabe: \"B is the best. Rethink the UI and animations of the entire lab notebook to match this style.\"): one CSS layer loaded last (36-look.css, under body:not(.f-off-look)) restyles the notebook — warm cards with a hairline ring for components and highlights, the rail surface for menus, dialogs, toasts, popups and pills, a gliding pill for the tab you are on — with five motion curves whose times Movement (Full / Calm / Still) and reduced motion set; 20d-look.js adds what CSS cannot: the reader's side panel glides shut and folds into a capsule of its highlight colours with counts (beside a note too), the mini library's grip becomes a capsule of the project's shelves and its papers show as spines on a shelf or a list (kept on the device), and a page you navigate to rises once. Settings → Look and motion (FEAT 'look').",
+   "keywords": [
+    "look",
+    "motion",
+    "animation",
+    "theme",
+    "rail",
+    "capsule",
+    "glide",
+    "spines",
+    "bookshelf",
+    "overhaul"
+   ],
+   "paths": [
+    "scientia/src/20d-look.js",
+    "scientia/src/36-look.css"
+   ],
+   "extends": "scientia.canvas",
+   "related": [
+    "scientia.pdf",
+    "scientia.settings",
+    "scientia.reader"
+   ],
+   "note": "Wraps SIDEFOLD.aria / wrap / setB, RLIB.fill / grip / paint and FEAT.apply; the modules themselves are unchanged. The design canvas (B and the boards for every surface) is the claude.ai artifact CymaRzoNRZi1pLMnEtnrCk."
+  },
+  {
    "id": "scientia.materials",
    "name": "Scientia Materials",
    "side": "scientia",

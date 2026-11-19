@@ -4,6 +4,37 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.42] — 2026-11-19 — Scientia: Look and motion — the notebook in B's edge-rail style; capsule rails for both reader sidebars; the mini library as spines or a list
+
+Gabe (19 Nov 2026): "B is the best. Rethink the UI and animations of the entire lab notebook to match this style. Bring them all up in the artifact as a new pull request for lab notebook motion and look overhaul" — after: "Update both sidebars to have cool UI that is more modern and aesthetically pleasing by building a few options with animations in an artifact. The collapsed bar does not have to be a bar." and "The left library left sidebar should display the list of papers in book mode or list mode (as a button toggle)."
+
+App only (no lab-layer file changes; the pills change by CSS).
+
+### Added
+- **`FEAT 'look'` — Look and motion** (Canvas & notes, every preset):
+  - Movement `seg` (`full` / `calm` / `still`);
+  - the mini library's view (`node`, this device);
+  - `preview` → `LOOK.preview()`.
+- **`scientia/src/36-look.css`:**
+  - the B tokens (light / dark) and the motion curves;
+  - the restyle of the shell, tabs, cards, wires, menus, popovers, dialogs, toasts, the palette, Settings and the pills;
+  - the side panel docked with a width glide;
+  - all under `body:not(.f-off-look)`.
+- **`scientia/src/20d-look.js` (`LOOK`):**
+  - `rail(col)`: the right sidebar's capsule of colour dots and counts (`count`, `colourName`), on `SIDEFOLD.aria` / `wrap` / `setB`;
+  - `refit()`;
+  - `dressLib(p)`: Book / List (`libMode`, `setLib`, `_ls 'lookLib'`) on `RLIB.fill`;
+  - `grip(g)`: the shelves' capsule on `RLIB.grip` / `paint`;
+  - `paint()` on `FEAT.apply`;
+  - `#view.lk-nav` on `hashchange`.
+- **`CodeLog/features.json`:** `scientia.look`.
+
+### Tests
+| Test | Result |
+|---|---|
+| `lk_t`: the surfaces restyled; the capsule's counts (yellow 2, blue 1, pink 1); the glide part-way; the beside panel docked; the fitted page refits; the full-screen fold and unfold; the shelves' capsule; Book spines (staggered) vs List; Calm and Still; off restores the look from before (V4.40's capsule); the navigation class; the Settings preview; List kept after a reload; no errors, no sideways scroll — lab · without the lab layer | 32/32 · 32/32 |
+| `lk_lib_t` (the Library's reader, folded: its rail under the pointer, a click opens, › folds) · `rt41_t` (V4.41, the look on) · `rt40_t` and `sf_t40` (V4.40's look: run with Look and motion off) — lab · without the lab layer · lab harnesses v3869 · v3880 | 6/6 · 6/6 · 23/23 · 23/23 · 24/24 · 24/24 · 29/29 · 287/287 · 13/13 |
+
 ## [V4.41] — 2026-11-19 — Scientia: reading sets — a popup's × puts the paper back in the reader; the open set folds; shelves say where a paper belongs; the reader is kept across a reload; Cited in keeps the reader
 
 Gabe (19 Nov 2026): "popup closing should bring it back in the reader. Clicking on a reading set collapses it. A new shelf and new focus added to TF-ELISA still opens in Auto In-vitro. My reader, after hard reload, was not saved. … the cited in should go to the note when you click on the note it is cited in, without closing the reader."
