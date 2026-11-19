@@ -1064,8 +1064,10 @@
     var appR = q('#app').getBoundingClientRect(), rdR = rd && rd.getBoundingClientRect(), vwR = q('#view').getBoundingClientRect();
     check('the book: the paper takes the left half of the window, full height; the note the right half', !!rd && D.body.classList.contains('rd-left') && Math.abs(rdR.width - appR.width / 2) < 4 && Math.abs(vwR.left - appR.width / 2) < 4 && Math.abs(rdR.bottom - vwR.bottom) < 3, JSON.stringify(rd && [rdR.width, appR.width, vwR.left, rdR.bottom, vwR.bottom]));
     check('…the card on the canvas says the paper is being read beside the note', !!q('.box[data-id="c_fig"] .rd-away') && !q('.box[data-id="c_fig"] .pdf-stage'));
-    var pg20 = await until(function () { var t = (q('.rd-pg') || {}).textContent || ''; return /^1 \/ 2$/.test(t) && t; }, 4000);
-    check('…its bar says page 1 / 2', !!pg20, (q('.rd-pg') || {}).textContent);
+    /* V4.40: the page is a box you type in (.rd-pgin), the count beside it (.rd-pgn) */
+    var pgText = function () { var i = q('.rd-pg .rd-pgin'), n = q('.rd-pg .rd-pgn'); return i ? (i.value + ' ' + (n ? n.textContent : '')).trim() : ((q('.rd-pg') || {}).textContent || ''); };
+    var pg20 = await until(function () { var t = pgText(); return /^1 \/ 2$/.test(t) && t; }, 4000);
+    check('…its bar says page 1 / 2', !!pg20, pgText());
     [].find.call(qa('.rd-bar button'), function (b) { return b.textContent === '+'; }).click();
     var z20 = await until(function () { return (q('.rd-zl') || {}).textContent === '115%' && q('.embed-max.rd-docked .pdf-slot'); }, 4000);
     check('…+ makes the pages larger (115%)', !!z20 && ev('RDOCK.st.zoom') === 1.15);
@@ -1085,7 +1087,7 @@
     check('leaving the note closes the paper beside it', !!gone);
     go('#/doc/' + cn); var back = await until(function () { return q('.embed-max.rd-docked'); }, 8000);
     check('…coming back, it is beside the note again, on the side you chose', !!back && D.body.classList.contains('rd-right'));
-    if (q('.rd-x')) q('.rd-x').click();
+    var tx = q('.rd-tab[data-id="c_fig"] .rd-tx'); if (tx) tx.click(); else if (q('.rd-x')) q('.rd-x').click();   /* V4.40: no Close on the bar with tabs — the tab’s × closes */
     /* V4.29 (Gabe: "Clicking close on the tab is the only way to close the PDF, HTML, etc… from that reading set"): the reader's own ✕ keeps
        every tab now, so another tab of this note's set (one an earlier section left open) may stay beside; the closed paper leaves */
     var closed = await until(function () { return q('.box[data-id="c_fig"] .pdf-stage') && ev("RDOCK.S_.tabs.indexOf('c_fig')") < 0; }, 6000);
