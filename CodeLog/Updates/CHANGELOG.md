@@ -4,6 +4,37 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.41] — 2026-11-19 — Scientia: reading sets — a popup's × puts the paper back in the reader; the open set folds; shelves say where a paper belongs; the reader is kept across a reload; Cited in keeps the reader
+
+Gabe (19 Nov 2026): "popup closing should bring it back in the reader. Clicking on a reading set collapses it. A new shelf and new focus added to TF-ELISA still opens in Auto In-vitro. My reader, after hard reload, was not saved. … the cited in should go to the note when you click on the note it is cited in, without closing the reader."
+
+App only (no lab-layer file changes).
+
+### Bug Fixes
+- **A paper read from the Library still opened in the default project's set (Auto In-Vitro), even on a shelf assigned to another project.** Its literature note's project (`READER.project()`) chose the set. Now `RSET.docKey(d)` follows the paper's home, and `RSET.shelved(b)` counts in `appears` / `home`. `RDX.goTab`, `ctxKey`, `keyOfBlock` and the tab-follow wrapper use it. Away from a note, `target` puts the paper's home first.
+- **The reader was lost after a reload when its state was read before the notebook's cards were in.** `RDOCK.live` filtered every tab and `open` became false, and the next save wrote that over the real state. Now:
+  - `RSET.keep(id)` keeps tabs whose card is not here yet (`adopt`, `sync`; `RSET._pend`);
+  - `open` stays while they are on their way;
+  - 13zzb `load` / `save` keep them in the flat row;
+  - `RDOCK.save` waits for `window.__ready`;
+  - `RSET.ready()` reads the state again and restores the reader;
+  - `RSET.arrived()` puts arriving tabs back in the row.
+
+### Changed
+- **Popup × (`RPOP.back`):** back in the reader, a tab of its set, beside, at the same page and zoom. Away from a note it goes in its set (`RSET.carry(id, null)`) and its card shows it. With reading tabs off, in its card as before.
+- **The open reading set folds when clicked:** its name, or the band outside its tabs (`RSET.fold`, `RSET.folded`, `chip(k, cur)` → `.rs-cur`). Its chip opens it again; changing set unfolds.
+- **`RSET.carry(id, docId)`:** the Cited in chips and the title (V4.40) put the paper in the destination note's set, shown, before going there.
+- **Settings:**
+  - `rsets`: the description and the preview (fold and unfold);
+  - `rpop`: the description.
+
+### Tests
+| Test | Result |
+|---|---|
+| `rt41_t`, lab build, 1400 px, real pointer events. Library papers: the shelved paper (its literature note in Cell mechanics) → TF-ELISA's set, shown (`home`, `appears`, `docKey`); the paper on no shelf → No project. Beside Traction readings, the Cited in chip → the ELISA note, the reader still on the paper, now in both sets; the title → back, still read. Folding: its name folds the set (filled chip, no tabs, the paper still read); its chip unfolds; another project's note opens unfolded. Popups: ⧉ then × → back in the reader at page 2; × on the Portfolio → its set, read when back in the note. The state read and saved with its two cards hidden → kept (open, both tabs); a change → back in the row, the reader open; a hard reload → back with both tabs. Settings. Then `FEAT.audit()`, no sideways scroll, no errors | 23/23 |
+| `rt41_t` without the lab layer | 23/23 |
+| `ra_t29b` · `rh_t` (V4.38) · `pp_t` (V4.39) · `px_t41` (V4.36's walk; × now back in the reader) · `rb_t32b` (V4.32's walk; the page's popup moved off the bar's second row), both builds · `ra_t30` · `ra_t400` · `rb_t400` · lab harnesses v3869 · v3880 | 47/47 · 15/15 · 11/11 · 15/15 · 50/50 · 50/50 · 38/38 · 6/6 · 9/9 · 287/287 · 13/13 |
+
 ## [V4.40] — 2026-11-19 — Scientia: the reader's bar, tidier — the title on its own row, a page you type, fewer buttons; the side panel folds beside a note
 
 Gabe (19 Nov 2026): "Show it in a note button should be removed, and the cited in should go to the note when you click on the note it is cited in, without closing the reader. Don't show the cited in button anymore, as it already has its own small tab (include the number of cited in on that header instead). Clip already suggests. Remove the Close this tab button, as you can already close the reader or individual papers from the reading set. You should be able to input a page number in the page count and make the UI for that more compact along with the zoom UI. Have the title be on its own row, and the buttons just below it to be able to see more of the title. Clicking on the title brings you to its note. Remove the highlight button and instead, have the right sidebar collapsed in the read beside as well."

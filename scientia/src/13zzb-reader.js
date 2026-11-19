@@ -58,11 +58,13 @@ const RDOCK = {
   load() {
     const t = _ls.get('rtabs', null) || {}, S = { tabs: (Array.isArray(t.tabs) ? t.tabs : []).filter(RDOCK.live), side: t.side === 'right' ? 'right' : 'left', zoom: Object.assign({}, t.zoom || {}), open: !!t.open, n: [1, 2, 4].includes(t.n) ? t.n : 1, act: +t.act || 0 };
     S.tabs = [...new Set(S.tabs)]; S.show = Array.from({ length: S.n }, (_, j) => { const x = (t.show || [])[j]; return x && S.tabs.includes(x) ? x : null; });
-    if (!S.show.some(Boolean) && S.tabs.length) S.show[0] = S.tabs[0]; S.act = clamp(S.act, 0, S.n - 1); if (!S.tabs.length) S.open = false; return S;
+    if (!S.show.some(Boolean) && S.tabs.length) S.show[0] = S.tabs[0]; S.act = clamp(S.act, 0, S.n - 1); if (!S.tabs.length && !(t.tabs || []).some(id => id && !M.block(id))) S.open = false; return S;   // V4.41: open stays open while its tabs are not here yet
   },
   get S_() { return RDOCK.S || (RDOCK.S = RDOCK.load()); },
   save() {
-    const S = RDOCK.S_; Object.keys(S.zoom).forEach(k => { if (!S.tabs.includes(k)) delete S.zoom[k]; }); _ls.set('rtabs', S);
+    const S = RDOCK.S_; Object.keys(S.zoom).forEach(k => { if (!S.tabs.includes(k)) delete S.zoom[k]; });
+    const was = _ls.get('rtabs', null) || {}, later = (Array.isArray(was.tabs) ? was.tabs : []).filter(id => id && !S.tabs.includes(id) && !M.block(id));   // V4.41: tabs whose card is not here yet stay kept
+    _ls.set('rtabs', later.length && S.mode !== 'sets' ? Object.assign({}, S, { tabs: S.tabs.concat(later) }) : S);
     RDOCK.panes.forEach(p => { if (p) _ls.set('rdock:' + p.docId, { id: p.id, side: S.side, zoom: p.zoom }); });   // the note's own record, as before (what the reader goes back to with the feature off)
   },
   trimTabs() { const S = RDOCK.S_, max = +RDOCK.tn('rtabs', 'max', 12) || 12; while (S.tabs.length > max) { const old = S.tabs.find(x => !S.show.includes(x)); if (!old) break; S.tabs = S.tabs.filter(x => x !== old); } },
