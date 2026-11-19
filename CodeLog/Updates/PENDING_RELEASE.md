@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (140 changes — ready to push)
+## Pending (141 changes — ready to push)
+
+- **A new look and motion (V4.42):** the notebook has warmer surfaces, rounded cards and menus, a pill that glides between tabs, and dialogs that rise and toasts that spring up. A reader's side panels glide open and shut. Folded, the highlights panel becomes a small capsule of its colours with counts, and the mini library a capsule of the project's shelves. The mini library shows papers as spines on a shelf or as a list. Settings → Look and motion sets how much things move (Full, Calm, Still), or turns the new look off.
 
 - **Reading sets, fixed (V4.41):** closing a popup puts the paper back in the reader. Clicking the open reading set folds it. A paper on a Library shelf assigned to a project opens in that project's set, not the first project's. The reader comes back after a hard reload. Clicking a Cited in note takes you there with the reader still open.
 
