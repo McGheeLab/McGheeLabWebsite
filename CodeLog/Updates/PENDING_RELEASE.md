@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (139 changes — ready to push)
+## Pending (140 changes — ready to push)
+
+- **Reading sets, fixed (V4.41):** closing a popup puts the paper back in the reader. Clicking the open reading set folds it. A paper on a Library shelf assigned to a project opens in that project's set, not the first project's. The reader comes back after a hard reload. Clicking a Cited in note takes you there with the reader still open.
 
 - **A tidier reader bar (V4.40):** a paper's title has its own row, and clicking it takes you to its note while the reader stays open. You can type a page number. The page and zoom controls are smaller. The scissors, Highlights, Close, In a note and Cited in buttons are gone: the Cited in line shows the count, a tab's × closes, and pointing at a figure still offers a clip. Beside a note, the highlights panel folds to a small round button at the edge.
 
