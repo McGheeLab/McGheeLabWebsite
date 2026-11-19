@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (137 changes — ready to push)
+## Pending (138 changes — ready to push)
+
+- **Popups stay open (V4.39):** a popup window no longer disappears when you leave the note — it stays over the Portfolio, the Library and every other page until you close it with its ×.
 
 - **Reading sets fixed (V4.38):** a paper now opens in its own project's reading set — the project of the note it is in, or the project where it appears most — instead of always in the same one. The tab row is slimmer, and each set's colour now wraps all its tabs.
 

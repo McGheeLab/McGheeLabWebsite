@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.39] — 2026-11-19 — Scientia: popups stay on every page — leaving a note no longer hides them
+
+Gabe (19 Nov 2026): "Popups are also closing when I'm leaving a note, which is not how it's supposed to work."
+
+App only (no lab-layer file changes).
+
+### Bug Fixes
+- **Popups disappeared when you left a note.** `RPOP.sync` (V4.32) hid them (`.rp-away`) on every page that isn't a note. Now only a phone hides them.
+
+### Changed
+- **`RPOP.restore`:** after a reload, on any page once `window.__ready` (it was only with a note open); tried on each page change and at start.
+- **`RPOP.max`:** away from a note, it goes to the paper's note (`App.go`) and finishes there; retried every 200 ms, at most 25 times.
+- **Settings → Popup windows:** the description.
+
+### Tests
+| Test | Result |
+|---|---|
+| `pp_t` lab build, 1400 px, real pointer events: a popup over its note; on the Portfolio, the Library, Today and Settings it stays open, on top, in the same place; × closes it on the Portfolio; a reload on the Portfolio brings it back there, where it was; Maximize on the Portfolio → its note, the paper beside, the popup gone; the description; `FEAT.audit()`; no errors | 11/11 |
+| `pp_t` without the lab layer | 11/11 |
+| `rb_t32` (V4.32; "a page that isn't a note: they stay") lab · without the lab layer · `px_t` (V4.36) · `rb_t31` · `rb_t400` | 50/50 · 50/50 · 15/15 · 41/41 · 9/9 |
+
 ## [V4.38] — 2026-11-19 — Scientia: reading sets — a paper goes in its own project's set (where it appears most), not the default project's; a slim row where each set's box holds its tabs
 
 Gabe (19 Nov 2026): "Papers that are not assigned a project get assigned to a project based on the greatest number of appearance in a project out of all of them. The tab space for reading sets is too large, and the reading set color/region must envelop the paper tab space from the same tab. Right now, all papers open in Auto In-Vitro so project assignment is not working properly."
