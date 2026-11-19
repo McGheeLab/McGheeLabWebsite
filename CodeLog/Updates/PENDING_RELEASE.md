@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (136 changes — ready to push)
+## Pending (137 changes — ready to push)
+
+- **Reading sets fixed (V4.38):** a paper now opens in its own project's reading set — the project of the note it is in, or the project where it appears most — instead of always in the same one. The tab row is slimmer, and each set's colour now wraps all its tabs.
 
 - **Freewrite keeps your description together (V4.37):** sentences that set off no rule stay in the component you were describing (a verdict, a result…), or become one text component between the links. Click one to take it out. Settings → Freewrite can make every sentence its own component instead.
 

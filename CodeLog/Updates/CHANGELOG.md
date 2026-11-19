@@ -4,6 +4,40 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.38] — 2026-11-19 — Scientia: reading sets — a paper goes in its own project's set (where it appears most), not the default project's; a slim row where each set's box holds its tabs
+
+Gabe (19 Nov 2026): "Papers that are not assigned a project get assigned to a project based on the greatest number of appearance in a project out of all of them. The tab space for reading sets is too large, and the reading set color/region must envelop the paper tab space from the same tab. Right now, all papers open in Auto In-Vitro so project assignment is not working properly."
+
+App only (no lab-layer file changes).
+
+### Bug Fixes
+- **Every paper opened in one project's set** (Auto In-Vitro here). A Library paper's literature note is made in `READER.project()`, the first project by default, and V4.29 took a paper's set from the note it was opened from, or the set shown for +. Now:
+  - `RSET.auto(d)` marks the reader's own literature notes as no assignment;
+  - `RSET.target(b)` puts a paper in the set of the project you are in only when it appears there, else in `RSET.home(b)`;
+  - `RSET.rehome(S)` moves, once (`rtabs.home438`), the tabs already filed in a set they don't belong to.
+
+### Added
+- **`RSET.appears(b)`** → Map(project → count): the paper's cards (`RDX.embedsOf`, or the same file), its citations and bridged cards (`RDX.citedIn`), and quotes of it. The reader's own literature notes and notes outside any project are not counted.
+- **`RSET.home(b, A)`:** the card's note's project (not the reader's own literature note), else the project with the most appearances, else null. The flat-to-sets migration (V4.29) uses it too.
+
+### Changed
+- **The row** (`34-readsets.css`, scoped `.rd-tabs.rs-row`):
+  - padding 3 px, the tab list unpadded (37 px in all);
+  - `.rs-set` a rounded box (8 px) with a 1.5 px edge of the set's colour and an 11% tint, holding its name and tabs;
+  - tabs 22 px, at most 170 px, 6 px corners, the active one lit inside the box (a 26% tint and an inset edge);
+  - the name in the app's type at 11 px, up to 17 characters;
+  - chips 27 px with the same edge;
+  - `.rd-tbtn` compact.
+- **Settings → Reading sets by project:** the description (where a paper goes).
+
+### Tests
+| Test | Result |
+|---|---|
+| `rh_t` lab build, 1400 px:<br>- the reader's default project is the first (Auto In-Vitro)<br>- a Library paper read from Auto: its literature note in Auto, `auto`; appearances 2 in Cell mechanics, 1 in Detection; home and set Cell mechanics, not Auto<br>- read from Detection (cited there): Detection's set, still in Cell mechanics'<br>- a Detection card opened from Auto: Detection<br>- a card outside any project quoted in Cell mechanics: Cell mechanics<br>- saved tabs all under Auto go home once, flag kept<br>- the row: ≤ 37 px, tabs 22 px, both tabs inside the set's box, a solid edge, rounded, the active tab lit inside, chips the box's height<br>- the description, `FEAT.audit()`, no errors | 15/15 |
+| `rh_t` without the lab layer | 15/15 |
+| `ra_t29` (V4.29; its two-sets step first quotes the paper in Detection) lab · without the lab layer · `ra_t30` lab · without | 47/47 · 47/47 · 38/38 · 38/38 |
+| `rb_t31` · `rb_t32` · `t_995` · `sync9_rdr` · `ff_t` · `lr_t` | 41/41 · 50/50 · 27/27 · 37/37 · 33/33 · 18/18 |
+
 ## [V4.37] — 2026-11-18 — Scientia: Freewrite — sentences no rule reads go on with the component before them, or are one text component between the links
 
 Gabe (18 Nov 2026): "I want the default to be that a string of sentences not recognized are their own text component in between the links. For example, describing a verdict in a sentence and you keep describing in more sentences with no trigger of other components, it remains in that verdict. Manual editing can override that. Keep the other every sentence into a component as a setting."
