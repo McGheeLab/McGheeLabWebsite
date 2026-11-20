@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.92] — 2026-11-20 — Scientia: Hot notes — your starred notes as small tabs in the tab row, right after the button (as many as fit, the rest behind +n)
+
+Gabe, 20 Nov: "Hot notes appear in the tab next to it."
+
+App only.
+
+### Added
+- **Hot notes in the tab row** (`HOT.strip`, `HOT.fit`): a tab per starred note after the button, with its kind's colour and title; the current note's is lit; "+n" for the rest opens the panel.
+- **Settings → Hot notes:** *In the tab row, beside the button* (None / Up to 3 / 5 / 8), in the preview.
+
+### Tests
+| Test | Result |
+|---|---|
+| `v92_t`: right after the button, up to 5 with their kinds; a real click opens the note and lights its tab; at 1000 px only what fits, "+n" for the rest, and +n opens the panel; Up to 3 → 3, None → none; the preview | 10/10 |
+| `hn50_t` (Hot notes, V4.50) | 18/18 |
+
+
 ## [V4.91] — 2026-11-20 — Scientia: edge pan in full screen — Sensitivity, the rest before it starts and how close to the edge it reacts, in Settings
 
 Gabe, 20 Nov: "Edge pan in full screen should have its sensitivity tunable."

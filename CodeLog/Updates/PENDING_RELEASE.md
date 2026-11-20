@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (190 changes — ready to push)
+## Pending (191 changes — ready to push)
+
+- **Hot notes (V4.92):** your starred notes now sit as small tabs right after the Hot notes button, one click away.
 
 - **Edge pan (V4.91):** in full screen, set how sensitive the edge pan is, how long it waits at the edge, and how close to the edge it reacts (Settings → Edge pan in full screen).
 
