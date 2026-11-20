@@ -4,6 +4,41 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.80] — 2026-11-20 — Scientia: Library — a DOI lookup keeps the publisher’s RIS record; export .ris (a paper, a selection, a shelf) and import .ris files or pasted RIS
+
+Gabe, 20 Nov: "Library captures .ris from DOI lookup."
+
+App only (the Add panel is shared by the lab's Library page, so the lab's builds have it too).
+
+### Added
+- **The record from a DOI** (`LIB.resolveDoi`, `07-library.js`): a second doi.org request with `Accept: application/x-research-info-systems`, kept on the item as `ris`.
+  - It is best effort: offline, refused, or not a record, it is skipped and the paper still comes from the CSL answer.
+  - A paper looked up again gets its record; the paper's sheet has *Get RIS record*.
+- **Export .ris:**
+  - the paper's sheet (*Export .ris*, ✓ when the publisher's record is kept; otherwise one is made from the fields, `LIB.toRis`);
+  - *Select* with ticks and *Export .ris · n selected* (everything listed when nothing is ticked);
+  - each shelf's and focus's ⋯ menu.
+  - Files use CRLF and a blank line between records.
+- **Import .ris** (*Import .ris…* in the Add panel, or RIS pasted in the paste box; `LIB.parseRisMany`):
+  - one or many files of one or many records;
+  - a record with the same DOI (or title and year) only fills blank fields and keeps the record;
+  - the lab's own items are left as they are;
+  - one undo step, with a toast.
+- **Settings → Library → RIS records** (default on), in the preview. Off: one request, for citation data only, and no .ris buttons.
+
+### Changed
+- `LIB.parseRis` normalises a `https://doi.org/…` DOI and keeps the record's text.
+
+### Tests
+| Test | Result |
+|---|---|
+| `node scripts/tests/scientia-doi-lookup.test.mjs` (68 before; "one request" is now two, data then record; offline, refused, the switch, many records with a BOM, `toRis`, import without overwriting, lab items left) | 118 pass |
+| `ris_t`, lab and plain builds (the helper's), and again on this branch (lab):<br>- real typing and clicks, and a real file input;<br>- the lookup keeps the record (two requests in order); a failed record still adds the paper;<br>- a three-record file with a BOM and CRLF, then again without duplicates;<br>- Select and export, a paper's export, the shelf and focus exports; pasted RIS; one undo; the preview; the switch off | 41/41 · 41/41 · 41/41 |
+| `lablib_t` on this branch; `lib_t1001` 114/114, `lablib_t4` 18/18 (the helper's) | 18/18 · pass |
+
+No real request was made to doi.org (fetch is stubbed); the RIS content negotiation is doi.org's documented one.
+
+
 ## [V4.79] — 2026-11-20 — Scientia: a list of every shortcut and gesture (135), searchable, in Settings → Keys & commands above the commands, and behind ?
 
 Gabe, 20 Nov: "Add shortcuts list in Settings near command bar commands."

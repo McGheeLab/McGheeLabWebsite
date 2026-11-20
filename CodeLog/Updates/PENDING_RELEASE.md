@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (178 changes — ready to push)
+## Pending (179 changes — ready to push)
+
+- **Library RIS (V4.80):** looking up a DOI now keeps the publisher’s RIS record. Export papers, a selection or a shelf as a .ris file, and import .ris files.
 
 - **Shortcuts (V4.79):** Settings → Keys & commands lists every shortcut and gesture, with a search, just above the commands. The ? key shows the same list.
 
