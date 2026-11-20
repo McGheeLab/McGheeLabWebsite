@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.56] — 2026-11-19 — Scientia: Freewrite — placeholders in the words, from a bar of its own or a slash: /result makes an empty Result bubble, /html in it says it will be an HTML file
+
+Gabe, 19 Nov: "Additionally, you can add placeholder kinds in the freewrite via a text editor bar just for it, and shortcuts such as /kind or /structure, and the accompanying format of it (e.g., /result creates a placeholder empty result bubble, and within that bubble, you can type /html, which indicates that in this freewrite location, the user wants the result to be an HTML file. Any /kind or /structure creates a new component into the freewrite. Dragging it to another component (same behavior as described earlier) links it to it."
+
+App only.
+
+### Added
+- **Placeholders** written in the words (`⟦Result · HTML: …⟧`). Each is a component: a kind's, a structure's, or a Result to add with its format. Its label opens the popup, and a drag links it.
+- **The slash menu** in the freewrite: kinds, structures, formats. Outside a placeholder it makes a new one; inside, it gives its format, its kind or a structure.
+- **The bar** (Placeholder ▾ · Structure ▾ · Format ▾), with its switch in Settings → Freewrite.
+- **A Result to add remembers its format:** its ＋ opens that directly (Other… for the rest).
+
+### Changed
+- **A kind or structure chosen for a placeholder is written back into its words.**
+
+### Tests
+| Test | Result |
+|---|---|
+| `fw56_t` (real typing and keys: the bar; `/res` Enter; `/ht` in it Enter; `/barr` with the arrows; and/or, unknown letters, Esc; Convert; Verdict written back; a drag links two placeholders; Format ▾ · Structure ▾ after a Result · Placeholder ▾ in a Claim; `/` inside a Result; Apply; ＋ HTML in the note; the switch and the preview) · lab · without the lab layer | 21/21 · 21/21 |
+| `fw55_t` · `fw54_t` · `fw53_t` · `fw_t33` · `fw_t34` · `fw47_t` | 19/19 · 24/24 · 13/13 · 69/69 · 24/24 · 21/21 |
+
 ## [V4.55] — 2026-11-19 — Scientia: Freewrite — with "each sentence its own component", a button between two sentences merges them; each keeps its structure; two kinds or two titles are flagged
 
 Gabe, 19 Nov: "With the option of freewrite makes each sentence its own component, have a little button in between sentences that indicates merging the two sentences in a single component. If two components are merged in one, each part retains their structure, but kind has to be one, so it raises a flag for the user to correct. Same thing for if each component had a component title."

@@ -194,3 +194,11 @@ body.fw-linking,body.fw-linking *{cursor:alias!important}
 .fw-qn{flex:none;width:16px;height:16px;border-radius:50%;display:inline-grid;place-items:center;font:600 9.5px var(--f-m);color:var(--ink-3);border:1px solid var(--rule-2)}
 .fw-qflag>span{flex:1 1 200px;min-width:0} .fw-qflag>.fw-ic{flex:none;align-self:flex-start;margin-top:2px} .fw-tag .fw-flag{margin-left:2px}
 .fw-s.fw-mem>.fw-mk:first-child::after{left:14px}
+/* V4.56: placeholders in the words; the bar; the slash menu */
+.fw-s .fw-phh{background:color-mix(in srgb,var(--fc) 22%,transparent);border-radius:2px}
+.fw-bar{position:sticky;top:0;z-index:4;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:4px;padding:8px 16px 6px;background:color-mix(in srgb,var(--fw-page) 92%,transparent);backdrop-filter:blur(6px)}
+.fw-barb{font:12px var(--f-d)} .fw-barh{margin-left:8px;font:11.5px var(--f-d);color:var(--ink-3)}
+.fw-slash{min-width:300px} .fw-slash .sm-row b{min-width:84px}
+.fw-pvtools{display:flex;align-items:center;gap:4px;margin:0 0 6px;font:11px var(--f-d);color:var(--ink-3)} .fw-pvtool{padding:1px 7px;border:1px solid var(--rule-2);border-radius:6px;color:var(--ink-2)}
+.fw-slotbar .fw-addany{margin-left:2px}
+@media (max-width:720px){ .fw-barh{display:none} }
