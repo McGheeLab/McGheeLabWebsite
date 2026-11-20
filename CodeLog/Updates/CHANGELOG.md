@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.67] — 2026-11-20 — Scientia: Calendar — today's all-day events show once in the bell
+
+Gabe, 19 Nov: "All day events might be tasks or events that are relevant to Reminders (which appear on the Calendar as well). All-day events also appear as a one-time notification in the bell button." Asked again on 20 Nov ("Work on … all-day items appearing once in the bell").
+
+App only.
+
+### Added
+- **The bell counts today's all-day events** until it is opened.
+  - Its panel: "Today · all day" (new, bold), then "Seen" (`CAL.bellItems`, `bellSection`, `bellMark`; `REM.badge` and `REM.panel` wrapped).
+  - A click opens the calendar on the day.
+- **Settings → Calendar:** the bell switch, in the preview.
+
+### Tests
+| Test | Result |
+|---|---|
+| `cal67_t`, lab build:<br>- two today counted, not tomorrow's;<br>- opened: both new, one with its note; then no longer counted; the next time under Seen;<br>- a click opens the day; one added later counts once;<br>- the switch and the preview | 11/11 |
+
+
 ## [V4.66] — 2026-11-20 — Scientia: terms in notes — three readable looks (A · Quiet underline by default, B · Soft tag, C · Ghost until you look) and one card: the Ledger with a timeline of every note down its left
 
 Gabe, 20 Nov: "What I meant is the term look inside of notes themselves. The outline is distracting, hard to read, and highlighting text makes it go invisible. Give me three options on how to repurpose and relook it in the note canvas. I have an idea in mind already: hovering on it for 1 second brings a quick card of neighboring notes uses of it along with a metric dashboard style."

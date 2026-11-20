@@ -376,3 +376,14 @@ body.cal-focusing .cal-fbtn{outline:2px solid #C9971F;outline-offset:2px}
 .cal-ghost.cal-push{border-color:#C9971F;background:color-mix(in srgb,#C9971F 12%,transparent);color:#8F5600}
 .cal-ghost.cal-push.bad{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 8%,transparent);color:var(--bad)}
 .cal-ghost.cal-new{z-index:9}
+
+/* V4.67 — today's all-day events in the bell: new ones first (once), then Seen */
+.cal-bell{display:flex;flex-direction:column;gap:2px;margin:4px 0 6px;padding:6px;border-radius:10px;background:color-mix(in srgb,var(--teal) 6%,transparent)}
+.cal-blh{padding:4px 6px 2px;font:600 9.5px/1 var(--f-m);letter-spacing:.08em;text-transform:uppercase;color:var(--teal)}
+.cal-blh.seen{color:var(--ink-3)}
+.cal-bl{display:grid;grid-template-columns:10px minmax(0,1fr);grid-template-rows:auto auto;column-gap:8px;align-items:center;padding:6px 8px;border:0;border-radius:8px;background:transparent;color:var(--ink);text-align:left;cursor:pointer}
+.cal-bl:hover{background:var(--lk-hov,var(--surface-2))}
+.cal-bl i{grid-row:1/3;width:10px;height:10px;border-radius:3px;background:var(--ecol)}
+.cal-bl b{font:600 13px/1.25 var(--f-d)} .cal-bl.new b{font-weight:700}
+.cal-bl span{font:500 10.5px/1.3 var(--f-m);color:var(--ink-3)}
+.cal-bl:not(.new){opacity:.75}

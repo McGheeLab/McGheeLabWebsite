@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (165 changes — ready to push)
+## Pending (166 changes — ready to push)
+
+- **Calendar bell (V4.67):** today's all-day events now show once in the bell — counted until you open it, then under Seen.
 
 - **Terms in notes (V4.66):** terms no longer show as hollow outlined letters — choose how they read in Settings (a quiet underline by default). Rest on one for a second: a card with its uses, its notes on a timeline, and the sentences around it.
 
