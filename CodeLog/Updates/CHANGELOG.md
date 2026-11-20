@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.71] — 2026-11-20 — Scientia: Today — the day’s captures wait on the Today tab, each with a Move to… footer that moves it into a note, or into a new note in a project or theme
+
+Gabe, 20 Nov: "Captures show up in the Today tab for the user to come back during the day and potentially move them to projects. Additionally, each capture entry has a move to button footer right below them to bring up a move panel."
+
+App only.
+
+### Added
+- **Captures on Today** (`14a-todaycaps.js`, `TCAP.section`; the right-hand column, under the capture box): the day note's components, newest first, as cards (time, kind chip, words; a click opens it in the day note).
+- **Move to…** in a footer under each card (`TCAP.move`, through `MOVE.ask`):
+  - into a note: the component, its structures, marks and time go there;
+  - into a project or theme: a new Note made there, titled with the capture's first words.
+  - One Ctrl+Z puts it back. A moved capture leaves the list; this session's moves stay as a line saying where each went.
+- **Settings → Tabs & overview → Captures on Today** (`todaycaps`): the switch and *Captures shown* (today, the last 3 days, the last 7 days), with a live preview.
+
+### Tests
+| Test | Result |
+|---|---|
+| `todaycaps_t`, lab and plain builds (the helper's), and again on this branch (lab):<br>- the real capture key; Move to… into a note and into a project; Ctrl+Z;<br>- the Settings page; the switch off | 21/21 · 21/21 · 21/21 |
+| Regressions (the helper's): `hn50_t` 18/18, `cg_t` 28/28, `fd_t` 27/27, `lk_t` 32/32, `pp_t` 11/11 | pass |
+
+
 ## [V4.70] — 2026-11-20 — Scientia: Calendar — deliverables on an event or at the end of the day (a result, takeaway, verdict or mini synthesis); once due the card, the bell, Today and its note ask you to attach one; with no note it is a float
 
 Gabe, 19 Nov: "Deliverables can be attached to an event or end of day, asking you to attach that deliverable, logging it in the note that it is assigned to, otherwise it becomes a float. Deliverables are inherently a structure such as result, takeaway, a kind, such as a verdict, or a mini synthesis into a region." Asked again on 20 Nov.
