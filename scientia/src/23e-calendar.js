@@ -159,6 +159,7 @@ const CAL = {
     if (Math.abs(hpx - was) > .4) { const mid = sc.scrollTop / Math.max(1, was); CAL.hpx = hpx; sc.style.setProperty('--hpx', hpx + 'px'); if (resized) sc.scrollTop = mid * hpx; }
     if (CAL._scrollTo === 'auto') { CAL._scrollTo = null; const D = sc._days || CAL.days(), t = CAL.today(); const m = D.includes(t) ? CAL.nowMin() : 480;
       sc.scrollTop = Math.max(0, m / 60 * CAL.hpx - (D.includes(t) ? (sc.clientHeight - (top ? top.offsetHeight : 0)) / 3 : 8)); }
+    $$('.cal-grid', sc).forEach(g => { try { CAL.drawLinks(g); } catch (e) { console.warn('[calendar] links', e); } });
   },
   bar(all) {
     const v = CAL.st.view, seg = [['day', 'Day', 'D'], ['week', 'Week', 'W'], ['month', 'Month', 'M'], ['agenda', 'Agenda', 'A']];
@@ -174,15 +175,16 @@ const CAL = {
       h('div.cal-lg', L.map(o => h('button.cal-lgv' + (S.includes(o.key) ? '.on' : '') + (S.length && !S.includes(o.key) ? '.off' : ''), { title: 'Single out ' + o.label + ' (Ctrl or Shift adds another)', 'aria-pressed': String(S.includes(o.key)), on: { click: e => CAL.pick(o.key, e.ctrlKey || e.metaKey || e.shiftKey) } },
         h('i', { style: { background: o.col } }), h('span', o.label), h('b', String(o.n))))),
       S.length ? h('span.cal-chip', 'Showing: ' + L.filter(o => S.includes(o.key)).map(o => o.label).join(', '), h('button', { on: { click: () => { CAL.st.single = []; CAL.paint(); } } }, 'Clear')) : null,
+      CAL.st.linkFrom ? h('span.cal-chip.lk', CAL.ic('link'), 'Click the event that comes after “' + ((DB.get('events', CAL.st.linkFrom) || {}).title || '') + '”', h('button', { on: { click: () => CAL.linkEnd() } }, 'Cancel')) : null,
       CAL.st.tag ? h('span.cal-chip', 'Only #' + CAL.st.tag, h('button', { 'aria-label': 'Show every event', on: { click: () => { CAL.st.tag = null; CAL.paint(); } } }, '×')) : null,
       h('button.cal-btn.pri', { title: 'A new event (N)', on: { click: e => { const d = CAL.days().includes(CAL.today()) ? CAL.today() : CAL.days()[0]; const r = e.currentTarget.getBoundingClientRect(); CAL.create({ day: d, start: CAL.snap(Math.min(1380, CAL.nowMin() + 30)), x: r.left - 300, y: r.bottom + 8 }); } } }, '＋ New'));
   },
   ic(k) {
-    const P = { l: 'M15 18l-6-6 6-6', r: 'M9 6l6 6-6 6', x: 'M6 6l12 12M18 6 6 18', ck: 'M20 6 9 17l-5-5', bell: 'M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5h4', note: 'M7 3h7l5 5v13H7zM14 3v5h5', rep: 'M17 2l4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3' };
+    const P = { l: 'M15 18l-6-6 6-6', r: 'M9 6l6 6-6 6', x: 'M6 6l12 12M18 6 6 18', ck: 'M20 6 9 17l-5-5', bell: 'M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5h4', note: 'M7 3h7l5 5v13H7zM14 3v5h5', rep: 'M17 2l4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3', link: 'M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1' };
     return h('span.cal-i', { html: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${P[k]}"/></svg>` });
   },
   planner(D) {
-    const t = CAL.today(), n = CAL.span();
+    const t = CAL.today(), n = CAL.span(); CAL._vis = new Set(D);
     const heads = D.map(day => { const d = parseDay(day), it = CAL.dayItems(day), mins = it.reduce((a, x) => a + (x.e - x.s), 0);
       return h('button.cal-dh' + (day === t ? '.today' : '') + (day < t ? '.past' : ''), { title: 'Open ' + fmtDayLong(d) + (CAL.st.view === 'day' ? '' : ' as a day'), on: { click: () => CAL.setView('day', day) } },
         h('span.dw', DOW[d.getDay()]), h('span.dn', String(d.getDate())), mins ? h('span.dl', (Math.round(mins / 6) / 10) + ' h') : null); });
@@ -219,13 +221,15 @@ const CAL = {
   },
   card(it, ln = { c: 0, n: 1 }) {
     const c = CAL.colour(it), len = it.e - it.s, short = len * CAL.hpx / 60 < 44, ev = it.ev, w = 100 / ln.n;
-    const el = h('div.cal-ec' + (short ? '.short' : '') + (it.rem ? '.rem' : '') + (c.cls ? '.' + c.cls : '') + (CAL.dim(it) ? '.dim' : '') + (ev && !CAL.docOf(it) ? '.nonote' : '') + (ln.n > 1 ? '.conf' : ''),
+    const lk = CAL.st.linkFrom, has = ev && ((ev.then || []).length || CAL.afterOf(ev).length);
+    const el = h('div.cal-ec' + (short ? '.short' : '') + (it.rem ? '.rem' : '') + (lk && ev ? (ev.id === lk ? '.linksrc' : '.linkable') : '') + (c.cls ? '.' + c.cls : '') + (CAL.dim(it) ? '.dim' : '') + (ev && !CAL.docOf(it) ? '.nonote' : '') + (ln.n > 1 ? '.conf' : ''),
       { 'data-k': it.k, style: { '--ecol': c.col, color: c.ink || null, top: `calc(var(--hpx) * ${it.s / 60} + 2px)`, height: `max(20px, calc(var(--hpx) * ${len / 60} - 4px))`, left: `calc(${ln.c * w}% + 3px)`, width: `calc(${w}% - 6px)` },
         on: { pointerenter: e => CAL.hovIn(it, e.currentTarget), pointerleave: () => CAL.hovOut() } },
       h('button.ec-main', { 'aria-label': `${it.title}, ${CAL.hm(it.s)}–${CAL.hm(it.e)}${CAL.docOf(it) ? ', opens its note' : ''}`, on: { click: e => { if (CAL._dragged) return; e.stopPropagation(); CAL.open(it); }, keydown: e => { if (e.key === 'e' || e.key === 'E') { e.preventDefault(); CAL.bub(it, el); } } } },
         h('span.ec-time', CAL.hm(it.s) + '–' + CAL.hm(it.e) + (CAL.st.by === 'load' ? ' · ' + CAL.dur(len) : '')), h('span.ec-t', it.title)),
       ev && (ev.tags || []).length && !short ? h('span.ec-tags', ev.tags.map(t => h('button.ec-tag', { title: 'Show only #' + t, on: { pointerdown: e => e.stopPropagation(), click: e => { e.stopPropagation(); CAL.st.tag = CAL.st.tag === t ? null : t; CAL.paint(); } } }, '#' + t))) : null,
-      h('span.ec-ic', ev && ev.repeat && ev.repeat !== 'none' ? CAL.ic('rep') : null, CAL.docOf(it) ? CAL.ic('note') : null, it.rem ? CAL.ic('bell') : null),
+      !short ? CAL.offLinks(ev, CAL._vis || new Set()) : null,
+      h('span.ec-ic', has ? CAL.ic('link') : null, ev && ev.repeat && ev.repeat !== 'none' ? CAL.ic('rep') : null, CAL.docOf(it) ? CAL.ic('note') : null, it.rem ? CAL.ic('bell') : null),
       ln.n > 1 && !short ? h('span.ec-conf', 'Overlaps') : null,
       ev ? h('span.ec-rz', { 'aria-hidden': 'true' }) : null);
     return el;
@@ -292,11 +296,83 @@ const CAL = {
     }) : h('div.ag-none', 'Nothing in these two weeks.'));
   },
 
+  /* ---------------- V4.59: links between events — what depends on what ---------------- */
+  /** An event's `then`: the events that come after it and depend on it. Links join one-off events (a repeat has none). */
+  thenOf: ev => (ev.then || []).map(id => DB.get('events', id)).filter(Boolean),
+  afterOf: ev => CAL.all().filter(x => (x.then || []).includes(ev.id)),
+  /** Everything that depends on it, through any number of links (each once). */
+  deps(ev) { const out = [], seen = new Set([ev.id]), q = [ev]; while (q.length) { const x = q.shift(); CAL.thenOf(x).forEach(y => { if (!seen.has(y.id)) { seen.add(y.id); out.push(y); q.push(y); } }); } return out; },
+  ab: (day, m) => Math.round(+parseDay(day) / 864e5) * 1440 + m,
+  /** Move an event by `d` minutes (an all-day one only by whole days). */
+  shift(ev, d) {
+    if (!d) return; if (ev.allDay) { if (d % 1440 === 0) ev.day = CAL.addD(ev.day, d / 1440); return; }
+    const len = ev.end - ev.start, tot = ev.start + d, dd = Math.floor(tot / 1440), s = tot - dd * 1440; ev.day = CAL.addD(ev.day, dd); ev.start = s; ev.end = Math.min(1440, s + len); ev.modified = isoLocal(new Date());
+  },
+  /** It ends `d` minutes later: what depends on it moves by as much (later only; moved earlier, they stay). */
+  carry(ev, d) { if (!(d > 0)) return []; const L = CAL.deps(ev); L.forEach(x => { CAL.shift(x, d); DB.put('events', x); }); return L; },
+  /** Barrier: push it back, and what depends on it by the same; the toast offers Custom… */
+  pushBack(ev, d) { DB.beginGroup('Barrier'); CAL.shift(ev, d); DB.put('events', ev); const L = CAL.carry(ev, d); changed(); CAL.carried(ev, d, L, 'Pushed back ' + (d === 1440 ? 'a day' : CAL.dur(d))); },
+  carried(ev, d, L, what) {
+    if (!L.length) return toast((what || 'Moved') + ' — Ctrl+Z undoes it', 2200);
+    CAL.tst((what || 'Moved ' + CAL.dur(d) + ' later') + ': ' + plural(L.length, 'event') + ' that depend' + (L.length === 1 ? 's' : '') + ' on it moved as much', [{ label: 'Custom…', run: () => CAL.custom(ev, d, L) }], 7000);
+  },
+  /** A toast with buttons. */
+  tst(text, acts, ms = 5000) { toast(h('span.cal-tst', text, acts.map(a => h('button', { type: 'button', on: { click: e => { e.currentTarget.closest('.toast').remove(); a.run(); } } }, a.label))), ms); },
+  /** Custom…: an amount for each event that depends on it (they moved by `d`; this sets each one's own). */
+  custom(ev, d, L) {
+    const rows = L.map(x => { const inp = h('input.cw-in', { type: 'number', step: 15, value: d, min: 0, 'aria-label': 'Minutes for ' + x.title, style: { width: '86px' } });
+      return { x, inp, el: h('div.cal-cust-r', h('b', x.title), h('span', fmtDay(parseDay(x.day)) + ' ' + CAL.hm(x.start)), inp, h('span.cw-k', 'min'), h('button.cw-d', { type: 'button', on: { click: () => { inp.value = 0; } } }, 'None'), h('button.cw-d', { type: 'button', on: { click: () => { inp.value = d; } } }, 'Same')) }; });
+    modal({ title: 'Move what depends on “' + ev.title + '”', body: h('div.cal-cust', h('p.serif', { style: { marginTop: 0 } }, 'It moved ' + CAL.dur(d) + ' later. Set how far each one that depends on it moves (0 keeps it where it was).'), rows.map(r => r.el)),
+      actions: [{ label: 'Cancel' }, { label: 'Apply', pri: true, run: () => { DB.beginGroup('Custom move'); rows.forEach(r => { const want = Math.max(0, Math.round(+r.inp.value || 0)); CAL.shift(r.x, want - d); DB.put('events', r.x); }); changed(); toast('Each moved as you set — Ctrl+Z undoes it'); } }] });
+  },
+  linkStart(ev) { CAL.closeAll(); CAL.st.linkFrom = ev.id; CAL.paint(); },
+  linkEnd() { if (!CAL.st.linkFrom) return; CAL.st.linkFrom = null; CAL.paint(); },
+  /** The second click of Link → then…: `it` comes after the one the link started from. */
+  linkTo(it) {
+    const a = DB.get('events', CAL.st.linkFrom), b = it.ev; CAL.st.linkFrom = null;
+    if (!a || !b || a.id === b.id) { CAL.paint(); return toast('Choose another event to come after it'); }
+    if ((b.repeat && b.repeat !== 'none') || (a.repeat && a.repeat !== 'none')) { CAL.paint(); return toast('Links join one-off events — a repeating one cannot depend on another'); }
+    if (CAL.deps(b).some(x => x.id === a.id)) { CAL.paint(); return toast('That would make a loop: “' + a.title + '” already comes after “' + b.title + '”'); }
+    if ((a.then || []).includes(b.id)) { CAL.paint(); return toast('Already linked'); }
+    DB.beginGroup('Link'); a.then = (a.then || []).concat([b.id]); a.modified = isoLocal(new Date()); DB.put('events', a); changed(); toast('Linked: “' + a.title + '” → then “' + b.title + '”. Pushing it back moves this one too.', 3200);
+  },
+  unlink(a, b) { DB.beginGroup('Unlink'); a.then = (a.then || []).filter(x => x !== b.id); DB.put('events', a); changed(); },
+  /** The links, drawn on a layer above the cards like a note's arrows: lighter, with a soft shadow, where they pass over another card. */
+  drawLinks(grid) {
+    if (!grid || !grid.isConnected) return; $$(':scope > svg.cal-links', grid).forEach(x => x.remove());
+    const G = grid.getBoundingClientRect(), R = el => { const r = el.getBoundingClientRect(); return { x: r.left - G.left, y: r.top - G.top, w: r.width, h: r.height, el }; };
+    const cards = $$('.cal-ec', grid).map(R), byK = new Map(cards.map(c => [c.el.dataset.k, c])), S = CAL.st.single, P = [];
+    CAL.all().forEach(a => (a.then || []).forEach(bid => { const b = DB.get('events', bid); if (!b) return; const A = byK.get(a.id + '@' + a.day), B = byK.get(b.id + '@' + b.day); if (!A || !B) return; P.push({ a, b, A, B }); }));
+    if (!P.length) return;
+    const uidL = 'cl' + (CAL._lid = (CAL._lid || 0) + 1); let defs = '', body = '';
+    P.forEach((L, i) => {
+      const { A, B } = L, same = L.a.docId && L.a.docId === L.b.docId, col = same ? 'var(--teal)' : 'var(--ink-2)';
+      let x1, y1, x2, y2, d;
+      if (Math.abs((A.x + A.w / 2) - (B.x + B.w / 2)) < Math.max(A.w, B.w) * .6) { x1 = A.x + A.w / 2; x2 = B.x + B.w / 2; if (B.y >= A.y + A.h - 2) { y1 = A.y + A.h; y2 = B.y; } else { y1 = A.y; y2 = B.y + B.h; }
+        const k = Math.max(18, Math.abs(y2 - y1) / 2) * Math.sign(y2 - y1 || 1), bow = Math.abs(y2 - y1) < 24 ? 26 : 0; d = `M${x1},${y1} C${x1 + bow},${y1 + k} ${x2 + bow},${y2 - k} ${x2},${y2}`; }
+      else { const rt = B.x > A.x; x1 = rt ? A.x + A.w : A.x; y1 = A.y + Math.min(A.h - 6, 14); x2 = rt ? B.x : B.x + B.w; y2 = B.y + Math.min(B.h / 2, 12); const k = Math.max(26, Math.abs(x2 - x1) / 2) * (rt ? 1 : -1); d = `M${x1.toFixed(1)},${y1.toFixed(1)} C${(x1 + k).toFixed(1)},${y1.toFixed(1)} ${(x2 - k).toFixed(1)},${y2.toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)}`; }
+      const over = cards.filter(c => c !== A && c !== B), mid = `${uidL}m${i}`, cid = `${uidL}c${i}`, aid = `${uidL}a${i}`;
+      defs += `<marker id="${aid}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:${col}"/></marker>`
+        + `<mask id="${mid}" maskUnits="userSpaceOnUse" x="0" y="0" width="${G.width}" height="${G.height}"><rect x="0" y="0" width="${G.width}" height="${G.height}" fill="#fff"/>${over.map(c => `<rect x="${(c.x - 1).toFixed(1)}" y="${(c.y - 1).toFixed(1)}" width="${(c.w + 2).toFixed(1)}" height="${(c.h + 2).toFixed(1)}" rx="10" fill="#000"/>`).join('')}</mask>`
+        + `<clipPath id="${cid}">${over.map(c => `<rect x="${(c.x - 1).toFixed(1)}" y="${(c.y - 1).toFixed(1)}" width="${(c.w + 2).toFixed(1)}" height="${(c.h + 2).toFixed(1)}" rx="10"/>`).join('')}</clipPath>`;
+      const dim = S.length && ![L.a, L.b].some(e => S.includes(CAL.colour({ ev: e, s: e.start, e: e.end }).key));
+      body += `<g class="cal-lk${dim ? ' dim' : ''}" data-a="${L.a.id}" data-b="${L.b.id}" style="--lc:${col}"><path class="lk-o" d="${d}" mask="url(#${mid})" marker-end="url(#${aid})"/><g clip-path="url(#${cid})"><path class="lk-v" d="${d}" filter="url(#${uidL}f)"/></g><circle class="lk-c" cx="${x1.toFixed(1)}" cy="${y1.toFixed(1)}" r="2.6"/></g>`;
+    });
+    defs = `<filter id="${uidL}f" x="-20%" y="-20%" width="140%" height="160%"><feDropShadow dx="0" dy="4" stdDeviation="2.4" flood-color="#000" flood-opacity=".28"/></filter>` + defs;
+    const svg = SV('svg', { class: 'cal-links', width: G.width, height: G.height, viewBox: `0 0 ${G.width} ${G.height}`, 'aria-hidden': 'true' }); svg.innerHTML = '<defs>' + defs + '</defs>' + body; grid.append(svg);
+  },
+  /** A partner off this view: "then → …" / "after ← …" on the card. */
+  offLinks(ev, vis) {
+    if (!ev) return null; const t = CAL.thenOf(ev).filter(x => !vis.has(x.day)), a = CAL.afterOf(ev).filter(x => !vis.has(x.day)); if (!t.length && !a.length) return null;
+    return h('span.ec-dep', CAL.ic('link'), t.length ? 'then → ' + t.map(x => x.title).join(', ') : 'after ← ' + a.map(x => x.title).join(', '));
+  },
+
   /* ---------------- gestures ---------------- */
   minAt(colEl, y) { const r = colEl.getBoundingClientRect(); return clamp((y - r.top) / CAL.hpx * 60, 0, 1440); },
   colAt(x, y) { const els = document.elementsFromPoint(x, y); return els.find(e => e.classList && e.classList.contains('cal-col')) || null; },
   gridClick(e) {
     if (CAL._swallow || CAL._dragged) { CAL._swallow = false; return; }
+    if (CAL.st.linkFrom) { if (!e.target.closest('.cal-ec')) CAL.linkEnd(); return; }
     if (e.target.closest('.cal-ec, .cal-run')) return;
     const col = e.target.closest('.cal-col'); if (!col) return;
     const m = Math.min(1425, Math.floor(CAL.minAt(col, e.clientY) / 15) * 15);
@@ -333,13 +409,15 @@ const CAL = {
       const copy = CAL.make(Object.assign(JSON.parse(JSON.stringify(ev)), { id: uid('ev'), day, start: s, end: e, repeat: 'none', skip: [], until: null, from: ev.id, created: isoLocal(new Date()) }));
       ev.skip = (ev.skip || []).concat([it.day]); ev.modified = isoLocal(new Date()); DB.put('events', ev); DB.put('events', copy); changed(); toast('Moved this one; the others stay — Ctrl+Z undoes it', 2600); return;
     }
-    Object.assign(ev, { day, start: s, end: e, modified: isoLocal(new Date()) }); DB.put('events', ev); changed();
+    const was = CAL.ab(ev.day, ev.end); Object.assign(ev, { day, start: s, end: e, modified: isoLocal(new Date()) }); DB.put('events', ev);
+    const d = CAL.ab(day, e) - was, L = CAL.carry(ev, d); changed(); if (L.length) CAL.carried(ev, d, L);
   },
   find(k) { if (!k) return null; const day = k.split('@')[1]; const L = day ? CAL.dayItems(day).concat(CAL.allDayItems(day)) : CAL.days().flatMap(CAL.allDayItems); return L.find(x => x.k === k) || null; },
 
   /* ---------------- opening ---------------- */
   /** A click: its note — or a note made for it and linked (a meeting note, an experiment's first stage, a quick note). */
   open(it) {
+    if (CAL.st.linkFrom) return CAL.linkTo(it);
     CAL.closeAll();
     if (it.task) return App.openBlock(it.task.id);
     if (it.rem) { if (it.rem.kind === 'meeting' && REM.meetingNote) return REM.meetingNote(it.rem, it.at); return REM.edit({ id: it.rem.id }); }
@@ -420,7 +498,9 @@ const CAL = {
     const b = CAL.bubEl; if (!b) return; const it = CAL.find(b._k) || b._it, ev = it.ev && CAL.all().find(x => x.id === it.ev.id); if (!ev) return CAL.closeBub();
     const c = CAL.colour(it), P = CAL.PAL, rep = ev.repeat && ev.repeat !== 'none';
     const upd = (f, label) => { f(ev); CAL.save(ev, label); setTimeout(() => CAL.bubFill(), 0); };
-    const nud = (ds, de) => upd(x => { if (x.allDay) return; const len = x.end - x.start; x.start = clamp(x.start + ds, 0, 1440 - Math.max(15, len + de)); x.end = clamp(x.start + len + de, x.start + 15, 1440); }, 'Time');
+    const nud = (ds, de) => { if (ev.allDay) return; const was = CAL.ab(ev.day, ev.end), len = ev.end - ev.start; DB.beginGroup('Time');
+      ev.start = clamp(ev.start + ds, 0, 1440 - Math.max(15, len + de)); ev.end = clamp(ev.start + len + de, ev.start + 15, 1440); ev.modified = isoLocal(new Date()); DB.put('events', ev);
+      const d = CAL.ab(ev.day, ev.end) - was, L = CAL.carry(ev, d); changed(); if (L.length) CAL.carried(ev, d, L); setTimeout(() => CAL.bubFill(), 0); };
     const ti = h('input.bub-title', { value: ev.title, 'aria-label': 'Title', on: { change: e => upd(x => { x.title = e.target.value.trim() || x.title; }, 'Title'), keydown: e => { if (e.key === 'Enter') e.target.blur(); } } });
     const tagI = h('input.bub-tagin', { placeholder: '+ tag', 'aria-label': 'Add a tag', on: { keydown: e => { if (e.key === 'Enter') { const t = e.target.value.replace(/^#/, '').trim(); if (t) upd(x => { x.tags = [...new Set((x.tags || []).concat([t]))]; }, 'Tag'); } } } });
     const note = CAL.notePick(() => ev.docId, id => upd(x => { x.docId = id; if (id && !x.projectId) x.projectId = (M.doc(id) || {}).projectId || null; }, 'Note'));
@@ -433,7 +513,12 @@ const CAL = {
       h('div.bub-r', h('span.cw-k', 'Project'), h('select.cw-in', { 'aria-label': 'Project', on: { change: e => upd(x => { x.projectId = e.target.value || null; }, 'Project') } }, h('option', { value: '' }, 'None'), DB.all('projects').map(p => h('option', { value: p.id, selected: ev.projectId === p.id }, p.name)))),
       note.el,
       h('div.bub-r', h('span.cw-k', 'Repeat'), h('select.cw-in', { 'aria-label': 'Repeat', on: { change: e => upd(x => { x.repeat = e.target.value; }, 'Repeat') } }, [['none', 'Does not repeat'], ['daily', 'Every day'], ['weekly', 'Every week']].map(([k, l]) => h('option', { value: k, selected: (ev.repeat || 'none') === k }, l)))),
-      rep ? h('div.bub-note', 'Changes here change every one; dragging moves only this one.') : null,
+      rep ? h('div.bub-note', 'Changes here change every one; dragging moves only this one. Links join one-off events.') : null,
+      !rep && !ev.allDay ? h('div.bub-r', h('span.cw-k', 'Barrier'), h('div.cw-chips', [[30, '+30 min'], [60, '+1 h'], [120, '+2 h'], [1440, '+1 day']].map(([m, l]) => h('button.cw-d', { type: 'button', title: 'Push it back ' + l.slice(1) + ', and what depends on it as much', on: { click: () => { CAL.pushBack(ev, m); setTimeout(() => CAL.bubFill(), 0); } } }, l)))) : null,
+      !rep ? h('div.bub-r.top', h('span.cw-k', 'Links'), h('div.bub-links',
+        CAL.afterOf(ev).map(a => h('span.bub-lk', h('em', '← after'), a.title, h('button', { type: 'button', 'aria-label': 'Unlink ' + a.title, on: { click: () => { CAL.unlink(a, ev); setTimeout(() => CAL.bubFill(), 0); } } }, '×'))),
+        CAL.thenOf(ev).map(b => h('span.bub-lk', h('em', 'then →'), b.title, h('button', { type: 'button', 'aria-label': 'Unlink ' + b.title, on: { click: () => { CAL.unlink(ev, b); setTimeout(() => CAL.bubFill(), 0); } } }, '×'))),
+        h('button.cw-d', { type: 'button', title: 'Then click the event that comes after it', on: { click: () => CAL.linkStart(ev) } }, CAL.ic('link'), 'Link → then…'))) : null,
       h('div.bub-f', h('button.cal-btn', { type: 'button', on: { click: () => CAL.open(it) } }, CAL.docOf(it) ? 'Open its note' : 'Make its note'),
         h('span.cal-sp'),
         h('button.cal-btn', { type: 'button', on: { click: () => { const cp = CAL.make(Object.assign(JSON.parse(JSON.stringify(ev)), { id: uid('ev'), day: it.day, repeat: 'none', skip: [], notes: null, docId: null, created: isoLocal(new Date()) })); DB.beginGroup('Duplicate'); DB.put('events', cp); changed(); CAL.closeBub(); toast('Duplicated'); } } }, 'Duplicate'),
@@ -446,9 +531,9 @@ const CAL = {
     if (App.route.name !== 'calendar' || e.ctrlKey || e.metaKey || e.altKey || $('.ovl')) return;
     const t = e.target; if (t && (t.closest('input, textarea, select, [contenteditable="true"]') || t.closest('.cal-cw, .cal-bub'))) return;
     const k = e.key.toLowerCase(), act = { arrowleft: () => CAL.step(-1), arrowright: () => CAL.step(1), t: () => { CAL.st.day = null; CAL._scrollTo = 'auto'; CAL.paint(); }, d: () => CAL.setView('day', CAL.days().includes(CAL.today()) ? CAL.today() : CAL.days()[0]), w: () => CAL.setView('week'), m: () => CAL.setView('month'), a: () => CAL.setView('agenda'),
-      escape: () => { CAL.st.mday = null; CAL.paint(); },
+      escape: () => { if (CAL.st.linkFrom) return CAL.linkEnd(); CAL.st.mday = null; CAL.paint(); },
       n: () => { const d = CAL.days().includes(CAL.today()) ? CAL.today() : CAL.days()[0]; CAL.create({ day: d, start: CAL.snap(Math.min(1380, CAL.nowMin() + 30)), x: innerWidth / 2 - 170, y: 140 }); } }[k];
-    if (act) { if (k === 'escape' && !(CAL.st.view === 'month' && CAL.st.mday)) return; e.preventDefault(); act(); }
+    if (act) { if (k === 'escape' && !CAL.st.linkFrom && !(CAL.st.view === 'month' && CAL.st.mday)) return; e.preventDefault(); act(); }
   },
   /** For Settings' preview: a two-day planner in miniature. */
   preview() {

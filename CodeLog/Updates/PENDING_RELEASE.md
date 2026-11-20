@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (157 changes — ready to push)
+## Pending (158 changes — ready to push)
+
+- **Calendar links (V4.59):** link two events (rest on one, Link → then…, click the next) — pushing the first back moves the second as much, or by your own amount with Custom…. Links are drawn like the arrows in notes.
 
 - **Calendar month (V4.58):** in Month, click a day to open it on the right as its own planner; with Colour by Load each day shows how many hours are planned. Agenda lists the next two weeks.
 
