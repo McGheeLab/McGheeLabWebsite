@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.86] — 2026-11-20 — Scientia: region kinds — Mark as a topic synthesis (a region's ⋯); its tab says so; Compendiums → Topic syntheses lists every one, with a small map, and Open goes to it centred
+
+Gabe, 19 Nov: "You may now label a region as a 'region kind', for now only one, being topic synthesis. Topic syntheses get logged into their own gallery in Atlas." On 20 Nov the Atlas's galleries moved to the Compendiums (V4.85), and he asked again: "the Topic synthesis region kind and its Atlas gallery".
+
+App only.
+
+### Added
+- **Region kinds** (`14fe-topics.js`, `TOPIC.KINDS`, `TOPIC.set`; `REGION.kindRows` in the region's ⋯ menu): for now one, *Topic synthesis* (`r.kind = 'topic'`, `r.kindAt`). Its tab carries a chip, and the region a ruled band of its colour.
+- **Compendiums → Topic syntheses** (`TOPIC.render`, `TOPIC.card`, `TOPIC.thumb`): cards with the topic, path, count, words and a small map, plus a search. Open lands on the region, centred.
+- **Settings → Topic syntheses** (`topics`): the switch and *Cards show a map of the region*, with a live preview.
+
+### Changed
+- `App.openComponent` takes a region id; `focusPending` lands on a region (`12-doc.js`).
+
+### Tests
+| Test | Result |
+|---|---|
+| `tp86_t`, lab and plain builds:<br>- a real click on the region's ⋯ → Mark as a topic synthesis: `r.kind`, the chip, the band;<br>- the gallery's card (1, its topic) and row;<br>- the compendium's card: the topic, 3 components, the path, their words, a map of 3 boxes, the title;<br>- search; Open: the note, the region centred at 50% (within 4 px); No longer a topic synthesis;<br>- the map setting off; the feature off (the kind kept); the preview; the Settings page | 15/15 · 15/15 |
+| `cal69_t` (the region's chips, the other `REGION.render` wrapper), `opencomp_t`, `cal70_t`, `comp85_t` (with Compendiums off, Topic syntheses joins the Atlas too) | 14/14 · 17/17 · 22/22 · 22/22 |
+
+
 ## [V4.85] — 2026-11-20 — Scientia: the Compendiums — a new tab after the Atlas: All (a gallery of cards), Materials, Data and Protocols (every registered protocol); the Atlas keeps only its Map
 
 Gabe, 20 Nov: "Remove all tabs from Atlas apart from its original function, and move them to a new tab called Compendiums, which acts as the gallery for all of these different things. Add registered protocols to Compendiums."
