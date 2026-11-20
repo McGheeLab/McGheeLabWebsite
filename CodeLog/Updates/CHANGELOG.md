@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.100] — 2026-11-20 — Scientia: fix — the term card holds still: a fixed sentence area and a fade instead of a slide, so it no longer jumps as you hover its timeline and notes
+
+Gabe, 20 Nov: "Current term popup should not move too much/stagger when hovering over timeline points or notes displaying context around the term appearance."
+
+App only.
+
+### Bug Fixes
+- **Cause, measured:**
+  - the sentence area took the height of the sentence, so the card changed height by 18 or 36 px at half of the dots;
+  - and it opened with a scale-and-slide, so `hoverCard` measured it at 97% and it moved about 13 px after showing.
+- **Fix** (`16c-termlook.js`, `40-termlook.css`):
+  - the sentence area (`.tcd-q`) is 92 px whatever the sentence, with its own scroll;
+  - the card only fades in, so it is measured and placed once;
+  - a new sentence cross-fades in 0.16 s (none under reduced motion);
+  - pointing at the dot already shown redraws nothing.
+- Settings → Terms says so; it is the card's look, not a choice, so there is no new switch.
+
+### Tests
+| Test | Result |
+|---|---|
+| `termcard_t` (real hover on a note with 8 dots, a 300-letter sentence and a long title, in looks A, B and C, below and above the term: the card's place and size within 1 px (0 measured), one size for the sentence area, no settling after showing, the cross-fade, no redraw on the same dot, a dot's click still opening its note), lab and plain builds (the helper's), and again on this branch (lab); the build before the fix: 12/26 | 38/38 · 38/38 · 38/38 |
+| `tl66_t` on this branch; the helper's `terms63_t` 11/11 | 16/16 · pass |
+
+
 ## [V4.99] — 2026-11-20 — Scientia: fix — an HTML page's selection popup now closes on a click outside, on Esc, or when the highlight goes, as a PDF's does
 
 Gabe, 20 Nov: "Clicking out of a highlight in HTML removes the popup, just like in PDF."

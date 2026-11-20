@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (198 changes — ready to push)
+## Pending (199 changes — ready to push)
+
+- **Fixed (V4.100):** the term card stays still while you move over its timeline dots and notes.
 
 - **Fixed (V4.99):** the popup that appears when you highlight text in an HTML page now closes when you click elsewhere, like in a PDF.
 
