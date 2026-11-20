@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (174 changes — ready to push)
+## Pending (175 changes — ready to push)
+
+- **Tidy layout (V4.76):** choose a style (Packed, Top down, Left to right, By kind or Grid), and go back to your own layout at any time with *Undo tidy*.
 
 - **Back and forward (V4.75):** when you go back or forward between notes (Alt+Left / Alt+Right), the components arrive with their hover shadow, which then fades.
 

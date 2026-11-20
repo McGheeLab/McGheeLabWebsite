@@ -4,6 +4,37 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.76] — 2026-11-20 — Scientia: Tidy layout — five styles (Packed, Top down, Left to right, By kind, Grid) and “Undo tidy · back to your layout”, even later
+
+Gabe, 20 Nov: "Tidy layout should be reversible to user manual layout state, and upgrade tidy layout in general to be various styles: flow of information top down or horizontally, etc..."
+
+App only.
+
+### Added
+- **Reversible** (`12d-layout.js`, `LAYOUT.snap`):
+  - Before a tidy, where everything stands is kept on the note (`d.layout.tidy = {style, at, from, to}`, synced): components, the head and synthesis boxes, folded regions.
+  - **Undo tidy · back to your layout** restores it later too, in one undo step. A component made since stays where it is.
+  - Tidying again in another style keeps the first manual layout while nothing was moved since; a move by hand makes that the layout to go back to.
+  - It is in the note's ⋯ menu, the paper's right-click menu, the style menu and `/untidy`. The Flow tidy for ordered notes is reversible too.
+- **Five styles** (`LAYOUT.arrange`):
+  - Packed: the existing near-square tidy by links, still the default.
+  - Top down: each group a stack of rows, groups side by side.
+  - Left to right: layers as columns, groups one under the other.
+  - By kind: a column per kind, oldest on top.
+  - Grid: reading order in even rows.
+- **Choosing:** *Tidy layout* opens a style menu (icons, the current one ticked); `/tidy [style]`; the style is remembered per note (`d.layout.tidyStyle`).
+- **Settings → Tidy layout** (`tidy`): the default style and *Remember the style for each note*, with a live preview drawn by `LAYOUT.arrange`. Off: the old one-click Packed tidy.
+
+### Changed
+- The two Tidy rows of the menus come from `LAYOUT.menuRows` (`13-docpanels.js`); the old wrapper of `docMenu` in `12d-layout.js` is gone.
+
+### Tests
+| Test | Result |
+|---|---|
+| `tidy_t` with the real right-click menu, lab and plain builds (the helper's), and again on this branch (lab):<br>- the five styles' geometry; back after one tidy and after four (the manual layout);<br>- a move by hand then Undo; Ctrl+Z; the per-note default; `/untidy`; the remember switch;<br>- Settings (five different previews); the switch off | 23/23 · 23/23 · 23/23 |
+| Regressions: `fw_t34` (LOOKOFF=1) on this branch; `fw_t33` 69/69, `t_983` 18/18 (the helper's) | 24/24 · pass |
+
+
 ## [V4.75] — 2026-11-20 — Scientia: back and forward (Alt+Left / Alt+Right) — the components arrive with their hover shadow, which settles and fades out
 
 Gabe, 20 Nov: "Navigating between notes with Alt + left or right arrows should settle the shadows of components as if they are hovered on initially, fading out."
