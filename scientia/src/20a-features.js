@@ -421,15 +421,18 @@ const PV = {
     preview: () => [h('div.pv-list', [['Water bath', 'every Monday', 'due today'], ['CO₂ tank', 'every 2 weeks', 'in 4 days'], ['Autoclave log', 'every Friday', 'done']].map(([a, b, c]) => h('div', h('input', { type: 'checkbox', tabindex: '-1', checked: c === 'done' }), h('b', a), h('span', b), h('em', c))))] });
 
   /* =============================== Reading & sources =============================== */
-  D({ id: 'library', group: 'reading', label: 'Library', tab: 'library', presets: { simple: true }, desc: 'Papers and their PDFs, the reader with highlights and notes, and citations in your text. Off: the Library tab leaves; citations and papers stay.',
+  D({ id: 'library', group: 'reading', label: 'Library', tab: 'library', presets: { simple: true }, desc: 'Papers and their PDFs, the reader with highlights and notes, and citations in your text. A DOI lookup also keeps the paper’s RIS record (asked of doi.org beside the citation data; offline it is simply skipped); a paper, the papers you tick, a shelf or a focus export as a .ris file, and a .ris file of one or many records imports — new papers are added, the one with the same DOI is filled in. Off: the Library tab leaves; citations and papers stay.',
     // V4.6: every note that has not chosen its own shows its citations this way (/cite); /author-cite makes one citation "Style et al." whatever the note shows
     tune: [T('cite', 'Citations show', 'seg', Object.assign({ isNew: true, opts: [['number', 'Numbered [1]'], ['author', 'Style et al.'], ['title', 'Title']], d: 'In every note that has not chosen its own (its ⋯ menu); numbered from [1] in the order they first appear, with the references listed under the note' }, B('citeStyle'))),
-      T('year', 'Citations by author add the year', 'switch', Object.assign({ isNew: true, d: 'Style et al., 2014 — without it: Style et al.' }, B('citeYear')))],
+      T('year', 'Citations by author add the year', 'switch', Object.assign({ isNew: true, d: 'Style et al., 2014 — without it: Style et al.' }, B('citeYear'))),
+      T('ris', 'RIS records', 'switch', { isNew: true, def: true, d: 'A DOI lookup keeps the RIS record; Export .ris on a paper, a selection, a shelf; Import .ris in the Add panel. Off: the lookup asks doi.org for the citation data only, and the .ris buttons go' })],
     preview: () => { const m = settings().citeStyle || 'number', yr = !!settings().citeYear, au = 'Style et al.' + (yr ? ', 2014' : ''), au2 = 'Plotnikov et al.' + (yr ? ', 2012' : '');
       const cite = (t, sup) => h('span.pv-cite', sup ? { style: { fontSize: '.72em', verticalAlign: 'super', fontFamily: 'var(--f-m)', color: 'var(--teal)' } } : {}, t);
       const c1 = m === 'author' ? cite(au) : m === 'number' ? cite('[1]', true) : cite('Traction force microscopy in physics and biology'), c2 = m === 'author' ? cite(au) : m === 'number' ? cite('[2]', true) : cite('Force fluctuations within focal adhesions');
       return [PV.box({ num: 'Block', label: 'Background', body: ['Cells pull on soft gels as they move', c1, '; adhesions fluctuate', c2, ', as ', cite(au2), ' showed.'] }),
-        PV.cap(m === 'number' ? '/cite numbers from [1]; /author-cite names the author, just for that one.' : m === 'author' ? '/cite names the first author, no brackets.' : '/cite shows the paper’s title.')]; } });
+        PV.cap(m === 'number' ? '/cite numbers from [1]; /author-cite names the author, just for that one.' : m === 'author' ? '/cite names the first author, no brackets.' : '/cite shows the paper’s title.'),
+        LIB.risOn() ? h('div.pv-ris', h('pre.pv-ris-r', 'TY  - JOUR\nAU  - Baldys, Aleksander\nTI  - Critical Role of ESCRT Machinery in EGFR Recycling\nDO  - 10.1021/bi900865u\nER  - '),
+          h('div.row', h('span.btn.xs', 'Export .ris'), h('span.btn.xs', 'Import .ris…')), PV.cap('A DOI lookup keeps this record on the paper; Export .ris writes it (or one made from the fields); Import .ris takes one or many.')) : PV.cap('RIS records are off: a DOI lookup keeps the citation data only, and there is no .ris export or import.')]; } });
 
   /* V4.1 — the Library overhaul (17e search, 17d shelves and foci, 17f shelf map and sheet) */
   D({ id: 'libsearch', group: 'reading', needs: 'library', label: 'Library search', isNew: true, presets: { simple: true },
