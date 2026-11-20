@@ -136,7 +136,7 @@ function ctxMenu(x, y, rows) {
 }
 /** A one-line hover card that follows an element (structures, terms, links, citations). */
 let _hc = null, _hcT = null;
-function hoverCard(anchor, build, wait = 260) {   // V4.66: a term's card waits about a second (`wait`); leaving before then cancels it
+function hoverCard(anchor, build, wait = (+FEAT.tune('hover', 'wait') || 260)) {   // 20 Nov (Gabe: easy tunes): the wait is Settings → Hover cards (the default 260 ms); V4.66: a term's card waits about a second (its own `wait`); leaving before then cancels it
   clearTimeout(_hcT); const cancel = () => clearTimeout(_hcT); anchor.addEventListener('mouseleave', cancel, { once: true });
   _hcT = setTimeout(() => { anchor.removeEventListener('mouseleave', cancel); hideHover(); const c = build(); if (!c) return; _hc = h('div.hovercard', c); document.body.append(_hc);
     const b = anchor.getBoundingClientRect(), r = _hc.getBoundingClientRect(); _hc.style.left = clamp(b.left, 8, innerWidth - r.width - 8) + 'px'; _hc.style.top = (b.bottom + r.height + 10 > innerHeight ? b.top - r.height - 8 : b.bottom + 8) + 'px';

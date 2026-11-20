@@ -4,6 +4,44 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.94] — 2026-11-20 — Scientia: 20 new settings for what was hard-coded — the hover wait, the paper (zoom speed, max zoom, the grid cell, flick glide), stamps, timers, reminders, Today, resurfacing, focus and how long messages stay
+
+Gabe, 20 Nov: "Search for other features like these that could get some easy customization, but currently do not or have very simple customization."
+
+App only. Every setting is read where the number was hard-coded and defaults to it, so nothing changes until someone sets it. Each feature's description and live preview follow its settings.
+
+### Added
+- **hover:** *The card appears after* 0.1 / 0.26 / 0.6 / 1 s (`hoverCard`'s default wait; the term card keeps its own 950 ms). Its preview can be rested on.
+- **Moving around the paper** (new, always on, `PTUNE` in `10-paper.js`):
+  - Ctrl+wheel zoom speed;
+  - max zoom 200 / 300 / 400%;
+  - the cell a component settles to (none / ½ / 14 px / 2 cells: drop, resize, Shift+drag, regions);
+  - flick glide.
+  - Its preview is a real paper.
+- **stamps:** the window 1–72 h (`stampWindowHours`). **timers:** how many at once, 1–4 (`maxTimers`); the wording follows.
+- **reminders:**
+  - the default alert of a new deadline (1 day) and of a new meeting (15 min);
+  - the snooze length (10 min);
+  - Today's "Coming up" lookahead (7 days).
+- **The Today page** (new, always on, `TODAY`):
+  - recent notes;
+  - heatmap weeks;
+  - the hours for the darkest shade (`IX.level`, so the Portfolio's heatmaps follow);
+  - list lengths before "and N more".
+- **resurface:** *older than* (1 week – 2 months) and what comes back (claims and questions / claims / questions).
+- **focus:** the ◎ window starts on the last length used, or 25 / 50 / 90 min.
+- **Messages** (new, always on): how long a message stays, ×0.6 / as before / ×2 / ×4 (`toast()`). Its preview raises a real one.
+
+### The audit
+The table of every feature checked, with what was built and why the rest was not, is in the plan.
+
+### Tests
+| Test | Result |
+|---|---|
+| `easytunes_t` (each setting set through Settings with real pointer and keys, its behaviour measured, its preview checked), lab and plain builds (the helper's), and again on this branch (lab) | 78/78 · 78/78 · 78/78 |
+| Regressions (the helper's, lab and plain): `t_995`, `sz89`, `opencomp`, `tidy`, `sk`, `tl66`, `hn50`, `movepanel`, `cal67`, `cal70`, `lk`, `lk44`, `pill51`, `float`, `todaycaps` | all pass (`todaycaps` once 20/21, then 21/21) |
+
+
 ## [V4.93] — 2026-11-20 — Scientia: the ＋ Quick cast gets Float and Photo (the camera, into the note as a 1×1 image panel); Settings → Pills shows each pill's row or column, and a click turns it
 
 Gabe, 20 Nov: "Add float button in quick cast pill. Live preview of pills should show their extended look as well, and clicking on it sets it horizontal/vertical and vice versa." Then: "Include a capture image in quick cast that routes to the device's camera to take a picture, and logs it into the note you were in as a 1x1 image panel."

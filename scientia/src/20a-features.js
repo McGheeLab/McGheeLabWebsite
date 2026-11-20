@@ -161,14 +161,18 @@ const PV = {
             h('div.pv-sn-gl', 'Notes'), note('Bench log', 'Fibronectin helped at 2 ng/mL')))),
         PV.cap(!on ? 'Off: each run its own Synthesis, kept in its experiment; the box floats beside the note.' : leg ? 'Runs 2 and 3 share one Synthesis, listed under Syntheses; each note’s synthesis shows under it.' : 'Runs 2 and 3 share one Synthesis; the lines under the notes are off.')]; } });
 
-  D({ id: 'stamps', group: 'canvas', label: 'Times on components', desc: 'When each component happened, in its header, with its place in the timer. Off: shown only when you point at the component.',
-    preview: () => [run3({ stamp: on('stamps') ? '13 Nov 2026 20:11 · +12:04' : null }), on('stamps') ? null : PV.cap('Point at a component to see its time.')] });
+  D({ id: 'stamps', group: 'canvas', label: 'Times on components', desc: 'When each component happened, in its header, with its place in the timer. A stamp can be moved by hand within a window of hours either side of when the component was made. Off: shown only when you point at the component.',
+    tune: [T('window', 'A stamp can be moved within', 'range', Object.assign({ min: 1, max: 72, unit: ' h', d: 'Either side of when the component was made; it holds for components made from now on' }, B('stampWindowHours')))],
+    preview: () => [run3({ stamp: on('stamps') ? '13 Nov 2026 20:11 · +12:04' : null }), PV.cap((on('stamps') ? '' : 'Point at a component to see its time. ') + 'Moved by hand, a stamp stays within ' + tune('stamps', 'window') + ' h either side of when the component was made.')] });
 
   D({ id: 'daychips', group: 'canvas', label: 'Day chips', desc: 'The chips that place a component in the day: “today”, “yesterday”, the day note it was filed from.',
     preview: () => [run3({ stamp: null, chips: [PV.chip('today'), PV.chip('filed from Fri 13 Nov')] })] });
 
-  D({ id: 'hover', group: 'canvas', label: 'Hover cards', presets: { simple: true }, desc: 'Pointing at a structure, a term or a link shows what it is, where it was recorded and what to do with it.',
-    preview: () => [run3({ stamp: null }), h('div.pv-hcard', h('div', h('span.kchip', { style: { '--kc': 'var(--k-claim)' } }, 'Claim'), ' open'), h('div.serif', 'collapsed at 10 ng/mL'), h('div.pv-hcf', 'Run 3 · today 20:11 · Alt+click for actions'))] });
+  D({ id: 'hover', group: 'canvas', label: 'Hover cards', presets: { simple: true }, desc: 'Pointing at a structure, a link or a citation shows what it is, where it was recorded and what to do with it, after a short wait you can change. A term’s card keeps its own, longer wait (Terms).',
+    tune: [T('wait', 'The card appears after', 'seg', { isNew: true, def: '260', opts: [['100', '0.1 s'], ['260', '0.26 s'], ['600', '0.6 s'], ['1000', '1 s']], d: 'Resting the pointer on a structure, a link or a citation; moving away first cancels it' })],
+    preview: () => { const w = +tune('hover', 'wait') || 260, isOn = on('hover'), card = h('div.pv-hcard', { style: { display: 'none' } }, h('div', h('span.kchip', { style: { '--kc': 'var(--k-claim)' } }, 'Claim'), ' open'), h('div.serif', 'collapsed at 10 ng/mL'), h('div.pv-hcf', 'Run 3 · today 20:11 · Alt+click for actions')); let t = 0;
+      const word = h('span.pv-selw.pv-hw', { tabindex: 0, on: { mouseenter: () => { clearTimeout(t); if (isOn) t = setTimeout(() => { card.style.display = ''; }, w); }, mouseleave: () => { clearTimeout(t); card.style.display = 'none'; } } }, 'collapsed at 10 ng/mL');
+      return [PV.box({ num: 'Step 2', label: 'Run 3', kind: 'claim', body: ['The edge ', word, ' in every field.'] }), card, PV.cap(isOn ? 'Rest the pointer on the marked words: the card shows after ' + (w / 1000) + ' s.' : 'Off: no cards.')]; } });
 
   D({ id: 'hints', group: 'canvas', label: 'Help lines', desc: 'The one-line tips at the foot of a note and in empty places. Closing one with its × switches this off.',
     get: () => !settings().hintOff, set: v => saveSettings({ hintOff: !v }),
@@ -196,8 +200,29 @@ const PV = {
   D({ id: 'shiftzoom', group: 'canvas', label: 'Shift+click zooms', isNew: true, presets: { simple: true, standard: true }, desc: 'Shift+click a component and the canvas zooms onto it (V4.89) — in every build, with any hand, the mouse or the pen; not while you are typing in that component (there Shift+click extends the selection). A click, not a drag: Shift+drag still moves a component a grid cell at a time. Where the lab’s pills fit it first (their move hand), it stays theirs.',
     tune: [T('how', 'It zooms', 'select', { isNew: true, def: 'fit', opts: [['fit', 'To fit the screen'], ['100', 'To 100%, centred'], ['50', 'To 50%, centred']] })],
     preview: () => { const how = FEAT.tune('shiftzoom', 'how') || 'fit', w = how === 'fit' ? 86 : how === '100' ? 60 : 34; return [h('div.pv-sz', h('div.pv-szf', h('i', { style: { width: w + '%', height: (w * .45) + '%' } }, 'Run 3 · 30 kPa')), h('span.pv-szk', 'Shift + click')), PV.cap(how === 'fit' ? 'The component fills the screen, with a margin.' : 'The canvas centres on it at ' + how + '%.')]; } });
-  D({ id: 'focus', group: 'canvas', label: 'Focus sessions', desc: '◎ asks how long, then puts the app in full screen with the keyboard locked to it and a frame round the screen until the time is up.',
-    preview: () => [h('div.pv-focus', h('div.pv-focus-t', '◎ 38:12 left'), run3({ stamp: null }))] });
+  D({ id: 'focus', group: 'canvas', label: 'Focus sessions', desc: '◎ asks how long, then puts the app in full screen with the keyboard locked to it and a frame round the screen until the time is up. The window starts on the length you choose here, and you can still change it there.',
+    tune: [T('start', 'The length starts at', 'seg', { isNew: true, def: 'last', opts: [['last', 'The last you used'], ['25', '25 min'], ['50', '50 min'], ['90', '90 min']], d: 'In the ◎ window; the chips and the minutes box still change it' })],
+    preview: () => { const m = FOCUS.startMin(); return [h('div.pv-focus', h('div.pv-focus-t', '◎ 38:12 left'), run3({ stamp: null })),
+      h('div.pv-fochips', [15, 25, 45, 50, 60, 90, 120].map(x => h('span' + (x === m ? '.on' : ''), x < 60 ? x + ' min' : Math.floor(x / 60) + ' h' + (x % 60 ? ' ' + x % 60 : '')))),
+      PV.cap('The ◎ window opens on ' + m + ' min' + ([15, 25, 45, 50, 60, 90, 120].includes(m) ? '' : ' (set by hand last time)') + '.')]; } });
+
+  // 20 Nov (Gabe: "Search for other features like these that could get some easy customization"): the numbers of moving around a note, in 10-paper.js (PTUNE)
+  D({ id: 'paper', group: 'canvas', core: true, label: 'Moving around the paper', isNew: true, desc: 'Ctrl+wheel (or a pinch) zooms at the pointer — as fast as you like and as far in as you like; a component you move or resize settles on the grid (Shift+drag moves it a cell at a time, and the same cell is where it lands when you let go); and a flick of the paper keeps gliding until it slows. The paper below is a real one: zoom it, drag the box, flick it.',
+    tune: [T('zoom', 'Ctrl+wheel zooms', 'seg', { isNew: true, def: '1', opts: [['0.5', 'Slowly'], ['1', 'As before'], ['2', 'Quickly']], d: 'How far each notch of the wheel goes' }),
+      T('maxz', 'Zoom in up to', 'seg', { isNew: true, def: '2', opts: [['2', '200%'], ['3', '300%'], ['4', '400%']] }),
+      T('snap', 'A component settles to', 'seg', { isNew: true, def: '14', opts: [['1', 'No grid'], ['7', 'Half a cell'], ['14', 'One cell'], ['28', 'Two cells']], d: 'Moving and resizing; Shift+drag also moves by it. A cell is the paper’s small square' }),
+      T('glide', 'A flick keeps gliding', 'switch', { isNew: true, def: true, d: 'Off: the paper stops where you let go' })],
+    preview: () => {
+      const G = PTUNE.snap(), host = h('div.pv-paper'), out = h('span.pv-paper-z', '100%'), P = makePaper(host, { anyWheel: true, view: { x: 24, y: 18, z: 1 }, onView: v => { out.textContent = Math.round(v.z * 100) + '%'; } });
+      const bx = h('div.pv-paper-b.nopan', { style: { left: '28px', top: '28px' } }, 'Run 3 · drag me'), cell = h('span.pv-paper-c');
+      P.world.append(bx);
+      bx.addEventListener('pointerdown', e => { if (e.button) return; e.preventDefault(); bx.setPointerCapture(e.pointerId); const sx = e.clientX, sy = e.clientY, ox = bx.offsetLeft, oy = bx.offsetTop; bx.classList.add('dragging');
+        const mv = ev => { let x = ox + (ev.clientX - sx) / P.view.z, y = oy + (ev.clientY - sy) / P.view.z; if (ev.shiftKey) { x = Math.round(x / G) * G; y = Math.round(y / G) * G; } bx.style.left = x + 'px'; bx.style.top = y + 'px'; };
+        const up = () => { bx.removeEventListener('pointermove', mv); bx.removeEventListener('pointerup', up); bx.classList.remove('dragging'); bx.style.left = Math.round(bx.offsetLeft / G) * G + 'px'; bx.style.top = Math.round(bx.offsetTop / G) * G + 'px'; };
+        bx.addEventListener('pointermove', mv); bx.addEventListener('pointerup', up); });
+      host.append(out);
+      return [host, PV.cap('Ctrl+wheel zooms ' + ({ '0.5': 'slowly', '1': 'at the usual pace', '2': 'quickly' }[String(tune('paper', 'zoom'))] || 'at the usual pace') + ', up to ' + Math.round(PTUNE.maxZ() * 100) + '%; the box settles to ' + (G === 1 ? 'wherever you let go' : (G === 14 ? 'one cell' : G === 7 ? 'half a cell' : G === 28 ? 'two cells' : G + ' px')) + '; a flick ' + (PTUNE.glide() ? 'keeps gliding' : 'stops where you let go') + '.')];
+    } });
 
   /* =============================== Pen & touch =============================== */
   D({ id: 'ink', group: 'pen', label: 'Ink & shapes', desc: 'Writing on the paper with a pen (or the mouse): pen, highlighter, eraser and lasso in the ink bar; strokes written close together gather into one ink component. Off: the ink tools leave; ink already written stays.',
@@ -370,8 +395,12 @@ const PV = {
     preview: () => [run3({ stamp: null, head: [h('span.inv-dot', { title: 'Needs investigation' })], body: ['Why do the ', PV.st('investigate', 'beads drift'), ' after 40 frames?'] }),
       h('div.pv-row', h('span.pfdot.inv', { style: { '--c': 'var(--k-investigate)' } }, '2'), h('span.fpv-cap', 'in the Portfolio, beside the note'))] });
 
-  D({ id: 'resurface', group: 'structures', label: 'Resurfaced claims', desc: 'An older claim brought back on Today and in the day note, to check that it still holds.',
-    preview: () => [h('div.resurf', { style: { '--kc': 'var(--k-claim)', margin: 0 } }, h('div.tiny.mono.muted', 'RESURFACED · 30 DAYS AGO'), h('div.serif', 'Traction scales with stiffness.'), h('div.tiny.muted', 'Quiet note · still holds?'))] });
+  D({ id: 'resurface', group: 'structures', label: 'Resurfaced claims', desc: 'An older claim brought back on Today and in the day note, to check that it still holds: a claim or a question once it is older than the time you choose, one a day, not the same one again until the rest have had their turn.',
+    tune: [T('after', 'It comes back once it is older than', 'seg', { isNew: true, def: '14', opts: [['7', '1 week'], ['14', '2 weeks'], ['30', '1 month'], ['60', '2 months']], d: 'Today’s pick stays until you press Another' }),
+      T('kinds', 'What comes back', 'seg', { isNew: true, def: 'both', opts: [['both', 'Claims and questions'], ['claim', 'Claims only'], ['question', 'Questions only']] })],
+    preview: () => { const k = RESURF.kinds(), q = k.length === 1 && k[0] === 'question', n = Math.max(+tune('resurface', 'after') || 14, 21);
+      return [h('div.resurf', { style: { '--kc': 'var(--k-' + (q ? 'question' : 'claim') + ')', margin: 0 } }, h('div.tiny.mono.muted', 'RESURFACED · ' + n + ' DAYS AGO'), h('div.serif', q ? 'Is the edge stiffness-dependent?' : 'Traction scales with stiffness.'), h('div.tiny.muted', 'Quiet note · ' + (q ? 'still open?' : 'still holds?'))),
+        PV.cap('A ' + (k.length === 2 ? 'claim or question' : k[0]) + ' older than ' + (+tune('resurface', 'after') || 14) + ' days, one a day.')]; } });
 
   D({ id: 'lock', group: 'structures', keep: true, nb: true, label: 'Lock the wording after the day', desc: 'Once the day turns, changing recorded wording asks you to revise or add a correction; the original stays on record. Off: everything stays editable, and notes and components can be deleted. Presets leave this as it is.',
     get: () => !!settings().lockAfterDay, set: v => { saveSettings({ lockAfterDay: v }); changed(); },
@@ -407,11 +436,18 @@ const PV = {
 
   /* =============================== Time & reminders =============================== */
   D({ id: 'timers', group: 'time', label: 'Timers', presets: { simple: true }, desc: 'A note’s ⏱ Timer, step timing, head starts, the timer cards that follow you from page to page, and the day’s totals. Off: no new timer starts; one already running still shows until it ends.',
-    tune: [T('cap', 'Stop a timer after', 'range', Object.assign({ min: 1, max: 12, unit: ' h' }, B('timerCapHours'))), T('idle', 'Ask if idle after', 'range', Object.assign({ min: 5, max: 60, step: 5, unit: ' min' }, B('idleMinutes')))],
-    preview: () => [h('div.pv-timer', h('i'), h('b', '30 kPa series'), h('span.mono', '1:12:04'), h('span', '❚❚'), h('span', '■')), run3({ stamp: '13 Nov 20:11 · +12:04' }), PV.cap('Stops by itself after ' + tune('timers', 'cap') + ' h; asks after ' + tune('timers', 'idle') + ' min without a touch.')] });
+    tune: [T('cap', 'Stop a timer after', 'range', Object.assign({ min: 1, max: 12, unit: ' h' }, B('timerCapHours'))), T('idle', 'Ask if idle after', 'range', Object.assign({ min: 5, max: 60, step: 5, unit: ' min' }, B('idleMinutes'))),
+      T('max', 'Timers running at once', 'range', Object.assign({ min: 1, max: 4, d: 'Overlapping time is recorded as multitask and counted once; one more asks which to pause' }, B('maxTimers')))],
+    preview: () => [h('div.pv-timer', h('i'), h('b', '30 kPa series'), h('span.mono', '1:12:04'), h('span', '❚❚'), h('span', '■')), run3({ stamp: '13 Nov 20:11 · +12:04' }), PV.cap('Stops by itself after ' + tune('timers', 'cap') + ' h; asks after ' + tune('timers', 'idle') + ' min without a touch; up to ' + tune('timers', 'max') + (tune('timers', 'max') === 1 ? ' timer' : ' timers') + ' at once.')] });
 
-  D({ id: 'reminders', group: 'time', label: 'Reminders', presets: { simple: true }, inserts: ['reminder'], desc: 'Deadlines, meetings and plain reminders under the bell in the header, on Today and in the day note, with alerts.',
-    preview: () => [h('div.pv-rem', h('div.pv-remh', 'Coming up'), [['Today 15:00', 'Lab meeting', 'meeting'], ['Mon', 'Order fibronectin', 'reminder'], ['Fri', 'Abstract due', 'deadline']].map(([a, b, c]) => h('div', h('span.mono', a), h('b', b), h('span', c))))] });
+  D({ id: 'reminders', group: 'time', label: 'Reminders', presets: { simple: true }, inserts: ['reminder'], desc: 'Deadlines, meetings and plain reminders under the bell in the header, on Today and in the day note, with alerts. A new deadline or meeting starts with the alert you choose here, Snooze lasts as long as you say, and Today’s “Coming up” looks as far ahead as you say.',
+    tune: [T('deadline', 'A new deadline alerts', 'seg', { isNew: true, def: '1440', opts: [['-1', 'Never'], ['0', 'At the time'], ['60', '1 h before'], ['1440', '1 day before'], ['2880', '2 days before'], ['10080', '1 week before']], d: 'Each one can still be changed when you edit it' }),
+      T('meeting', 'A new meeting alerts', 'seg', { isNew: true, def: '15', opts: [['-1', 'Never'], ['0', 'At the time'], ['5', '5 min before'], ['15', '15 min before'], ['30', '30 min before'], ['60', '1 h before']] }),
+      T('snooze', 'Snooze lasts', 'seg', { isNew: true, def: '10', opts: [['5', '5 min'], ['10', '10 min'], ['15', '15 min'], ['30', '30 min'], ['60', '1 h']], d: 'On the alert that pops up' }),
+      T('ahead', 'Today’s “Coming up” looks ahead', 'seg', { isNew: true, def: '7', opts: [['3', '3 days'], ['7', '1 week'], ['14', '2 weeks'], ['30', '1 month']] })],
+    preview: () => { const ah = REMTUNE('ahead', 7), lab = m => m < 0 ? 'no alert' : m === 0 ? 'at the time' : m < 60 ? m + ' min before' : m < 1440 ? m / 60 + ' h before' : m >= 10080 ? plural(m / 10080, 'week') + ' before' : plural(m / 1440, 'day') + ' before';
+      return [h('div.pv-rem', h('div.pv-remh', 'Coming up · next ' + ah + ' days'), [['Today 15:00', 'Lab meeting', 'meeting', 0], ['Mon', 'Order fibronectin', 'reminder', 2], ['Fri', 'Abstract due', 'deadline', 5], ['Next week', 'Committee report', 'deadline', 12], ['In 3 weeks', 'Renew animal protocol', 'deadline', 24]].filter(x => x[3] < ah).map(([a, b, c]) => h('div', h('span.mono', a), h('b', b), h('span', c)))),
+        PV.cap('A new deadline alerts ' + lab(REMTUNE('deadline', 1440)) + ', a meeting ' + lab(REMTUNE('meeting', 15)) + '; Snooze lasts ' + REMTUNE('snooze', 10) + ' min.')]; } });
 
   // V4.8 (18b-monthly.js): the monthly review replaces the weekly bet — a report of the month's deliverables per note, an inbox for what belongs to no note, next month's plan
   D({ id: 'review', group: 'time', label: 'Monthly review', tab: 'review', desc: 'Each month’s report: what it added up to, its numbers against the month before, and per note its takeaways and results (then barriers resolved, questions answered, Reports and References). Unassigned lists every component of your daily notes that belongs to no note of the Portfolio, to file with a key. Ticking what is still open writes next month’s plan into the review note.',
@@ -813,6 +849,26 @@ const PV = {
           n > 1 ? TCAP.cardEl({ time: '23:40', date: 'Thu 19 Nov', kinds: ['question'], text: 'Does the edge collapse follow the stiffness gradient?', move: () => { st.hint = true; draw(); } }) : null])),
         PV.cap(st.hint ? 'Move to… opens the move panel: pick a note, or a project or a theme (it makes a note there).' : 'Each capture has Move to… in a footer under it. Try one.'));
       draw(); return [wrap]; } });
+  // 20 Nov (Gabe: "Search for other features like these that could get some easy customization"): how much of the Today page's lists is shown (14-home.js)
+  D({ id: 'today', group: 'tabs', core: true, label: 'The Today page', isNew: true, desc: 'How much of the lists on Today is shown: how many Recent notes, how many weeks the heatmap covers and the day that gets its darkest shade, and how long the lists of open barriers and notes that need investigating run before “and N more”.',
+    tune: [T('recent', 'Recent notes', 'seg', { isNew: true, def: '7', opts: [['3', '3'], ['5', '5'], ['7', '7'], ['10', '10'], ['15', '15']] }),
+      T('weeks', 'The heatmap covers', 'seg', { isNew: true, def: '5', opts: [['3', '3 weeks'], ['5', '5 weeks'], ['8', '8 weeks'], ['12', '12 weeks']] }),
+      T('heat', 'A day gets the darkest shade at', 'seg', { isNew: true, def: '4', opts: [['2', '2 h'], ['4', '4 h'], ['6', '6 h']], d: 'Hours recorded in a day; the heatmaps on Today and in the Portfolio use it' }),
+      T('list', 'Open barriers and needs-investigation lists', 'seg', { isNew: true, def: 'normal', opts: [['short', 'Short'], ['normal', 'As before'], ['long', 'Long']], d: 'Short: 2 and 4 before “and N more”; as before: 4 and 8; long: 8 and 16' })],
+    preview: () => { const n = TODAY.recent(), wk = TODAY.weeks(), names = ['30 kPa series Run 3', 'Seeding density notes', 'Bench log', 'Antibody titration', 'Gel batch 14', 'Journal club', 'Imaging protocol', 'Plate reader check', 'Bead lot comparison', 'Lab meeting', 'Committee report draft', 'Order list', 'Mask training', 'Gel recipes', 'Day note'];
+      const bars = ['Edge collapses above 10 ng/mL', 'Gels tear above 40 kPa', 'Beads drift after 40 frames', 'No standard for stiffness checks', 'Batch 14 not yet imaged', 'Antibody lot is low'];
+      return [h('div.pv-today', h('div.pv-today-h', 'Open barriers · ' + bars.length), capped(bars, TODAY.cap(4), x => h('div.li', h('span.t', x))),
+        h('div.pv-today-h', 'Last ' + wk + ' weeks'), h('div', { style: { overflow: 'hidden' } }, heatmapEl({ weeks: wk, cell: 9 })),
+        h('div.pv-heat', [0, 1, 2, 3, 4, 5].map(l => h('span', h('i', { style: { background: 'var(--hm-' + l + ')' } }), (l < 2 ? (l ? '>0' : '0') : Math.round([0, 0, 45, 105, 165, 240][l] * (+tune('today', 'heat') || 4) / 4 / 6) / 10 + ' h')))),
+        h('div.pv-today-h', 'Recent notes · ' + n), h('div.list', names.slice(0, n).map(x => h('div.li', h('span.t', x))))),
+        PV.cap('Today lists ' + n + ' recent notes, ' + wk + ' weeks of heatmap (darkest from ' + (+tune('today', 'heat') || 4) + ' h a day), and ' + TODAY.cap(4) + ' open barriers before “and N more”.')]; } });
+
+  // 20 Nov (Gabe: "Search for other features like these that could get some easy customization"): how long a message stays (01-util.js toast)
+  D({ id: 'toasts', group: 'tabs', core: true, label: 'Messages', isNew: true, desc: 'The little messages that rise at the bottom of the window (“Saved”, “Ctrl+Z undoes it”, “Moved to…”). They go by themselves after a few seconds; here you say how long, for every message the app shows.',
+    tune: [T('time', 'A message stays', 'seg', { isNew: true, def: '1', opts: [['0.6', 'Briefly'], ['1', 'As before'], ['2', 'Longer'], ['4', 'Much longer']], d: 'The usual message lasts about 2.4 s; those with something to read last longer already' })],
+    preview: () => { const f = TOASTT.factor(), btn = h('button.btn.sm', { type: 'button', on: { click: () => toast('Saved — Ctrl+Z undoes it') } }, 'Show a message');
+      return [h('div.pv-toast', h('div.pv-toast-t', { style: { '--pvd': Math.round(2400 * f) + 'ms' } }, 'Saved — Ctrl+Z undoes it', h('i'))), h('div', { style: { marginTop: '8px' } }, btn),
+        PV.cap('A usual message stays ' + (Math.round(2400 * f / 100) / 10) + ' s.')]; } });
   TabF('canvas', 'canvas', 'Spatial canvases (lab)', 'Canvases where components, structures, papers and datasets are arranged freely; drawn lines become real connections; export as JSON Canvas. An experiment: presets leave it as it is.', () => [PV.cap('A Canvas tab in the row.')],
     { keep: true, nb: true, get: () => CANVAS.on(), set: v => { if (CANVAS.on() !== !!v) CANVAS.toggleLab(); } });   // a lab experiment: presets leave it as it is
   // V4.12 (20-settings.js featurePage, 20b-demos.js): a feature's page shows a recording of it being used in a test note, and what it is for in the words of whoever asked for it
@@ -830,6 +886,7 @@ const PV = {
   D({ id: 'syncdot', group: 'tabs', label: 'Sync dot', presets: { simple: true }, desc: 'The dot in the header: green in step, amber while it works, grey when offline, red with one plain sentence when it failed. Off: it shows only when something is wrong.',
     preview: () => [h('div.pv-hd', h('b', 'Scientia'), h('span.sp'), h('span.pv-sync', { title: 'In step' }), h('span', '⌕ Search'))] });
 }
+
 
 /* ---------- the guards: what a feature switched off takes away (CSS for the rest: 24-kinds.css, body.f-off-<id>) ---------- */
 {
