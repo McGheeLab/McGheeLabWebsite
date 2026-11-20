@@ -42,13 +42,13 @@ const CAL = {
   BY: [['project', 'Project'], ['kind', 'Kind'], ['tag', 'Tag'], ['ntype', 'Note type'], ['load', 'Load']],
   LOAD: [[30, 'Under 30 min'], [60, '30 min – 1 h'], [120, '1 – 2 h'], [240, '2 – 4 h'], [1e9, '4 h or more']],
   NT: { exp: 'teal', notes: 'blue', lit: 'amber', syn: 'plum' },
-  st: Object.assign({ view: 'week', by: 'kind' }, (() => { try { return _ls.get('calSt', {}) || {}; } catch (e) { return {}; } })(), { single: [], tag: null, day: null }),
+  st: Object.assign({ view: 'week', by: 'kind', agents: false }, (() => { try { return _ls.get('calSt', {}) || {}; } catch (e) { return {}; } })(), { single: [], tag: null, day: null }),
   root: null, hpx: 50, ro: null, _t: null,
   on: () => typeof FEAT === 'undefined' || FEAT.on('calendar'),
   tn(k, d) { try { const v = FEAT.tune('calendar', k); return v == null ? d : v; } catch (e) { return d; } },
   span() { return clamp(+CAL.tn('span', '12') || 12, 6, 24); },
   wk0() { return CAL.tn('week', 'mon') === 'sun' ? 0 : 1; },
-  keep() { try { _ls.set('calSt', { view: CAL.st.view, by: CAL.st.by }); } catch (e) { } },
+  keep() { try { _ls.set('calSt', { view: CAL.st.view, by: CAL.st.by, agents: !!CAL.st.agents }); } catch (e) { } },
 
   /* ---------------- time ---------------- */
   today: () => localDate(new Date()),
@@ -82,7 +82,7 @@ const CAL = {
   remOn(r, day) { try { if (!r.at || r.done) return null; const at = REM.when(r, dayStart(parseDay(day))); return localDate(at) === day ? at : null; } catch (e) { return null; } },
   /** What has a time on a day: events, and reminders with an end (a meeting). */
   dayItems(day) {
-    const out = CAL.all().filter(ev => !ev.allDay && CAL.occurs(ev, day)).map(ev => ({ k: ev.id + '@' + day, ev, day, s: ev.start, e: Math.max(ev.start + 15, ev.end), title: ev.title }));
+    const out = CAL.all().filter(ev => !ev.allDay && ev.kind !== 'run' && CAL.occurs(ev, day)).map(ev => ({ k: ev.id + '@' + day, ev, day, s: ev.start, e: Math.max(ev.start + 15, ev.end), title: ev.title }));
     if (typeof REM !== 'undefined') REM.all().forEach(r => { if (r.allDay || !r.end) return; const at = CAL.remOn(r, day); if (!at) return;
       const s = at.getHours() * 60 + at.getMinutes(), e = Math.min(1440, s + Math.max(15, Math.round((+new Date(r.end) - +new Date(r.at)) / 6e4)));
       out.push({ k: 'rem:' + r.id + '@' + day, rem: r, at, day, s, e, title: r.title || 'Reminder' }); });
@@ -90,7 +90,7 @@ const CAL = {
   },
   /** The all-day row: all-day events, reminders without an end (a deadline, a reminder), dated tasks. */
   allDayItems(day) {
-    const out = CAL.all().filter(ev => ev.allDay && CAL.occurs(ev, day)).map(ev => ({ k: ev.id + '@' + day, ev, day, s: 0, e: 0, title: ev.title, ad: true }));
+    const out = CAL.all().filter(ev => ev.allDay && ev.kind !== 'run' && CAL.occurs(ev, day)).map(ev => ({ k: ev.id + '@' + day, ev, day, s: 0, e: 0, title: ev.title, ad: true }));
     if (typeof REM !== 'undefined') REM.all().forEach(r => { if (r.end && !r.allDay) return; if (r.taskId) return; const at = CAL.remOn(r, day); if (!at) return;
       out.push({ k: 'rem:' + r.id + '@' + day, rem: r, at, day, ad: true, title: r.title || 'Reminder', time: r.allDay ? '' : fmtTime(at) }); });
     if (typeof TASK !== 'undefined') TASK.all().forEach(b => { const d = TASK.dueAt(b); if (!d || localDate(d) !== day) return; const t = TASK.t(b);
@@ -110,6 +110,7 @@ const CAL = {
   /** {key, label, col, ink?, cls?} — the value this item has under Colour by. */
   colour(it) {
     const P = CAL.PAL, by = CAL.st.by, kd = CAL.kindOf(it);
+    if (it.ev && it.ev.kind === 'run') return { key: 'run', label: 'Agent run', col: '#5B4FC4' };
     if (kd === 'rem') return { key: 'rem', label: 'Reminder', col: P.amber };
     if (kd === 'task') return { key: 'task', label: 'Task', col: P.slate };
     if (by === 'project') { const id = CAL.projOf(it), i = id ? CAL.projOrder().indexOf(id) : -1, p = id && M.project(id);
@@ -171,6 +172,8 @@ const CAL = {
       h('h2.cal-ttl', CAL.title()),
       h('div.cal-seg', { role: 'group', 'aria-label': 'View' }, seg.map(([k, l, key]) => h('button' + (v === k ? '.on' : ''), { title: l + ' (' + key + ')', 'aria-pressed': String(v === k), on: { click: () => CAL.setView(k) } }, l))),
       h('span.cal-sp'),
+      h('button.cal-tg' + (CAL.st.agents ? '.on' : ''), { title: 'Agent runs over your calendar (G)', 'aria-pressed': String(!!CAL.st.agents), on: { click: () => CAL.toggleAgents() } }, h('i.cal-tgd'), 'Agent runs'),
+      CAL.st.agents && v !== 'month' ? (() => { const T = CAL.tally(CAL.days()); return h('span.cal-ai', { title: 'AI hours shown, and how much of it ran while you had something on' }, T.n ? [h('b.agdip', 'AI ' + CAL.hrs(T.all)), ' · 2× for ' + CAL.hrs(T.al) + ' alongside you'] : 'No agent run here'); })() : null,
       h('label.cal-by', h('span', 'Colour by'), h('select', { on: { change: e => { CAL.st.by = e.target.value; CAL.st.single = []; CAL.keep(); CAL.paint(); } } }, CAL.BY.map(([k, l]) => h('option', { value: k, selected: CAL.st.by === k }, l)))),
       h('div.cal-lg', L.map(o => h('button.cal-lgv' + (S.includes(o.key) ? '.on' : '') + (S.length && !S.includes(o.key) ? '.off' : ''), { title: 'Single out ' + o.label + ' (Ctrl or Shift adds another)', 'aria-pressed': String(S.includes(o.key)), on: { click: e => CAL.pick(o.key, e.ctrlKey || e.metaKey || e.shiftKey) } },
         h('i', { style: { background: o.col } }), h('span', o.label), h('b', String(o.n))))),
@@ -199,11 +202,13 @@ const CAL = {
   },
   /** One day's column: the free time, the cards, now. */
   col(day) {
-    const list = CAL.dayItems(day), lanes = CAL.lanes(list), t = CAL.today();
-    const el = h('div.cal-col' + (day === t ? '.today' : '') + (day < t ? '.past' : ''), { 'data-day': day });
-    if (CAL.tn('slots', true) !== false) CAL.frees(list).forEach(([s, e]) => el.append(h('button.cal-slot', { tabindex: '-1', 'data-s': s, style: { top: `calc(var(--hpx) * ${s / 60} + 2px)`, height: `calc(var(--hpx) * ${(e - s) / 60} - 4px)` }, title: 'Free ' + CAL.hm(s) + '–' + CAL.hm(e) + ' — click to add an event' },
+    const list = CAL.dayItems(day), lanes = CAL.lanes(list), t = CAL.today(), runs = CAL.st.agents ? CAL.runsOn(day) : [], rl = CAL.lanes(runs), nl = runs.reduce((m, r) => Math.max(m, rl.get(r.k).n), 0);
+    const el = h('div.cal-col' + (day === t ? '.today' : '') + (day < t ? '.past' : '') + (nl ? '.runs' : ''), { 'data-day': day, style: { '--runw': nl ? (nl * 20 + 6) + 'px' : null } }), cin = h('div.cal-cin');
+    el.append(cin);
+    if (CAL.tn('slots', true) !== false) CAL.frees(list).forEach(([s, e]) => cin.append(h('button.cal-slot', { tabindex: '-1', 'data-s': s, style: { top: `calc(var(--hpx) * ${s / 60} + 2px)`, height: `calc(var(--hpx) * ${(e - s) / 60} - 4px)` }, title: 'Free ' + CAL.hm(s) + '–' + CAL.hm(e) + ' — click to add an event' },
       e - s >= 45 ? h('span', 'Free') : null, e - s >= 30 ? h('b', CAL.dur(e - s)) : null)));
-    list.forEach(it => el.append(CAL.card(it, lanes.get(it.k))));
+    list.forEach(it => cin.append(CAL.card(it, lanes.get(it.k))));
+    runs.forEach(it => el.append(CAL.runEl(it, rl.get(it.k).c)));
     if (day === t) el.append(h('div.cal-now', { style: { top: `calc(var(--hpx) * ${CAL.nowMin() / 60})` } }));
     return el;
   },
@@ -286,7 +291,7 @@ const CAL = {
   },
   /** Agenda: the next two weeks as a list, all-day items first each day. */
   agenda(D) {
-    const t = CAL.today(), days = D.map(day => ({ day, list: CAL.allDayItems(day).concat(CAL.dayItems(day)) })).filter(x => x.list.length || x.day === t);
+    const t = CAL.today(), days = D.map(day => ({ day, list: CAL.allDayItems(day).concat(CAL.dayItems(day).concat(CAL.st.agents ? CAL.runsOn(day) : []).sort((a, b) => a.s - b.s)) })).filter(x => x.list.length || x.day === t);
     return h('div.cal-ag', days.length ? days.map(({ day, list }) => { const d = parseDay(day);
       return h('section.ag-day' + (day === t ? '.today' : ''), h('h3.ag-h', h('span.dw', DOW[d.getDay()]), h('b', fmtDay(d)), day === t ? h('span.ag-t', 'today') : null),
         list.length ? list.map(it => { const c = CAL.colour(it), doc = CAL.docOf(it);
@@ -367,6 +372,47 @@ const CAL = {
     return h('span.ec-dep', CAL.ic('link'), t.length ? 'then → ' + t.map(x => x.title).join(', ') : 'after ← ' + a.map(x => x.title).join(', '));
   },
 
+  /* ---------------- V4.60: agent runs — a second layer over the calendar ---------------- */
+  isRun: ev => !!ev && ev.kind === 'run',
+  runsOn(day) { return CAL.all().filter(ev => CAL.isRun(ev) && !ev.allDay && CAL.occurs(ev, day)).map(ev => ({ k: ev.id + '@' + day, ev, day, s: ev.start, e: Math.max(ev.start + 15, ev.end), title: ev.title, run: true })).sort((a, b) => a.s - b.s); },
+  /** planned (before its start) · running · done (past its end, or marked done). */
+  runSt(it) { const r = it.ev.run || {}; if (r.done) return 'done'; const now = CAL.ab(CAL.today(), CAL.nowMin()); return now < CAL.ab(it.day, it.s) ? 'planned' : now < CAL.ab(it.day, it.e) ? 'running' : 'done'; },
+  /** Your events while it runs: the double dipping. */
+  along(it) { return CAL.dayItems(it.day).filter(x => x.ev && x.s < it.e && x.e > it.s); },
+  alongMin(it) { const iv = CAL.along(it).map(x => [Math.max(x.s, it.s), Math.min(x.e, it.e)]).sort((a, b) => a[0] - b[0]); let m = 0, cs = -1, ce = -1; iv.forEach(([a, b]) => { if (a > ce) { if (ce > cs) m += ce - cs; cs = a; ce = b; } else ce = Math.max(ce, b); }); if (ce > cs) m += ce - cs; return m; },
+  tally(D) { let all = 0, al = 0, n = 0; D.forEach(day => CAL.runsOn(day).forEach(it => { n++; all += it.e - it.s; al += CAL.alongMin(it); })); return { all, al, n }; },
+  hrs: m => (Math.round(m / 6) / 10) + ' h',
+  /** A run: a thin line from its planned start to its planned end, its title written along it; electrons flow down it while it runs. */
+  runEl(it, lane) {
+    const st = CAL.runSt(it), len = it.e - it.s, S = CAL.st.single, dim = S.length && !CAL.along(it).some(x => S.includes(CAL.colour(x).key)), still = CAL.tn('electrons', true) === false;
+    const el = h('button.cal-run.' + st + (still ? '.still' : '') + (dim ? '.dim' : ''), { type: 'button', 'data-k': it.k, 'data-run': '1', style: { top: `calc(var(--hpx) * ${it.s / 60} + 2px)`, height: `calc(var(--hpx) * ${len / 60} - 4px)`, right: (3 + lane * 20) + 'px', '--dur': clamp(len / 60 * 1.3, 2.2, 6).toFixed(1) + 's' },
+      'aria-label': 'Agent run: ' + it.title + ', ' + CAL.hm(it.s) + '–' + CAL.hm(it.e) + ', ' + st, on: { click: e => { e.stopPropagation(); CAL.open(it); }, pointerenter: e => CAL.hovIn(it, e.currentTarget), pointerleave: () => CAL.hovOut() } },
+      h('span.rt', it.title), h('span.rl'), [18, 50, 82].map((p, i) => h('span.re', { style: { top: p + '%', animationDelay: (-i * clamp(len / 60 * 1.3, 2.2, 6) / 3).toFixed(2) + 's' } })));
+    return el;
+  },
+  /** The card a run opens in place: what it did, what it ran alongside, its output. */
+  runFill(b, it, ev) {
+    const day = it.day, cur = { k: ev.id + '@' + day, ev, day, s: ev.start, e: Math.max(ev.start + 15, ev.end), title: ev.title }, st = CAL.runSt(cur), al = CAL.along(cur), r = ev.run || {};
+    const upd = (f, label) => { f(ev); CAL.save(ev, label); setTimeout(() => CAL.bubFill(), 0); };
+    const nud = (ds, de) => upd(x => { const len = x.end - x.start; x.start = clamp(x.start + ds, 0, 1440 - Math.max(15, len + de)); x.end = clamp(x.start + len + de, x.start + 15, 1440); }, 'Time');
+    const did = h('textarea.cw-in.bub-did', { rows: 3, placeholder: 'What it did, what it found…', 'aria-label': 'What it did', on: { change: e => upd(x => { x.run = Object.assign({}, x.run, { did: e.target.value }); }, 'What it did') } }); did.value = r.did || '';
+    const note = CAL.notePick(() => ev.docId, id => upd(x => { x.docId = id; }, 'Output'), 'Output');
+    b.classList.add('run');
+    b.replaceChildren(
+      h('div.bub-top.run', h('input.bub-title', { value: ev.title, 'aria-label': 'Title', on: { change: e => upd(x => { x.title = e.target.value.trim() || x.title; }, 'Title'), keydown: e => { if (e.key === 'Enter') e.target.blur(); } } }),
+        h('span.bub-when', 'Agent run · ' + fmtDayLong(parseDay(day)) + ' · ' + CAL.hm(ev.start) + '–' + CAL.hm(ev.end) + ' · ' + { planned: 'planned', running: 'running now', done: 'done' }[st])),
+      h('div.bub-r', h('span.cw-k', 'Time'), h('div.bub-st', h('button.cw-d', { type: 'button', on: { click: () => nud(-15, 0) } }, '−15'), h('b', CAL.hm(ev.start)), h('button.cw-d', { type: 'button', on: { click: () => nud(15, 0) } }, '+15'))),
+      h('div.bub-r', h('span.cw-k', 'Length'), h('div.bub-st', h('button.cw-d', { type: 'button', on: { click: () => nud(0, -15) } }, '−15'), h('b', CAL.dur(ev.end - ev.start)), h('button.cw-d', { type: 'button', on: { click: () => nud(0, 15) } }, '+15'))),
+      h('div.bub-r.top', h('span.cw-k', 'While'), h('div.bub-al', al.length ? [h('b.agdip', '2×'), h('span', ' alongside ' + al.map(x => x.title).join(', ') + ' — ' + CAL.dur(CAL.alongMin(cur)) + ' of it double dipped')] : h('span', 'On its own — nothing of yours alongside it'))),
+      h('div.bub-r.top', h('span.cw-k', 'Did'), did),
+      note.el,
+      h('div.bub-f', h('button.cal-btn', { type: 'button', on: { click: () => CAL.open(cur) } }, ev.docId ? 'Open its output' : 'Make its output note'),
+        h('span.cal-sp'),
+        h('button.cal-btn', { type: 'button', on: { click: () => upd(x => { x.run = Object.assign({}, x.run, { done: !(x.run && x.run.done) }); }, 'Done') } }, r.done ? 'Not done' : 'Mark done'),
+        h('button.cal-btn.danger', { type: 'button', on: { click: () => { CAL.closeBub(); DB.beginGroup('Delete run'); DB.del('events', ev.id); changed(); toast('Run deleted — Ctrl+Z undoes it'); } } }, 'Delete')));
+  },
+  toggleAgents() { CAL.st.agents = !CAL.st.agents; CAL.keep(); CAL.closeAll(); CAL.paint(); },
+
   /* ---------------- gestures ---------------- */
   minAt(colEl, y) { const r = colEl.getBoundingClientRect(); return clamp((y - r.top) / CAL.hpx * 60, 0, 1440); },
   colAt(x, y) { const els = document.elementsFromPoint(x, y); return els.find(e => e.classList && e.classList.contains('cal-col')) || null; },
@@ -390,7 +436,7 @@ const CAL = {
       if (rz) en = Math.max(it.s + 15, Math.min(1440, CAL.snap(CAL.minAt(col, ev.clientY))));
       else { s = clamp(CAL.snap(CAL.minAt(c, ev.clientY) - grab), 0, 1440 - (it.e - it.s)); en = s + (it.e - it.s); }
       tgt = { day: c.dataset.day, s, e: en };
-      if (!ghost || ghost.parentNode !== c) { if (ghost) ghost.remove(); ghost = h('div.cal-ghost'); c.append(ghost); }
+      const host = $('.cal-cin', c) || c; if (!ghost || ghost.parentNode !== host) { if (ghost) ghost.remove(); ghost = h('div.cal-ghost'); host.append(ghost); }
       ghost.style.top = `calc(var(--hpx) * ${s / 60} + 2px)`; ghost.style.height = `calc(var(--hpx) * ${(en - s) / 60} - 4px)`; ghost.textContent = CAL.hm(s) + '–' + CAL.hm(en);
     };
     const up = () => {
@@ -412,7 +458,7 @@ const CAL = {
     const was = CAL.ab(ev.day, ev.end); Object.assign(ev, { day, start: s, end: e, modified: isoLocal(new Date()) }); DB.put('events', ev);
     const d = CAL.ab(day, e) - was, L = CAL.carry(ev, d); changed(); if (L.length) CAL.carried(ev, d, L);
   },
-  find(k) { if (!k) return null; const day = k.split('@')[1]; const L = day ? CAL.dayItems(day).concat(CAL.allDayItems(day)) : CAL.days().flatMap(CAL.allDayItems); return L.find(x => x.k === k) || null; },
+  find(k) { if (!k) return null; const day = k.split('@')[1]; const L = day ? CAL.dayItems(day).concat(CAL.allDayItems(day), CAL.runsOn(day)) : CAL.days().flatMap(CAL.allDayItems); return L.find(x => x.k === k) || null; },
 
   /* ---------------- opening ---------------- */
   /** A click: its note — or a note made for it and linked (a meeting note, an experiment's first stage, a quick note). */
@@ -432,7 +478,7 @@ const CAL = {
       if (pid) { const doc = CHAIN.create({ projectId: pid, themeId: theme(pid), name: title, date: it.day }); link(doc); toast('An experiment for “' + title + '”, at ' + (prof(doc.type) || {}).label + ' — Ctrl+Z undoes it', 2800); return App.go('#/doc/' + doc.id); }
       return App.newDoc({ type: CHAIN.firstType(), title, date: it.day, onCreate: doc => { doc.chain = doc.id; doc.chainName = title; link(doc); } });
     }
-    const type = kind === 'meeting' ? 'meeting' : 'note', tpl = M.enabledTemplates(type)[0], ttl = kind === 'meeting' ? title + ' — ' + fmtDay(parseDay(it.day)) : title;
+    const type = kind === 'meeting' ? 'meeting' : 'note', tpl = M.enabledTemplates(type)[0], ttl = kind === 'meeting' ? title + ' — ' + fmtDay(parseDay(it.day)) : kind === 'run' ? title + ' — agent run' : title;
     if (pid) { const doc = M.createDoc({ type, projectId: pid, themeId: theme(pid), title: ttl, templateId: tpl ? tpl.id : null, date: it.day }); link(doc); toast((kind === 'meeting' ? 'A meeting note' : 'A note') + ' for “' + title + '” — Ctrl+Z undoes it', 2600); return App.go('#/doc/' + doc.id); }
     App.newDoc({ type, title: ttl, date: it.day, onCreate: link });
   },
@@ -458,19 +504,20 @@ const CAL = {
     else if (by === 'tag') { const tg = h('input.cw-in', { placeholder: '#tag', 'aria-label': 'Tag', list: 'cal-tags', on: { input: e => { st.tag = e.target.value.replace(/^#/, '').trim(); } } }); sort = h('div.cw-r', h('span.cw-k', 'Tag'), h('div', tg, h('datalist#cal-tags', CAL.tagOrder().map(t => h('option', { value: t }))))); }
     else sort = h('div.cw-r.top', h('span.cw-k', 'Kind'), chips(Object.entries(CAL.KINDS).map(([k, o]) => [k, o.label, P[o.c]]), () => st.kind, v => { st.kind = v; }));
     const note = CAL.notePick(() => st.docId, id => { st.docId = id; });
+    const typ = CAL.st.agents ? h('div.cal-seg.cw-type', { role: 'group', 'aria-label': 'What it is' }, [['ev', 'Event'], ['run', 'Agent run']].map(([k, l]) => h('button' + (k === 'ev' ? '.on' : ''), { type: 'button', on: { click: e => { st.run = k === 'run'; $$('button', typ).forEach(x => x.classList.toggle('on', x === e.currentTarget)); sort.hidden = st.run; adB.hidden = st.run; if (st.run) { st.allDay = false; $('input', adB).checked = false; when(); } } } }, l))) : null;
     const go = () => {
-      const ev = CAL.make({ title: ti.value, day: st.day, start: st.allDay ? 0 : st.s, end: st.allDay ? 0 : st.e, allDay: st.allDay, kind: st.kind, projectId: st.projectId || (st.docId && (M.doc(st.docId) || {}).projectId) || null, tags: st.tag ? [st.tag] : [], docId: st.docId });
-      if (st.allDay) ev.end = 0; CAL.close(); DB.beginGroup('New event'); DB.put('events', ev); changed(); toast('“' + ev.title + '” added — Ctrl+Z undoes it', 2200);
+      const ev = CAL.make({ title: ti.value, day: st.day, start: st.allDay ? 0 : st.s, end: st.allDay ? 0 : st.e, allDay: st.allDay, kind: st.run ? 'run' : st.kind, projectId: st.projectId || (st.docId && (M.doc(st.docId) || {}).projectId) || null, tags: st.tag ? [st.tag] : [], docId: st.docId });
+      if (st.allDay) ev.end = 0; if (st.run) ev.run = { did: '', done: false }; CAL.close(); DB.beginGroup('New event'); DB.put('events', ev); changed(); toast('“' + ev.title + '” added — Ctrl+Z undoes it', 2200);
     };
     win.append(h('div.cw-h', h('b', 'New event'), wh, h('button.cal-ib.sm', { type: 'button', 'aria-label': 'Cancel (Esc)', on: { click: () => CAL.close() } }, CAL.ic('x'))),
-      ti, h('div.cw-r', h('span.cw-k', 'Day'), h('div.cw-dayr', dayI, adB)), tr, sort, note.el,
+      typ, ti, h('div.cw-r', h('span.cw-k', 'Day'), h('div.cw-dayr', dayI, adB)), tr, sort, note.el,
       h('div.cw-f', h('span.cw-hint', 'Enter adds · Esc cancels'), h('button.cal-btn.pri', { type: 'button', on: { click: go } }, 'Create')));
     win.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); CAL.close(); } else if (e.key === 'Enter' && !e.target.closest('.cw-np') && e.target.tagName !== 'BUTTON') { e.preventDefault(); go(); } });
     win.addEventListener('mousedown', e => e.stopPropagation());
     document.body.append(win); when();
     const r = win.getBoundingClientRect(); win.style.left = clamp((o.x || 200) + 14, 8, innerWidth - r.width - 8) + 'px'; win.style.top = clamp((o.y || 120) - 24, 8, innerHeight - r.height - 8) + 'px';
     CAL.cw = win; setTimeout(() => ti.focus(), 20);
-    if (o.day) { const g = $(`.cal-col[data-day="${o.day}"]`, CAL.root || document); if (g && !st.allDay) { const dr = h('div.cal-draft', { style: { top: `calc(var(--hpx) * ${st.s / 60} + 2px)`, height: `calc(var(--hpx) * 1 - 4px)` } }); g.append(dr); win._draft = dr; } }
+    if (o.day) { const g = $(`.cal-col[data-day="${o.day}"]`, CAL.root || document); if (g && !st.allDay) { const dr = h('div.cal-draft', { style: { top: `calc(var(--hpx) * ${st.s / 60} + 2px)`, height: `calc(var(--hpx) * 1 - 4px)` } }); ($('.cal-cin', g) || g).append(dr); win._draft = dr; } }
   },
   /** A note to link: type to find one; its chip, × unlinks. */
   notePick(get, set, label = 'Note') {
@@ -496,6 +543,7 @@ const CAL = {
   },
   bubFill() {
     const b = CAL.bubEl; if (!b) return; const it = CAL.find(b._k) || b._it, ev = it.ev && CAL.all().find(x => x.id === it.ev.id); if (!ev) return CAL.closeBub();
+    if (CAL.isRun(ev)) return CAL.runFill(b, it, ev);
     const c = CAL.colour(it), P = CAL.PAL, rep = ev.repeat && ev.repeat !== 'none';
     const upd = (f, label) => { f(ev); CAL.save(ev, label); setTimeout(() => CAL.bubFill(), 0); };
     const nud = (ds, de) => { if (ev.allDay) return; const was = CAL.ab(ev.day, ev.end), len = ev.end - ev.start; DB.beginGroup('Time');
@@ -530,7 +578,7 @@ const CAL = {
   key(e) {
     if (App.route.name !== 'calendar' || e.ctrlKey || e.metaKey || e.altKey || $('.ovl')) return;
     const t = e.target; if (t && (t.closest('input, textarea, select, [contenteditable="true"]') || t.closest('.cal-cw, .cal-bub'))) return;
-    const k = e.key.toLowerCase(), act = { arrowleft: () => CAL.step(-1), arrowright: () => CAL.step(1), t: () => { CAL.st.day = null; CAL._scrollTo = 'auto'; CAL.paint(); }, d: () => CAL.setView('day', CAL.days().includes(CAL.today()) ? CAL.today() : CAL.days()[0]), w: () => CAL.setView('week'), m: () => CAL.setView('month'), a: () => CAL.setView('agenda'),
+    const k = e.key.toLowerCase(), act = { arrowleft: () => CAL.step(-1), arrowright: () => CAL.step(1), t: () => { CAL.st.day = null; CAL._scrollTo = 'auto'; CAL.paint(); }, d: () => CAL.setView('day', CAL.days().includes(CAL.today()) ? CAL.today() : CAL.days()[0]), w: () => CAL.setView('week'), m: () => CAL.setView('month'), a: () => CAL.setView('agenda'), g: () => CAL.toggleAgents(),
       escape: () => { if (CAL.st.linkFrom) return CAL.linkEnd(); CAL.st.mday = null; CAL.paint(); },
       n: () => { const d = CAL.days().includes(CAL.today()) ? CAL.today() : CAL.days()[0]; CAL.create({ day: d, start: CAL.snap(Math.min(1380, CAL.nowMin() + 30)), x: innerWidth / 2 - 170, y: 140 }); } }[k];
     if (act) { if (k === 'escape' && !CAL.st.linkFrom && !(CAL.st.view === 'month' && CAL.st.mday)) return; e.preventDefault(); act(); }
@@ -543,8 +591,9 @@ const CAL = {
       h('div.pv-cal-b', h('div.pv-cal-t', [8, 10, 12, 14].map(x => h('span', { style: { top: (x - 8) * hp + 'px' } }, x + ':00'))),
         [0, 1].map(c => h('div.pv-cal-c', slots ? h('i.pv-slot', { style: { top: (c ? 10.25 - 8 : 10.75 - 8) * hp + 'px', height: (c ? 2.5 : 0.25) * hp + 'px' } }) : null,
           cards.filter(x => x[0] === c).map(([, s, e, t, col]) => h('div.pv-ec', { style: { top: (s - 8) * hp + 2 + 'px', height: Math.max(14, (e - s) * hp - 4) + 'px', background: col } }, t)),
+          c === 1 ? h('i.pv-run', { style: { top: (9 - 8) * hp + 'px', height: 3 * hp + 'px' } }, h('span', 'Digest papers'), CAL.tn('electrons', true) !== false ? [h('b', { style: { top: '30%' } }), h('b', { style: { top: '65%' } })] : null) : null,
           c === 1 ? h('i.pv-now', { style: { top: (10.6 - 8) * hp + 'px' } }) : null)))),
-      PV.cap(n + ' hours fill the height; the rest scrolls. ' + (slots ? 'Free time between events shows dashed (7:00–21:00); a click adds an event there.' : 'Free time is not drawn; a click on an empty stretch still adds an event.') + ' Weeks start on ' + (CAL.wk0() ? 'Monday' : 'Sunday') + '.')];
+      PV.cap(n + ' hours fill the height; the rest scrolls. ' + (slots ? 'Free time between events shows dashed (7:00–21:00); a click adds an event there.' : 'Free time is not drawn; a click on an empty stretch still adds an event.') + ' Weeks start on ' + (CAL.wk0() ? 'Monday' : 'Sunday') + '. With Agent runs on (G), a run is a line beside the day' + (CAL.tn('electrons', true) !== false ? ', electrons flowing down it while it runs.' : '; a running one glows, without electrons.'))];
   },
 };
 function isoWeekNo(d) { d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); const n = d.getUTCDay() || 7; d.setUTCDate(d.getUTCDate() + 4 - n); const y0 = new Date(Date.UTC(d.getUTCFullYear(), 0, 1)); return Math.ceil(((d - y0) / 864e5 + 1) / 7); }
