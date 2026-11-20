@@ -39,7 +39,9 @@ function popover(x, y, content, { cls = 'pop', onClose } = {}) {
   setTimeout(() => { const f = el.querySelector('input'); f && f.focus(); }, 10);
   return el;
 }
-document.addEventListener('mousedown', e => { if (_pop && !_pop.contains(e.target) && !e.target.closest('[data-keep-pop]')) { const f = _pop._onClose; closePop(); f && f(); } });
+/** A click outside the open popover closes it — on a PDF's page, on the paper, anywhere (V4.99: the same call when the click is inside an HTML page's frame, which never lets the click through: 13zw). */
+function popAway(t) { if (_pop && !_pop.contains(t) && !(t && t.closest && t.closest('[data-keep-pop]'))) { const f = _pop._onClose; closePop(); f && f(); } }
+document.addEventListener('mousedown', e => popAway(e.target));
 
 /** A searchable option list inside a popover/modal, keyboard-first. */
 /* ---------------- pickers: every list that pulls notes, components or structures can be searched and sorted ---------------- */

@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (197 changes — ready to push)
+## Pending (198 changes — ready to push)
+
+- **Fixed (V4.99):** the popup that appears when you highlight text in an HTML page now closes when you click elsewhere, like in a PDF.
 
 - **Component titles (V4.98):** highlight some words and click a component's title to make them its title. Click the title with nothing highlighted to type one.
 
