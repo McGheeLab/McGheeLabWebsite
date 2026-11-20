@@ -74,7 +74,7 @@ const CAL = {
     const r = ev.repeat || 'none'; if (r === 'none') return ev.day === day; if (r === 'daily') return true;
     if (r === 'weekly') return parseDay(day).getDay() === parseDay(ev.day).getDay(); return false;
   },
-  save(ev, label) { DB.beginGroup(label || 'Calendar'); ev.modified = isoLocal(new Date()); DB.put('events', ev); changed(); },
+  save(ev, label) { DB.beginGroup(label || 'Calendar'); ev.modified = isoLocal(new Date()); DB.put('events', ev); changed(); try { REM.badge(); } catch (e) { } },
   make(o) {
     const ev = Object.assign({ id: uid('ev'), title: '', day: CAL.today(), start: 540, end: 600, allDay: false, kind: 'other', tags: [], projectId: null, docId: null, repeat: 'none', skip: [], created: isoLocal(new Date()) }, o);
     ev.title = String(ev.title || '').trim() || 'New event'; if (ev.end <= ev.start) ev.end = Math.min(1440, ev.start + 15); return ev;
@@ -589,6 +589,21 @@ const CAL = {
     addEventListener('pointermove', mv); addEventListener('pointerup', up); addEventListener('pointercancel', up);
   },
 
+  /* ---------------- V4.67: all-day events, once in the bell ---------------- */
+  bellOn: () => CAL.tn('bell', true) !== false,
+  /** Today's all-day events (calendar events; reminders and dated tasks are in the bell already). */
+  bellItems() { const t = CAL.today(); return CAL.all().filter(ev => ev.allDay && ev.kind !== 'run' && CAL.occurs(ev, t)).map(ev => ({ k: ev.id + '@' + t, ev, day: t, ad: true, title: ev.title })); },
+  bellSeen() { let v = null; try { v = _ls.get('calBellSeen', null); } catch (e) { } const t = CAL.today(); return v && v.day === t && Array.isArray(v.ids) ? v.ids : []; },
+  bellUnseen() { if (!CAL.bellOn()) return []; const S = CAL.bellSeen(); return CAL.bellItems().filter(it => !S.includes(it.k)); },
+  bellMark() { const L = CAL.bellItems().map(it => it.k); try { _ls.set('calBellSeen', { day: CAL.today(), ids: [...new Set(CAL.bellSeen().concat(L))] }); } catch (e) { } },
+  /** The bell's section: today's all-day events — new ones first (shown once), then those already seen. */
+  bellSection() {
+    if (!CAL.bellOn()) return null; const L = CAL.bellItems(); if (!L.length) return null; const S = CAL.bellSeen(), fresh = L.filter(it => !S.includes(it.k)), seen = L.filter(it => S.includes(it.k));
+    const row = (it, isNew) => { const c = CAL.colour(it); return h('button.cal-bl' + (isNew ? '.new' : ''), { type: 'button', style: { '--ecol': c.col }, title: 'Open it in the calendar', on: { click: () => { closePop(); CAL.st.day = it.day; CAL.st.view = CAL.st.view === 'month' ? 'month' : 'day'; App.go('#/calendar'); setTimeout(() => { try { CAL.paint(); } catch (e) { } }, 60); } } },
+      h('i'), h('b', it.title), h('span', c.label + (CAL.docOf(it) ? ' · ' + CAL.docOf(it).title : ''))); };
+    return h('div.cal-bell', fresh.length ? [h('div.cal-blh', 'Today · all day'), fresh.map(it => row(it, true))] : null, seen.length ? [h('div.cal-blh.seen', 'Seen'), seen.map(it => row(it, false))] : null);
+  },
+
   /* ---------------- gestures ---------------- */
   minAt(colEl, y) { const r = colEl.getBoundingClientRect(); return clamp((y - r.top) / CAL.hpx * 60, 0, 1440); },
   colAt(x, y) { const els = document.elementsFromPoint(x, y); return els.find(e => e.classList && e.classList.contains('cal-col')) || null; },
@@ -688,7 +703,7 @@ const CAL = {
     const typ = CAL.st.agents ? h('div.cal-seg.cw-type', { role: 'group', 'aria-label': 'What it is' }, [['ev', 'Event'], ['run', 'Agent run']].map(([k, l]) => h('button' + (k === 'ev' ? '.on' : ''), { type: 'button', on: { click: e => { st.run = k === 'run'; $$('button', typ).forEach(x => x.classList.toggle('on', x === e.currentTarget)); sort.hidden = st.run; adB.hidden = st.run; if (st.run) { st.allDay = false; $('input', adB).checked = false; when(); } } } }, l))) : null;
     const go = () => {
       const ev = CAL.make({ title: ti.value, day: st.day, start: st.allDay ? 0 : st.s, end: st.allDay ? 0 : st.e, allDay: st.allDay, kind: st.run ? 'run' : st.kind, projectId: st.projectId || (st.docId && (M.doc(st.docId) || {}).projectId) || null, tags: st.tag ? [st.tag] : [], docId: st.docId });
-      if (st.allDay) ev.end = 0; if (st.run) ev.run = { did: '', done: false }; CAL.close(); DB.beginGroup('New event'); DB.put('events', ev); changed(); toast('“' + ev.title + '” added — Ctrl+Z undoes it', 2200);
+      if (st.allDay) ev.end = 0; if (st.run) ev.run = { did: '', done: false }; CAL.close(); DB.beginGroup('New event'); DB.put('events', ev); changed(); try { REM.badge(); } catch (e) { } toast('“' + ev.title + '” added — Ctrl+Z undoes it', 2200);
     };
     win.append(h('div.cw-h', h('b', 'New event'), wh, h('button.cal-ib.sm', { type: 'button', 'aria-label': 'Cancel (Esc)', on: { click: () => CAL.close() } }, CAL.ic('x'))),
       typ, ti, h('div.cw-r', h('span.cw-k', 'Day'), h('div.cw-dayr', dayI, adB)), tr, sort, note.el,
@@ -781,7 +796,7 @@ const CAL = {
           cards.filter(x => x[0] === c).map(([, s, e, t, col]) => h('div.pv-ec', { style: { top: (s - 8) * hp + 2 + 'px', height: Math.max(14, (e - s) * hp - 4) + 'px', background: col } }, t)),
           c === 1 ? h('i.pv-run', { style: { top: (9 - 8) * hp + 'px', height: 3 * hp + 'px' } }, h('span', 'Digest papers'), CAL.tn('electrons', true) !== false ? [h('b', { style: { top: '30%' } }), h('b', { style: { top: '65%' } })] : null) : null,
           c === 1 ? h('i.pv-now', { style: { top: (10.6 - 8) * hp + 'px' } }) : null)))),
-      PV.cap(n + ' hours fill the height; the rest scrolls. ' + (slots ? 'Free time between events shows dashed (7:00–21:00); a click adds an event there.' : 'Free time is not drawn; a click on an empty stretch still adds an event.') + ' Weeks start on ' + (CAL.wk0() ? 'Monday' : 'Sunday') + '.' + (CAL.focusOn() ? ' Focus (gold): full screen, your activity counts double (2×); leaving asks first, then 5 minutes to come back before the session ends and the doubling goes.' : ' Focus is off.') + ' With Agent runs on (G), a run is a line beside the day' + (CAL.tn('electrons', true) !== false ? ', electrons flowing down it while it runs.' : '; a running one glows, without electrons.'))];
+      PV.cap(n + ' hours fill the height; the rest scrolls. ' + (slots ? 'Free time between events shows dashed (7:00–21:00); a click adds an event there.' : 'Free time is not drawn; a click on an empty stretch still adds an event.') + ' Weeks start on ' + (CAL.wk0() ? 'Monday' : 'Sunday') + '.' + (CAL.bellOn() ? ' Today’s all-day events show once in the bell.' : '') + (CAL.focusOn() ? ' Focus (gold): full screen, your activity counts double (2×); leaving asks first, then 5 minutes to come back before the session ends and the doubling goes.' : ' Focus is off.') + ' With Agent runs on (G), a run is a line beside the day' + (CAL.tn('electrons', true) !== false ? ', electrons flowing down it while it runs.' : '; a running one glows, without electrons.'))];
   },
 };
 function isoWeekNo(d) { d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); const n = d.getUTCDay() || 7; d.setUTCDate(d.getUTCDate() + 4 - n); const y0 = new Date(Date.UTC(d.getUTCFullYear(), 0, 1)); return Math.ceil(((d - y0) / 864e5 + 1) / 7); }
@@ -803,6 +818,12 @@ VIEWS.calendar = CalendarView;
   document.addEventListener('click', e => { if (!CAL.pickFor) return; const a = e.target.closest && e.target.closest('a[href^="#/doc/"]'); if (!a) return; e.preventDefault(); e.stopPropagation(); const id = decodeURIComponent(a.getAttribute('href').slice(6).split('/')[0]); if (M.doc(id)) CAL.pickDone(id); }, true);
   // now moves: the line, once a minute
   setInterval(() => { if (App.route && App.route.name === 'calendar' && CAL.root && CAL.root.isConnected) { const n = $('.cal-now', CAL.root); if (n) n.style.top = `calc(var(--hpx) * ${CAL.nowMin() / 60})`; } }, 60000);
+  // V4.67 — the bell: today's all-day events count until it is opened once, then sit under "Seen"
+  if (typeof REM !== 'undefined') {
+    const b0 = REM.badge; REM.badge = function () { b0.apply(this, arguments); try { const b = $('#remindbtn'); if (!b) return; const u = CAL.bellUnseen().length; if (!u) return; const n = (+b.dataset.n || 0) + u; b.dataset.n = n; b.title = plural(u, 'all-day event') + ' today' + (n > u ? ' · ' + plural(n - u, 'reminder') + ' in the next 24 h' : ''); } catch (e) { } };
+    const p0 = REM.panel; REM.panel = function () { const r = p0.apply(this, arguments); try { const pop = $('.pop.rmpop'), sec = CAL.bellSection(); if (pop && sec) { const head = $('.rm-ph', pop); head ? head.after(sec) : pop.prepend(sec); } CAL.bellMark(); REM.badge(); } catch (e) { console.warn('[calendar] bell', e); } return r; };
+    setInterval(() => { try { REM.badge(); } catch (e) { } }, 60000);
+  }
   // V4.64 — focus: Esc in a session asks first; leaving full screen starts the 5 minutes; a session left running (a reload) is away
   document.addEventListener('keydown', e => { if (e.key !== 'Escape') return; let L = null; try { L = CAL.live(); } catch (er) { } if (!L || L.s.state !== 'live' || !document.fullscreenElement || $('.ovl') || (typeof _pop !== 'undefined' && _pop)) return; e.preventDefault(); e.stopPropagation(); CAL.confirmLeave(); }, true);
   document.addEventListener('fullscreenchange', () => { if (document.fullscreenElement) return; try { const L = CAL.live(); if (L && L.s.state === 'live') CAL.away(); } catch (e) { } });
