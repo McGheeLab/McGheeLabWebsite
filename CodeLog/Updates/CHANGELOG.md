@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.43] — 2026-11-19 — Scientia: Look and motion leaves the Portfolio as it was; the page rise plays
+
+Gabe (19 Nov 2026), on V4.42 and its design canvas: "Don't change the Portfolio, it looks good as it is. The rest is approved"
+
+App only.
+
+### Changed
+- **`36-look.css`:** no rule reaches inside `.pf-root`. The Portfolio section is removed; `.btn`, `.btn.sm`, `.btn.xs`, `.inp` and `.tb-ban` take `:not(.pf-root *)`; `#view.lk-nav > :not(.pf-root)`.
+- **`FEAT 'look'`:** the description.
+
+### Bug Fixes
+- **The page rise (V4.42) never played.** `App.refresh` sets `#view.className` right after the `hashchange` that added `.lk-nav`, which wiped it. `20d-look.js` now marks the navigation on `hashchange` and adds the class after a wrapped `App.refresh`.
+
+### Tests
+| Test | Result |
+|---|---|
+| `lk43_t`: every element of the Portfolio (358, with a project open) computes the same styles with Look and motion on as off; going to it from a note plays no rise; the header keeps the tab's pill; a note's page rises in (`lk-rise`); components keep the warm card; the words; `FEAT.audit()`, no errors — lab · without the lab layer (fails on V4.42: 6/10) | 10/10 · 10/10 |
+| `lk_t` (V4.42), lab · without the lab layer | 32/32 · 32/32 |
+
 ## [V4.42] — 2026-11-19 — Scientia: Look and motion — the notebook in B's edge-rail style; capsule rails for both reader sidebars; the mini library as spines or a list
 
 Gabe (19 Nov 2026): "B is the best. Rethink the UI and animations of the entire lab notebook to match this style. Bring them all up in the artifact as a new pull request for lab notebook motion and look overhaul" — after: "Update both sidebars to have cool UI that is more modern and aesthetically pleasing by building a few options with animations in an artifact. The collapsed bar does not have to be a bar." and "The left library left sidebar should display the list of papers in book mode or list mode (as a button toggle)."
