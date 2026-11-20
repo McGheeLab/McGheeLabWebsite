@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.83] — 2026-11-20 — Scientia: Portfolio — a Protocols section under each theme and project-wide (the protocols filed there, and those its notes run)
+
+Gabe, 20 Nov: "Make sure that Protocols are added in Portfolio view as a new section under the projects or themes they are a part of."
+
+App only.
+
+### Added
+- **Protocols** (`15h-pfprotocols.js`, `42-pfprotocols.css`): every section of the open project (each theme, and Project-wide) gets a Protocols group beside Experiments and Notes.
+  - It is drawn in the Portfolio's own look: its classes, one more header colour (`--sec-proto`) and the clipboard icon.
+  - It lists the protocol notes filed there, and the protocols its notes run even when filed elsewhere, listed once with "⟲ n" (runs here) and "from …".
+  - Protocol notes leave the Notes group and its count.
+  - The section switch gains Protocols (before Lit reviews), with its count; "+ Protocol" starts a protocol note in that theme or project-wide.
+- **Settings → Protocols in the Portfolio** (`pfprotocols`): the switch, *Protocols run here too*, *Show the section where there is none*, and a preview. "Section headers" (`pficons`) mentions Protocols.
+
+### Tests
+| Test | Result |
+|---|---|
+| `pfproto_t`, lab and plain builds (the helper's), and again on this branch (lab) | 19/19 · 19/19 · 19/19 |
+| `lk43_t` (the Portfolio's look) on this branch; `lr_t` 18/18, `t_995` 27/27, `fb_t416` 26/26 and `t_984` (updated where protocol notes moved to the new group) (the helper's) | 10/10 · pass |
+
+
 ## [V4.82] — 2026-11-20 — Scientia: Protocols — a component connects to one step (a circle on the step, or a drop on it); links from steps can be moved, reconnected or removed later
 
 Gabe, 20 Nov: "Have external component connect to specific protocol steps. Direct links from protocol steps can be modified, not permanent to what you set them to."
