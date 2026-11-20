@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (181 changes — ready to push)
+## Pending (182 changes — ready to push)
+
+- **Portfolio protocols (V4.83):** each theme in the Portfolio (and Project-wide) has a Protocols section, listing the protocols filed there and those its notes run.
 
 - **Protocol step links (V4.82):** connect a component to one step of a protocol, by dragging from the circle beside the step or by dropping a connection on the step. A link from a step can be moved or reconnected later from its menu.
 
