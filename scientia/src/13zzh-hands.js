@@ -193,7 +193,7 @@ const HANDS = {
   // P = Move, outside a text; Esc: the bar, then a popover (dialogs, the strip, the maximised views keep their own)
   const typing = e => e.target && e.target.closest && e.target.closest('input,textarea,select,[contenteditable="true"],[contenteditable="plaintext-only"],math-field');
   document.addEventListener('keydown', e => {
-    if ((e.key === 'p' || e.key === 'P') && !e.ctrlKey && !e.metaKey && !e.altKey && !typing(e) && !$('.ovl') && !$('.pop') && HANDS.pane() && !(typeof NAV !== 'undefined' && NAV.awake)) { e.preventDefault(); e.stopPropagation(); CMD.hand('move'); return; }
+    if (KEYS.is(e, 'hand') && !typing(e) && !$('.ovl') && !$('.pop') && HANDS.pane() && !(typeof NAV !== 'undefined' && NAV.awake)) { e.preventDefault(); e.stopPropagation(); CMD.hand('move'); return; }
     if (e.key === 'Escape' && !$('.ovl') && !$('.strip') && !$('.embed-max:not(.rd-docked)') && !$('.palette') && !(typeof SLASH !== 'undefined' && SLASH.st) && !(typeof HTMLX !== 'undefined' && HTMLX._pick)) {
       if (typeof NAV !== 'undefined' && NAV.awake) { e.preventDefault(); e.stopPropagation(); return NAV.sleep(); }
       if ($('.pop')) { e.preventDefault(); e.stopPropagation(); return closePop(); } }

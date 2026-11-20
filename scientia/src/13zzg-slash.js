@@ -34,7 +34,7 @@ const SLASH = {
   rows(q, people) {
     q = (q || '').toLowerCase();
     if (people) return SLASH.members().filter(p => !q || p.name.toLowerCase().includes(q)).slice(0, 10).map(p => ({ label: '@' + p.name, sub: p.category || '', person: p }));
-    // V4.90 (13zzga): the built-ins you hid are out, the ones you pinned (and your own commands, if asked) come first
+    // V4.95 (13zzga): the built-ins you hid are out, the ones you pinned (and your own commands, if asked) come first
     return CMD.all().filter(c => c.scope !== 'canvas' && !(typeof SWF !== 'undefined' && SWF.hidden(c))).map(c => ({ c, s: SLASH.score(q, c) })).filter(x => x.s > 0).map(x => ({ c: x.c, s: x.s + (typeof SWF === 'undefined' ? 0 : SWF.boost(x.c, q)) }))
       .sort((a, b) => b.s - a.s || (a.c.group === 'Insert') - (b.c.group === 'Insert') || a.c.slash.localeCompare(b.c.slash)).slice(0, 12).map(x => ({ label: '/' + x.c.slash, sub: x.c.label, c: x.c, mine: !!x.c.swf }));
   },

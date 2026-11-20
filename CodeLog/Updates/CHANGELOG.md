@@ -4,6 +4,40 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.96] — 2026-11-20 — Scientia: shortcut keys you can change (19 actions) — Change in the shortcuts list or behind ?; a key the browser, the computer or the app already uses is refused and Alt+key is offered
+
+Gabe, 20 Nov: "Have the option for users to customize shortcut keys while on canvas or in lab notebook. Ones that are taken by the browser or another should be brought up and provide alternative of Alt+key the user wanted."
+
+App only (it works inside the Lab Notebook's frame too; nothing in the lab layer changed).
+
+### Added
+- **`KEYS`** (`20g-keymap.js`): handlers ask `KEYS.is(e, id)`, which returns your binding (`settings().keymap`, synced) or the default.
+  - **19 actions:** Search, palette, quick switcher, capture to the day note, new note, Undo, Redo (and Ctrl+Y), Focus mode, Back, Forward, `/`, `?`, new component `N`, Move `P`, Fit, Mark a moment, the structure key and the term key.
+  - The structure and term keys keep their own settings.
+- **Change and Reset** on each of those rows of the shortcuts list (V4.79), in Settings and behind `?`.
+  - A box takes the keys you press (Esc cancels), with "default X" and a *changed* mark.
+- **Conflicts are refused**, with the owner named (`KEYS.check`):
+  - another action;
+  - the app's fixed keys (read from the list);
+  - about 60 browser keys (Ctrl+T, Ctrl+W, Ctrl+L, F5…);
+  - the computer's (Alt+Tab, Alt+F4…);
+  - a bare letter for an action that fires in text.
+  - One click takes the offer: Alt+<the same key>, else Alt+Shift+, Ctrl+Alt+…, the first free.
+- **Settings → Shortcuts:** *Let me change keys* (off: every key its default, bindings kept) and *Suggest Alt+key when a key is taken*, with a preview of a rebound row and two refusals.
+
+### Changed
+- The shell's keys (`11-shell.js`), `N` and Fit (`99-boot.js`), `/` and Alt+←/→ (`11c-navbar.js`), `P` (`13zzh-hands.js`) and Mark (`13zn-rec.js`) go through `KEYS`.
+- `ED.matchKey` uses `KEYS.match`, which also fixes Alt+letter on a Mac and on layouts that are not Latin.
+- The comments of V4.95's slash workflows now name their version (the helper had guessed V4.90).
+
+### Tests
+| Test | Result |
+|---|---|
+| `shortcutkeys_t` (real keys, on the page and inside an iframe): rebind, the old key dead and the new one working, Reset, 15 conflicts each with its offer, the one-click offer, the structure and term keys, `?`, both switches, the page and preview — lab and plain builds (the helper's), and again on this branch (lab) | 111/111 · 111/111 · 111/111 |
+| `slashwf2_t` (V4.95, beside the new keys) on this branch | 24/24 |
+| `sk_t` (its two expectations follow the change: "default Ctrl+Enter"; Change opens the box), and the helper's regressions (`terms63`, `todaycaps`, `fw47`, `fw54`, `cal65`, `cal70`, `movepanel`, `tidy`, `list62`, `hn50`, `protoul`, `rev`) | 27/27 · all pass |
+
+
 ## [V4.95] — 2026-11-20 — Scientia: slash commands — your own, each a workflow of steps (text with placeholders, structures, kinds, tasks, reminders, timer, widgets, templates, commands, Ask…), one Ctrl+Z; the built-ins hidden, pinned or aliased
 
 Gabe, 20 Nov: "Slash commands should be tunable with workflows or actions (everything you can think of)."
