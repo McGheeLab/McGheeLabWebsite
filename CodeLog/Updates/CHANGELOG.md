@@ -4,6 +4,42 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.61] — 2026-11-20 — Scientia: Freewrite — highlighted words become one whole component, its own card (nothing twice, the rest kept); a ＋ between any two components one right after the other; a button beside each paragraph makes it a region
+
+Gabe, 20 Nov: "highlighting a set of sentences or a portion of it, and selecting a new component assumes that the highlighted portion becomes a whole component, merging the components together, and separates it from the rest of the freewrite, as its own card. Each component is its own card."
+
+"The merging of sentences individually stands, but also applies to components one right after the other"
+
+"You can draw regions over sentences with a button on the side of paragraphs to click to transform it into a region."
+
+App only.
+
+### Changed
+- **Associations and phrase rules are carved out after the sentences are read** (`carve` in `FREEW.convert`):
+  - the words become one whole component;
+  - each component they reach keeps the rest of its words (" … " where words were taken out);
+  - the sentences after them stay where they were;
+  - nothing is said twice in any mode.
+- **Components follow the order of the words**, and a component's label shows once, where it starts.
+- **A new paragraph starts a new component** in the default mode.
+- **The merge ＋ sits between any two components one right after the other** (same paragraph), in every mode. Merged groups take their first component's place.
+
+### Added
+- **Regions:**
+  - a button at the side of each paragraph (`FREEW.paras`, `paraRegion`); **A region** on selected words (`wordsRegion`);
+  - drawn over the sentences, named (rename, ×), and drawn round their boxes in the preview;
+  - Apply makes a region in the note with that name (`fw.madeRg`), and Take back takes it out.
+
+### Bug Fixes
+- Words highlighted across sentences in the default mode were also kept in the run of sentences (said twice). A portion inside a sentence lost the rest of the sentence.
+
+### Tests
+| Test | Result |
+|---|---|
+| `fw61_t`, lab build · without the lab layer. Real typing, selection and clicks:<br>- two paragraphs, two components;<br>- a portion inside a sentence its own component, "We saw … of the field" kept, the next sentence kept, nothing twice;<br>- words over three components in "Each its own component" merged, each keeping the rest;<br>- the ＋ between neighbours (not across the paragraph), its merge;<br>- the paragraph buttons; a region drawn, named, in the preview; renamed; A region on words;<br>- Apply makes both regions with their names; Take back; plain again | 20/20 · 20/20 |
+| `fw53_t` (now: the sentence after the highlight is its own card) · `fw54_t` · `fw55_t` · `fw56_t` · `fw_t33` · `fw_t34` · `fw47_t` | 13/13 · 24/24 · 19/19 · 21/21 · 69/69 · 24/24 · 21/21 |
+
+
 ## [V4.60] — 2026-11-20 — Scientia: Calendar — agent runs, a layer over the calendar: each run a thin line from its planned start to its planned end, its title along it, electrons flowing down it while it runs; 2× alongside your work
 
 Gabe, 19 Nov: "There should also be a second view that can be superposed onto the current calendar, which is agentic workflows. These are supposed to show double dipping work from AI working in the background."

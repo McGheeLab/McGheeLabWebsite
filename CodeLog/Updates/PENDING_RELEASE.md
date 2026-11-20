@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (159 changes — ready to push)
+## Pending (160 changes — ready to push)
+
+- **Freewrite (V4.61):** highlighted words become one component of their own (the rest stays where it was, nothing repeated); a ＋ between any two neighbouring components merges them; a button beside each paragraph turns it into a region in the note.
 
 - **Calendar agent runs (V4.60):** turn on Agent runs (G) to see AI work as thin lines beside your days — electrons flow while one runs — and how much of it ran alongside your own work.
 
