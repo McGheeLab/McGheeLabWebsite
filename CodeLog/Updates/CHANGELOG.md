@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.77] — 2026-11-20 — Scientia: Image panels — Start empty (replacing “Empty 1×2”) for any shape, and one m×n box whose preview reshapes as you type
+
+Gabe, 20 Nov: "For image panels, make sure that image panels have the option to start empty, replacing the Empty 1x2 option. The list of panel options should have all most used ones like it has right now, with one mxn input that allows you to input into them, reshaping the preview widget of what the panel looks like."
+
+App only.
+
+### Added
+- **Start empty** (`FIG.insert`, `13x-figure.js`): a switch at the top of the dialog, Choose images now | Start empty. With it on, any tile or the m×n box makes the panel at once, its cells waiting for a click; the tiles and the preview draw dashed cells.
+- **One m×n box** (`FIG.parseShape`, `shapeWidget`, `shapeSet`):
+  - It reads `2x3`, `2×3`, `2 3` or `2,3`, up to 12 each and 36 cells.
+  - The preview beside it redraws on every keystroke; a bad shape is marked and the button disabled; Enter makes the panel.
+- **Settings → Figures & decks**: *A new image panel begins* (By asking for images / Empty, waiting for a click), in the preview.
+
+### Changed
+- "Empty 1×2" and the two number boxes are gone. The ten usual shape tiles stay.
+
+### Tests
+| Test | Result |
+|---|---|
+| `wkB1_t`, lab and plain builds (the helper's), and again on this branch (lab):<br>- no "Empty 1×2"; the ten tiles; typing `3x4`, `1 8`, `0x3`;<br>- a 2×5 empty panel, whose empty cell's click reaches the file chooser; a tile and Enter with Start empty on;<br>- the Settings choice and preview; the switch off | 21/21 · 21/21 · 21/21 |
+| Regressions (the helper's): `rep_t` 19/19, `rh_t` 15/15, `ad49_t` 20/20, `hn50_t` 18/18 | pass |
+
+
 ## [V4.76] — 2026-11-20 — Scientia: Tidy layout — five styles (Packed, Top down, Left to right, By kind, Grid) and “Undo tidy · back to your layout”, even later
 
 Gabe, 20 Nov: "Tidy layout should be reversible to user manual layout state, and upgrade tidy layout in general to be various styles: flow of information top down or horizontally, etc..."

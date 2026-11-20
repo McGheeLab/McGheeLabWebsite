@@ -636,8 +636,12 @@ const PV = {
     () => [h('div.pv-plate', Array.from({ length: 24 }, (_, i) => h('i', { style: { background: i % 7 === 0 ? 'var(--teal)' : i % 5 === 0 ? 'var(--mag)' : '' } })))]);
   W('calc', 'Calculators', 'A calculator box with its own history, and the Calculator on a note’s tools.', ['calc'],
     () => [h('div.pv-calc', h('div.mono', '0.2 × 5 / 37 = 0.027'), h('div.pv-keys', ['7', '8', '9', '÷', '4', '5', '6', '×', '1', '2', '3', '−'].map(k => h('span', k))))]);
-  W('figures', 'Figures & decks', 'Image panels laid out as figures with their letters, and PowerPoint decks shown as slides.', ['figure', 'deck'],
-    () => [h('div.pv-fig', ['A', 'B', 'C', 'D'].map(l => h('div', h('span', l))))]);
+  W('figures', 'Figures & decks', 'Image panels laid out as figures with their letters, and PowerPoint decks shown as slides. Adding an image panel offers the usual shapes and one m×n box for any other (the shape is drawn as you type), and a panel can Start empty: its cells wait, and a click on one adds an image.', ['figure', 'deck'],
+    () => { const empty = FEAT.tune('figures', 'start') === 'empty';
+      return [h('div.pv-figdlg', h('div.seg.sm', [[false, 'Choose images now'], [true, 'Start empty']].map(([v, l]) => h('button' + (v === empty ? '.on' : ''), l))),
+        h('div.pv-figrow', h('span.fg-prevbox', { style: { width: '120px', height: '84px' } }, FIG.shapeWidget(2, 3, empty, 112, 76)), h('div', h('span.tiny.muted', 'Any shape — rows × columns'), h('div', h('span.inp.mono.pv-mn', '2×3')))),
+        h('div.fpv-cap', empty ? 'Start empty: the panel appears with its cells waiting; click a cell to add an image.' : 'Choose images now: pick the files first; they fill the cells in order.'))]; },
+    { tune: [T('start', 'A new image panel begins', 'seg', { isNew: true, def: 'images', opts: [['images', 'By asking for images'], ['empty', 'Empty, waiting for a click']], d: 'What the Image panel dialog has chosen when it opens; you can switch it there each time' })] });
   W('board', 'Whiteboard', 'The lab’s whiteboard in an image panel’s empty cell; click it to draw on it in the whole window.', [],
     () => [h('div.pv-board', PV.svg(300, 80, '<path d="M20 60 C 60 10, 100 10, 140 50 S 220 70, 270 20" fill="none" stroke="var(--teal)" stroke-width="2.5" stroke-linecap="round"/><rect x="180" y="40" width="70" height="28" rx="4" fill="var(--surface)" stroke="var(--rule-2)"/>'))]);
   W('rec', 'Recordings', 'The microphone to an audio file and a transcript, one sentence a line, read on this computer.', ['rec'],

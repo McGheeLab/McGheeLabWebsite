@@ -159,13 +159,35 @@ const FIG = {
         { label: 'Crop', pri: true, run: () => { const cur = M.block(b.id), cc = FIG.cells(cur)[i]; cc.crop = k.w > .999 && k.h > .999 ? null : { x: +k.x.toFixed(4), y: +k.y.toFixed(4), w: +k.w.toFixed(4), h: +k.h.toFixed(4) }; FIG.save(cur); changed(); } }] });
   },
 
+  /* ---- V4.67 — the panel's shape as a small widget: the dialog's preview, the template canvas, Settings ---- */
+  /** "2x3", "2×3", "2 3", "2,3" → [rows, columns]; null when it is not a shape (up to 12 each, 36 cells in all). */
+  parseShape(v) { const m = /^\s*(\d+)\s*[x×*,\s]\s*(\d+)\s*$/i.exec(v || ''); if (!m) return null; const r = +m[1], c = +m[2]; return r >= 1 && c >= 1 && r <= 12 && c <= 12 && r * c <= 36 ? [r, c] : null; },
+  /** The widget: rows × columns of 4:3 cells, filling a box of at most W × H; an empty panel shows a + in each cell. */
+  shapeWidget(r, c, empty, W = 168, H = 112) {
+    const el = h('span.fg-shape'); FIG.shapeSet(el, r, c, empty, W, H); return el;
+  },
+  shapeSet(el, r, c, empty, W = 168, H = 112) {
+    const asp = (c * 4) / (r * 3); let w = W, hh = W / asp; if (hh > H) { hh = H; w = H * asp; }
+    el.className = 'fg-shape' + (empty ? ' e' : ''); Object.assign(el.style, { width: Math.round(w) + 'px', height: Math.round(hh) + 'px', gridTemplateColumns: `repeat(${c},1fr)`, gridTemplateRows: `repeat(${r},1fr)` });
+    el.replaceChildren(...Array.from({ length: r * c }, () => h('i'))); el.title = r + ' × ' + c;
+  },
+  /** Add an image panel: the usual shapes, or any rows × columns typed in one box with the shape drawn as you type. */
   insert(d, p) {
-    const pick = (r, c) => { m.close(); PLATE.pickFiles(fs => FIG.create(d, p, r, c, fs), true, 'image/*,video/mp4,video/webm,.gif'); };
-    const tile = (r, c) => h('button.fg-preset', { title: r + ' × ' + c, on: { click: () => pick(r, c) } }, h('span.fg-mini', { style: { gridTemplateColumns: `repeat(${c},1fr)`, gridTemplateRows: `repeat(${r},1fr)` } }, Array.from({ length: r * c }, () => h('i'))), h('b', r + ' × ' + c));
-    const rr = h('input.inp.mono', { type: 'number', min: 1, max: 6, value: 2, style: { width: '64px' } }), cc = h('input.inp.mono', { type: 'number', min: 1, max: 6, value: 3, style: { width: '64px' } });
-    const m = modal({ title: 'Image panel', wide: true, body: h('div', h('p.tiny.muted', { style: { marginTop: 0 } }, 'Pick a grid, then the images (they fill the cells in order; add more or swap later). Images in a row share a height, so each cell is flush with its image.'),
-      h('div.fg-presets', FIG.PRESETS.map(([r, c]) => tile(r, c))), h('div.row', { style: { gap: '6px', marginTop: '12px' } }, h('span.tiny', 'Custom'), rr, '×', cc, h('button.btn.sm', { on: { click: () => pick(clamp(+rr.value || 1, 1, 6), clamp(+cc.value || 1, 1, 6)) } }, 'Choose images…'),
-        h('span.spacer'), h('button.btn.sm.ghost', { on: { click: () => { m.close(); FIG.create(d, p, 1, 2); } } }, 'Empty 1×2'))), actions: [{ label: 'Cancel' }] });
+    let empty = FEAT.tune('figures', 'start') === 'empty', shape = [2, 3];
+    const make = (r, c) => { m.close(); if (empty) { FIG.create(d, p, r, c); toast('An empty ' + r + ' × ' + c + ' panel — click a cell to add an image'); } else PLATE.pickFiles(fs => FIG.create(d, p, r, c, fs), true, 'image/*,video/mp4,video/webm,.gif'); };
+    const tiles = [], tile = (r, c) => { const mini = h('span.fg-mini' + (empty ? '.e' : ''), { style: { gridTemplateColumns: `repeat(${c},1fr)`, gridTemplateRows: `repeat(${r},1fr)` } }, Array.from({ length: r * c }, () => h('i')));
+      tiles.push(mini); return h('button.fg-preset', { title: r + ' × ' + c, on: { click: () => make(r, c) } }, mini, h('b', r + ' × ' + c)); };
+    const sw = h('div.seg.sm'), paintSw = () => { sw.replaceChildren(...[[false, 'Choose images now'], [true, 'Start empty']].map(([v, l]) => h('button' + (v === empty ? '.on' : ''), { title: v ? 'An empty panel — each cell waits for a click to add an image' : 'Pick the images first; they fill the cells in order', on: { click: () => { empty = v; paintSw(); paintAll(); } } }, l))); };
+    const mn = h('input.inp.mono.fg-mn', { value: '2×3', placeholder: 'm×n', spellcheck: false, 'aria-label': 'Rows × columns', title: 'Rows × columns, e.g. 2×3 or 3x4', style: { width: '84px', textAlign: 'center' } }), prev = FIG.shapeWidget(2, 3, empty), go = h('button.btn.sm.pri'), hint = h('span.tiny.muted');
+    const paintAll = () => { const s = FIG.parseShape(mn.value); if (s) shape = s; mn.classList.toggle('bad', !s); go.disabled = !s; FIG.shapeSet(prev, shape[0], shape[1], empty); prev.classList.toggle('dim', !s);
+      go.textContent = empty ? 'Start empty' : 'Choose images…'; hint.textContent = s ? shape[0] + ' rows × ' + shape[1] + ' columns · ' + shape[0] * shape[1] + ' cells' : 'Rows × columns, up to 12 each and 36 cells';
+      tiles.forEach(t => t.classList.toggle('e', empty)); };
+    mn.addEventListener('input', paintAll); mn.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter' && FIG.parseShape(mn.value)) { e.preventDefault(); make(...shape); } });
+    go.addEventListener('click', () => { if (FIG.parseShape(mn.value)) make(...shape); });
+    const m = modal({ title: 'Image panel', wide: true, body: h('div', h('div.row', { style: { gap: '10px', marginBottom: '10px' } }, h('p.tiny.muted', { style: { margin: 0, flex: 1 } }, 'Pick a shape. Images in a row share a height, so each cell is flush with its image. Start empty makes the panel with its cells waiting: click one to add an image.'), sw),
+      h('div.fg-presets', FIG.PRESETS.map(([r, c]) => tile(r, c))),
+      h('div.fg-custom', h('div.fg-prevbox', prev), h('div.fg-cfield', h('span.tiny', 'Any shape — rows × columns'), mn, hint), h('span.spacer'), go)), actions: [{ label: 'Cancel' }] });
+    paintSw(); paintAll(); setTimeout(() => { try { mn.focus(); mn.select(); } catch (e) { } }, 30);
   },
 };
 WIDGETS.figure = { label: 'image panel', w: 560, body: FIG.body, menu: b => [
@@ -173,7 +195,7 @@ WIDGETS.figure = { label: 'image panel', w: 560, body: FIG.body, menu: b => [
   { label: 'Layout…', run: () => { const box = $(`.box[data-id="${b.id}"] .fg-bar .btn`); box && box.click(); } },
   { label: b.fig && b.fig.itemId && M.item(b.fig.itemId) ? 'Whole panel: ' + KIND[M.item(b.fig.itemId).kind].label : 'Label the whole panel as…', run: ev => FIG.kindMenu(ev || { clientX: innerWidth / 2, clientY: 200 }, 'The whole panel is…', k => FIG.labelPanel(M.block(b.id), k), b.fig && b.fig.itemId && (M.item(b.fig.itemId) || {}).kind) },
   { label: 'Add images…', run: () => FIG.pick(b, 0) }] };
-INSERTS.push({ id: 'figure', group: 'Widgets', icon: '▦', label: 'Image panel…', sub: '1×1, 1×2, 2×2, 1×4… flush to each image; crop, letters, captions, labels', run: (d, p) => FIG.insert(d, p) });
+INSERTS.push({ id: 'figure', group: 'Widgets', icon: '▦', label: 'Image panel…', sub: '1×1, 1×2, 2×2… or any m×n; start empty; flush to each image; crop, letters, captions, labels', run: (d, p) => FIG.insert(d, p) });
 
 /* the figure's own structures count as the component's */
 { const rebuild = IX.rebuild.bind(IX); IX.rebuild = (...a) => { const r = rebuild(...a);
