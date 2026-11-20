@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (154 changes — ready to push)
+## Pending (155 changes — ready to push)
+
+- **Freewrite placeholders (V4.56):** type / in a freewrite (or use its new bar) to drop in a placeholder — /result makes an empty Result, /html inside it says it will be an HTML file.
 
 - **Freewrite: merge two sentences (V4.55):** with each sentence its own component, the small + between two sentences makes them one; two kinds or two titles are flagged for you to choose.
 
