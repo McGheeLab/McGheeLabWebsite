@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (185 changes — ready to push)
+## Pending (186 changes — ready to push)
+
+- **Data (V4.87):** each data tree can say which instrument made it (guessed from the file types). Experiments' image panels and tables appear in the Data compendium by themselves. Add data to another note from there, and see a Material → instrument → data view.
 
 - **Topic syntheses (V4.86):** mark a region as a topic synthesis from its ⋯ menu. Every one is listed in Compendiums → Topic syntheses, with a small map of it, and Open takes you there.
 
