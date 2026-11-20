@@ -4,6 +4,35 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.82] — 2026-11-20 — Scientia: Protocols — a component connects to one step (a circle on the step, or a drop on it); links from steps can be moved, reconnected or removed later
+
+Gabe, 20 Nov: "Have external component connect to specific protocol steps. Direct links from protocol steps can be modified, not permanent to what you set them to."
+
+App only.
+
+### Added
+- **A wire end can be one step** (`13zpb-steplinks.js`, `41-steplinks.css`).
+  - It is stored as `fromCell` / `toCell` = `'st:<step id>'`, the field image cells use; steps already had stable ids.
+  - The wire leaves by the box's left or right edge, level with the step's row (`ROUTE.route` honours `only: ['l','r']`).
+  - A step reworded in a registered protocol keeps its wire (it follows `supersededBy`). A removed step or a folded box puts the wire back on the box.
+- **Making one:**
+  - each step's link circle on the box's left edge, shown after about 1 s of resting on the step (or always);
+  - a drag from any component dropped on a step, which is outlined while dragging;
+  - the step's ⋯ → *Connect this step to a component…*, which also lists the step's links. This works in a protocol note and in a run.
+- **Changing one:** a connection's menu offers reconnect either end, move the end to another step, connect it to the whole protocol instead, or connect a box wire to one step. Reverse also swaps the steps.
+  - An iteration's connection in the step's hover list has × to remove it.
+- **Settings → Links to protocol steps** (`stepwires`, needs Connections): the switch, the circle on hover or always, and a preview. Off: no new step links; those made stay drawn.
+
+### Changed
+- `12b-wires.js`, `12-doc.js`, `13zp-links.js`, `13b-protocol.js`; `13zzi-kinds.js` keeps the reconnect rows for kinded pairs (`it.reconnect`).
+
+### Tests
+| Test | Result |
+|---|---|
+| `steplinks_t` (real pointer), lab and plain builds (the helper's), and again on this branch (lab):<br>- the circle's 1 s delay, a drag out and a drop in, the menus;<br>- move, reconnect, remove; a reworded step; a run; the switch | 32/32 · 32/32 · 32/32 |
+| `steplinks2_t` (the iteration ×) · `t_982wire` on this branch | 5/5 · 13/13 |
+
+
 ## [V4.81] — 2026-11-20 — Scientia: Protocols — a number and “uL” typed in a step becomes “µL” (the notes’ own replacements, now in steps too)
 
 Gabe, 20 Nov: "In Protocol add the uL to mu symbol after a number."

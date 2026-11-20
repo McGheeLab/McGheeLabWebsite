@@ -1924,13 +1924,16 @@
     "scientia/src/13b-protocol.js",
     "scientia/src/13c-chain.js",
     "scientia/src/13t-chaindrop.js",
-    "scientia/src/13e-plate.js"
+    "scientia/src/13e-plate.js",
+    "scientia/src/13zpb-steplinks.js",
+    "scientia/src/41-steplinks.css"
    ],
    "status": "active",
    "related": [
-    "rm.protocols"
+    "rm.protocols",
+    "scientia.core"
    ],
-   "note": "V3.866 §4 decision resolved by V3.878: Gabe’s protocol blocks STAY — an RM protocol is imported as one (`def.rm`), so runs are his. RM stays the source of the protocol text."
+   "note": "V3.866 §4 decision resolved by V3.878: Gabe’s protocol blocks STAY — an RM protocol is imported as one (`def.rm`), so runs are his. RM stays the source of the protocol text. V4.68: 13zpb-steplinks.js — a wire can end on one step of a protocol (the field an image of a panel uses, 13zp), and a connection can be reconnected."
   },
   {
    "id": "scientia.timer",

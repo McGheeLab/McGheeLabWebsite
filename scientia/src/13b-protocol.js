@@ -94,7 +94,7 @@ const PROTO = {
   /** V4.67 (Gabe: "In Protocol add the uL to mu symbol after a number."): the notes' typing replacements (13u WRITE, one rule list, the same Settings
       switches per group) in a step's text — "5 uL " becomes "5 µL ". Backspace right after one puts back what was typed. */
   typing(el) {
-    el.addEventListener('input', e => { if (el.contentEditable === 'true' || el.contentEditable === 'plaintext-only') WRITE.autoReplace(el, e); });
+    el.addEventListener('input', e => { if (el.contentEditable === 'true' || el.contentEditable === 'plaintext-only') WRITE.autoReplace(el, e); STEPLINK.redraw(el); });
     el.addEventListener('keydown', e => { if (e.key === 'Backspace' && !e.ctrlKey && !e.metaKey && WRITE._last && WRITE.undoReplace()) e.preventDefault(); else if (e.key.length === 1) WRITE._last = null; }, true);
     return el;
   },
@@ -267,6 +267,7 @@ const PROTO = {
     ctxMenu(e.clientX, e.clientY + 8, [{ head: (temp ? 'Temporary step' : 'Step ' + PROTO.numIn(run, sid)) + ' · this run only' },
       { label: 'Add a temporary step after', sub: 'Lives only in this note', run: () => PROTO.addTemp(run, sid, pane) },
       temp ? { label: 'Remove this temporary step', danger: true, run: () => PROTO.removeTemp(run, sid) } : null,
+      ...STEPLINK.stepMenuItems(run, sid, e),
       !temp ? (skip ? { label: 'Restore this step', run: () => { run.skipped = run.skipped.filter(x => x !== sid); DB.put('blocks', run); changed(); } }
         : { label: 'Skip this step in this run', sub: 'The protocol keeps it; you can retire it at the end', run: () => { run.skipped = [...new Set([...(run.skipped || []), sid])]; if (run.checks) delete run.checks[sid]; DB.put('blocks', run); changed(); } }) : null,
       PROTO.pending(run).length ? 'sep' : null,
@@ -436,6 +437,8 @@ const PROTO = {
           obsHere.length && !boxes ? PROTO.obsCircle(def, sid, obsHere, 'in its lifetime') : null,
           canEdit ? h('button.ib.pmenu', { title: 'Step', on: { click: e => { e.stopPropagation(); PROTO.stepMenu(def, s, e); } } }, '⋯')
             : isRun && !ro ? h('button.ib.pmenu', { title: 'This run only', on: { click: e => { e.stopPropagation(); PROTO.runStepMenu(b, def, sid, e); } } }, '⋯') : null),
+        // V4.68 (Gabe: "Have external component connect to specific protocol steps"): the step's own link circle, on the box's left edge (13zpb)
+        !ro && pane && !pane.travel && STEPLINK.on() ? h('span.stport' + (FEAT.tune('stepwires', 'port') === 'always' ? '.always' : ''), { 'data-step': sid, title: 'Drag to connect this step to a component' }) : null,
         observable && !skip ? h('button.obsdot', { title: 'Add an observation at this step', on: { click: e => { e.stopPropagation(); PROTO.obsPopover(b, def, sid, e.currentTarget); } } }) : null);
       const sub = !temp && s.sub && M.block(s.sub);
       if (sub && sub.status !== 'removed') row.append(PROTO.subRow(b, def, sid, sub, d, pane, ro, runner && !skip));
@@ -479,6 +482,7 @@ const PROTO = {
       { label: 'Insert a step after', run: () => PROTO.insertStep(def, s.id) },
       { label: 'Split into two…', sub: def.registered ? 'Logged as an iteration; both inherit its observations' : null, run: async () => { const t = await askText('Split step', 'Two steps, one per line', s.text + '\n', { multiline: true }); if (!t) return; const [a, b2] = t.split('\n').map(x => x.trim()).filter(Boolean); if (a && b2) PROTO.splitStep(def, s, a, b2, anchor); } },
       { label: 'Move up', run: () => PROTO.moveStep(def, s, -1) }, { label: 'Move down', run: () => PROTO.moveStep(def, s, 1) },
+      ...STEPLINK.stepMenuItems(M.block(e.currentTarget.closest('.box').dataset.id) || def, s.id, e),
       PROTO.iterations(def, s.id).length ? { label: 'Link the latest iteration to…', run: () => PROTO.linkPrompt(def, s.id, anchor, true) } : null,
       { label: s.sub && M.block(s.sub) ? 'Tie to a different protocol…' : 'Tie to another protocol…', sub: 'The step is done by following that protocol', run: () => PROTO.tieDialog(def, s) },
       s.sub ? { label: 'Untie “' + snippet((M.block(s.sub) || {}).label || 'protocol', 30) + '”', run: () => PROTO.tie(def, s, null) } : null,
@@ -509,9 +513,12 @@ const PROTO = {
     stickyPop(el, () => {
       const rows = its.map(x => { const linkObjs = x.links.map(l => [l, l.type === 'item' ? M.item(l.id) : l.type === 'doc' ? M.doc(l.id) : M.block(l.id)]).filter(v => v[1]);
         const links = linkObjs.map(([l, o]) => {
-          if (l.type === 'doc') return h('a.sp-link', { on: { click: e => App.jump(o.id, e, true) } }, typechip(o.type), ' ', o.title);
+          const canLink = home && App.panes().some(p => p.docId === home.id);
+          // V4.68 ("not permanent to what you set them to"): a connection of an iteration can be taken off again, where the protocol can be edited
+          const off = canLink ? h('button.sp-x', { title: 'Remove this connection', on: { click: e => { e.stopPropagation(); closeSticky(); x.links.splice(x.links.indexOf(l), 1); DB.put('blocks', def); changed(); toast('Connection removed'); } } }, '×') : null;
+          if (l.type === 'doc') return h('span.sp-lk', h('a.sp-link', { on: { click: e => App.jump(o.id, e, true) } }, typechip(o.type), ' ', o.title), off);
           const target = l.type === 'item' ? o.originBlockId : o.id, label = l.type === 'item' ? o.text : M.blockName(o), d2 = M.doc(l.type === 'item' ? o.originDocId : o.docId);
-          return h('a.sp-link', { on: { click: e => App.jump(target, e) } }, l.type === 'item' ? kchip(o.kind) : h('span.pill', 'component'), ' ', snippet(label, 60), h('span.tiny.muted', ' · ' + (d2 ? d2.title : ''))); });
+          return h('span.sp-lk', h('a.sp-link', { on: { click: e => App.jump(target, e) } }, l.type === 'item' ? kchip(o.kind) : h('span.pill', 'component'), ' ', snippet(label, 60), h('span.tiny.muted', ' · ' + (d2 ? d2.title : ''))), off); });
         const canLink = home && App.panes().some(p => p.docId === home.id);
         return { date: x.at, text: (x.before || '') + ' ' + (x.after || '') + ' ' + linkObjs.map(([l, o]) => o.text || o.title || M.blockName(o)).join(' '), note: '',
           el: h('div.sp-row.it', h('div.row', { style: { gap: '6px' } }, h('span.pill.mag', x.kind === 'add' ? 'added' : x.kind === 'split' ? 'split' : 'changed'), h('span.spacer'), h('span.mono.tiny.muted', fmtDay(x.at) + ' ' + fmtTime(x.at))),

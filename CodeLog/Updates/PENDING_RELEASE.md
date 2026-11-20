@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (180 changes — ready to push)
+## Pending (181 changes — ready to push)
+
+- **Protocol step links (V4.82):** connect a component to one step of a protocol, by dragging from the circle beside the step or by dropping a connection on the step. A link from a step can be moved or reconnected later from its menu.
 
 - **Protocols (V4.81):** typing a number then “uL” in a protocol step gives “µL”.
 

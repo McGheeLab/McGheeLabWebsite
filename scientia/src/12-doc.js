@@ -261,7 +261,8 @@ const DocView = {
     ctxMenu(e.clientX, e.clientY + 10, [{ head: `“${snippet(A, 24)}” ${(REL[x.rel] || REL.related).verb} “${snippet(B, 24)}”` },
       ...RELATIONS.filter(r => r.id !== x.rel).map(r => ({ label: 'Make it: ' + r.label, run: () => M.setWire(x, { rel: r.id, directed: r.dir }) })),
       { label: 'Make it: your own words…', run: async () => { const v = customRel(await askText('Name this connection', 'Connection', REL[x.rel] && REL[x.rel].custom ? REL[x.rel].label : '')); if (v) M.setWire(x, { rel: v, directed: true }); } }, 'sep',
-      { label: '⇄ Reverse direction', run: () => M.setWire(x, { from: x.to, to: x.from }) },
+      ...(typeof STEPLINK !== 'undefined' ? STEPLINK.menuItems(x, this) : []),   // V4.68: change what either end connects to; move it to another step (13zpb)
+      { label: '⇄ Reverse direction', run: () => M.setWire(x, { from: x.to, to: x.from, fromCell: x.toCell, toCell: x.fromCell }) },
       { label: x.directed ? 'Make undirected' : 'Make directed', run: () => M.setWire(x, { directed: !x.directed }) },
       { label: 'Remove connection', danger: true, run: () => M.unwire(x.id) }]);
     setTimeout(() => { this.selWire = null; }, 0);
