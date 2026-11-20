@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (161 changes — ready to push)
+## Pending (162 changes — ready to push)
+
+- **Terms (V4.63):** the Terms page now shows each term as a card in the new look — its uses, its last 12 weeks and its structures at a glance.
 
 - **Fixed (V4.62):** adding a bullet or numbered item to an earlier part of a list no longer merges it into the item before or after — the list keeps its shape.
 
