@@ -48,7 +48,7 @@ const DocView = {
     d.layout = d.layout || { head: { x: 0, y: 0 } };
     if (M.liveBlocks(d.id).some(b => b.x == null)) { M.autoLayout(d); }
     $$(':scope > .nextbtn', this.host).forEach(x => x.remove()); { const nb = CHAIN.button(d, this); if (nb) this.host.append(nb); }
-    if (!this.side) App.setTitle(d.title, [typechip(d.type), CHAIN.strip(d), h('span', M.docPath(d).replace(/ › [^›]*$/, '')), h('span', 'edited ' + fmtWhen(d.modified)), this.travel && !this.travel.viewer ? h('span.pill.warn', 'as it stood ' + fmtWhen(this.travel.at)) : null],
+    if (!this.side) App.setTitle(d.title, [typechip(d.type), CHAIN.runChip(d), CHAIN.strip(d), h('span', M.docPath(d).replace(/ › [^›]*$/, '')), h('span', 'edited ' + fmtWhen(d.modified)), this.travel && !this.travel.viewer ? h('span.pill.warn', 'as it stood ' + fmtWhen(this.travel.at)) : null],
       { editable: !this.travel, onEdit: v => { if (v && v !== d.title) { d.title = v; M.touchDoc(d); changed(); } }, more: this.travel ? null : e => this.docMenu(d, e) });
     // V3.980 (Gabe: "changing a thing or two in any note causes whiteboards, PDFs, or HTMLs to refresh/take time to reload"): a page,
     // a PDF or a whiteboard whose box would be drawn exactly as it is — the same record, the same HTML (shape) — stays on the paper
@@ -94,7 +94,7 @@ const DocView = {
     const tags = (d.header && d.header.tags) || [];
     const bound = d.type === 'experiment' && M.docBlocks(d.id).find(b => b.boundTo), pr = bound && M.doc(bound.boundTo.protocolId);
     return h('div.box.head', { 'data-id': '_head', style: { left: L.x + 'px', top: L.y + 'px' } },
-      h('div.bh', h('span.num', p.label), d.backdate ? h('span.pill.warn', { title: 'Entered after the fact — new components are stamped on this day' }, 'past entry') : null, h('span.spacer'), h('span.mono.tiny', fmtDayLong(d.created)),
+      h('div.bh', h('span.num', p.label), CHAIN.runChip(d), d.backdate ? h('span.pill.warn', { title: 'Entered after the fact — new components are stamped on this day' }, 'past entry') : null, h('span.spacer'), h('span.mono.tiny', fmtDayLong(d.created)),
         this.travel ? null : h('button.ib.hedit', { title: 'Note details — title, type, project, theme, date · delete', on: { click: e => { e.stopPropagation(); EDIT.noteDialog(d); } } }, '✎')),
       h('div.hgrid', fields.length ? fields : null,
         h('label.hf', h('span', 'Tags'), h('div.tags', tags.map(t => h('span.tag', t, this.travel ? null : h('button', { title: 'Remove tag', on: { click: () => M.setHeader(d, 'tags', tags.filter(x => x !== t)) } }, '×'))),

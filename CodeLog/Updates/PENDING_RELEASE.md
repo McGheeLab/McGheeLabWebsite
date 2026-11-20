@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (195 changes — ready to push)
+## Pending (196 changes — ready to push)
+
+- **Experiments (V4.97):** a run's number is no longer part of its title. It shows as "Run 3" beside the name, in the Portfolio and in the note.
 
 - **Shortcut keys (V4.96):** change your shortcut keys in Settings → Keys & commands (or behind ?). If the key you pick is taken by the browser or by the app, you are told and offered Alt+ that key instead.
 

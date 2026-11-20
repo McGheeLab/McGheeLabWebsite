@@ -600,3 +600,7 @@ body.f-off-syncdot .syncdot:not([data-tone="red"]){display:none}
 .pv-toast-t i{position:absolute;left:0;bottom:0;height:2px;width:100%;background:var(--teal);transform-origin:0 50%;animation:pv-toast-drain var(--pvd,2400ms) linear infinite} @keyframes pv-toast-drain{from{transform:scaleX(1)}to{transform:scaleX(0)}}
 .pv-hw{cursor:help}
 .pv-heat{display:flex;gap:8px;font:10px var(--f-m);color:var(--ink-3)} .pv-heat span{display:inline-flex;align-items:center;gap:3px} .pv-heat i{width:10px;height:10px;border-radius:2px}
+/* V4.97 — an experiment's run, beside its title (the note's header, the Portfolio), never in it */
+.run-chip{display:inline-flex;align-items:center;height:18px;padding:0 7px;border-radius:999px;background:color-mix(in srgb,var(--sec-exp,var(--teal)) 14%,transparent);color:var(--ink-2);font:600 10px/1 var(--f-m);letter-spacing:.02em;white-space:nowrap}
+.run-chip.pf-run{margin-left:6px;flex:none}
+.pv-xs-n .run-chip{margin-left:6px}
