@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.79] — 2026-11-20 — Scientia: a list of every shortcut and gesture (135), searchable, in Settings → Keys & commands above the commands, and behind ?
+
+Gabe, 20 Nov: "Add shortcuts list in Settings near command bar commands."
+
+App only.
+
+### Added
+- **`SHORT`** (`20f-shortcuts.js`, `41-shortcuts.css`): `SHORT.items()`, one list read from the handlers (135 rows).
+  - Groups: Everywhere · In a note · Typing in a component · Saying what words are · Mouse, pen and touch · Command bar and menus · Widgets in a note · Reader and Library · Calendar · Freewrite · Review, Terms and Atlas.
+  - Structure letters are read from `KINDS`, so a new kind appears by itself.
+  - The shortcut of a feature that is off stays listed, dimmed, tagged "feature off".
+- **`SHORT.view()`:** a search box (every word must match; "ctrl k" finds Ctrl+K) and a chip per group. It is drawn in Settings → Keys & commands just above the commands, and in the `?` dialog (`helpModal()` is now `SHORT.open()`). `/keys` (`/shortcuts`) and Ctrl+P → Keys and gestures open it too.
+- **Rebindable keys** (the structure key, the term key) show their binding and the default, with Change → their feature's page.
+- **Settings → Shortcuts** (`shortcuts`): *The ? key opens the list* and *List the mouse, pen and touch gestures*, with a live preview.
+
+### Tests
+| Test | Result |
+|---|---|
+| `sk_t`, lab and plain builds (the helper's), and again on this branch (lab):<br>- the list's size and place above Commands; search by typing; a group chip; the calendar keys;<br>- the structure key rebound to Alt+Enter shows it and the default, and Change opens its page;<br>- `?` and `/keys` show the same rows as Settings; both switches | 26/26 · 26/26 · 26/26 |
+| Regressions (the helper's): `t_995` 27/27, `fw_t33` 69/69, `cal65_t` 23/23 | pass |
+
+
 ## [V4.78] — 2026-11-20 — Scientia: Templates — Edit opens a note canvas; placeholder image panels and whiteboards wait in a new note for a click
 
 Gabe, 20 Nov: "Templates in settings should bring up a note canvas with placeholder components. For example, you can add a placeholder image panel that waits for you to click on them to add images when you create a note with that template."

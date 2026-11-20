@@ -187,7 +187,7 @@ function bootShell() {
     if (mod && k === 'z') { e.preventDefault(); e.shiftKey ? App.redo() : App.undo(); return; }
     if (mod && k === 'y') { e.preventDefault(); App.redo(); return; }
     if (mod && k === '.') { e.preventDefault(); App.toggleFocus(); return; }
-    if (e.key === '?') { helpModal(); return; }
+    if (e.key === '?' && SHORT.on() && SHORT.tune('help')) { helpModal(); return; }
     if (!mod && !e.altKey && /^[1-7]$/.test(e.key) && !App.route.name.match(/doc|lens|portfolio/)) { App.go('#/' + TABS[+e.key - 1][0]); }
   });
   document.addEventListener('pointerdown', () => TIMER.noteInput(), true);
@@ -195,15 +195,5 @@ function bootShell() {
   window.addEventListener('beforeunload', e => { const editing = document.activeElement && document.activeElement.closest && document.activeElement.closest('.ed[contenteditable="true"]'); if (DB.pending > 0 || editing) { e.preventDefault(); e.returnValue = ''; } });
   addEventListener('resize', debounce(() => App.renderTabs(), 100));
 }
-function helpModal() {
-  const s = settings(), row = (k, d) => [h('dt', k), h('dd', d)];
-  modal({ title: 'Keys and gestures', wide: true, body: h('dl.help', row(keyLabel(s.structKey), 'Say what a selected phrase is — claim, barrier, resolution, result, takeaway, decision, question, idea, deviation, observation, reminder; / an existing one; W a term; L a link'),
-    row('Ctrl+W', 'Mark a term — in Focus mode (Ctrl+.), where the browser lets the page have it. ' + keyLabel(s.termKey) + ' works everywhere'), row('Ctrl+I', 'Cite from the library (with text selected: add it to the library)'),
-    row('Enter / Shift+Enter', 'New component below / line break'), row('Double-click paper', 'New component there'), row('Shift + drag', 'Move a component a grid cell at a time'), row('Right-click', 'Pull in barriers or structures; bridge a component to another note; box actions'),
-    row('Drag ● on a box', 'Connect two components and say how (direction matters)'), row('Drag paper · wheel', 'Pan; Ctrl+wheel or pinch zooms; Space+drag pans over boxes'),
-    row('Ctrl+click a link', 'Open that note (in a split view: in the pane you clicked)'), row('Alt+click a link', 'Open it beside — up to four notes, 2×2'),
-    row('∑ Equation', 'New equation with a legend of its terms, or a registered one; drag its ● onto a calculator to solve it'),
-    row('Ctrl+P', 'Command palette — everything the app can do'), row('Ctrl+O', 'Quick switcher — open a note by name'), row('Ctrl+Shift+Space', 'Capture to today’s day note, from anywhere'),
-    row('Ctrl+K', 'Search — relevance, recent or keyword; earlier versions open beside'), row('Ctrl+Z · Ctrl+Shift+Z', 'Undo · redo (outside a text box)'),
-    row('Ctrl+Alt+N', 'New note'), row('Ctrl+0', 'Fit the note'), row('1 … 7', 'Sections (outside a note)')), actions: [{ label: 'Close', pri: true }] });
-}
+/** The ? dialog: the app's one list of keys and gestures (20f-shortcuts.js), the same that Settings → Keys & commands shows. */
+function helpModal() { SHORT.open(); }

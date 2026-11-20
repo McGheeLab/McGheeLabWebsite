@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (177 changes — ready to push)
+## Pending (178 changes — ready to push)
+
+- **Shortcuts (V4.79):** Settings → Keys & commands lists every shortcut and gesture, with a search, just above the commands. The ? key shows the same list.
 
 - **Templates (V4.78):** editing a template now shows it as a note canvas. Add placeholder image panels or whiteboards: a note made from it has them waiting for a click.
 
