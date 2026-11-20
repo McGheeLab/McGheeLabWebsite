@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (149 changes — ready to push)
+## Pending (150 changes — ready to push)
+
+- **The tab pill centred (V4.51):** the pill under the tab you are on is now centred on its name. The tabs sit a little closer together.
 
 - **Hot notes (V4.50):** a star button at the right of Settings opens your favourite notes, one click away. Each shows its kind in colour, with its project's banner faintly behind it. It starts with the notes you visit most: star them, or use + to find any note. Hover over a favourite's golden star and click it to remove it.
 
