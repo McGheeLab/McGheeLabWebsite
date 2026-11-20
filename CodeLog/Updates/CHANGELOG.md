@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.60] — 2026-11-20 — Scientia: Calendar — agent runs, a layer over the calendar: each run a thin line from its planned start to its planned end, its title along it, electrons flowing down it while it runs; 2× alongside your work
+
+Gabe, 19 Nov: "There should also be a second view that can be superposed onto the current calendar, which is agentic workflows. These are supposed to show double dipping work from AI working in the background."
+
+And on 20 Nov: "The AI runs should appear as electrons flowing from the beginning to the end of where it's planned to run as a vertical line, not a block. The title of it should run alongside the line vertically through its length."
+
+App only.
+
+### Added
+- **Agent runs** (events of kind `run`, `run: {did, done}`): a layer switched on in the bar or with G.
+  - The bar's tally: AI hours, and how much of them ran alongside you.
+- **The line** (`CAL.runEl`):
+  - in a lane at the right of the day; the cards make room (`.cal-cin`, `--runw`);
+  - its title vertical along it;
+  - running: electrons flowing; planned: dotted; done: faint;
+  - faded when a sort is singled out.
+- **Its card** (`CAL.runFill`): time and length, "2× alongside …", what it did, its output, Mark done, Delete.
+- A click opens or makes its output note. The create window offers Event · Agent run. Agenda lists runs.
+- **Settings → Calendar:** the electrons switch.
+
+### Tests
+| Test | Result |
+|---|---|
+| `cal60_t`, lab build · without the lab layer:<br>- off by default, never a card; G and the tally;<br>- a line ≤ 20 px wide, its line 2 px, at the day's right, its title vertical;<br>- running: three animated electrons; planned: dotted; done: faint; the cards make room;<br>- resting: "2× alongside Run 4 · image beads"; what it did kept; Mark done;<br>- a click makes its output note;<br>- the create window's Agent run;<br>- electrons off: glowing, still, and the preview says so;<br>- faded when singled out; Agenda; G off, kept | 21/21 · 21/21 |
+
+
 ## [V4.59] — 2026-11-20 — Scientia: Calendar — links between events: Link → then…, drawn above the cards like a note's arrows (lighter over a card); a barrier pushes what depends on it back as much, Custom… for each
 
 Gabe, 19 Nov: "Allow links between events, which creates dependencies, and if barriers are experienced, pushing events back, it pushes the other one back the same amount with custom displacement offered as well."

@@ -269,3 +269,38 @@ svg.cal-links{position:absolute;left:0;top:0;z-index:6;overflow:visible;pointer-
 .bub-lk em{font:500 9.5px/1 var(--f-m);font-style:normal;color:var(--ink-3)}
 .bub-lk button{width:18px;height:18px;padding:0;border:0;border-radius:999px;background:transparent;color:var(--ink-3);cursor:pointer}
 @media (prefers-reduced-motion:reduce){.cal-ec.linkable{animation:none;box-shadow:var(--lk-sh1),0 0 0 2px color-mix(in srgb,var(--teal) 45%,transparent)}}
+
+/* V4.60 — agent runs: a line beside the day, electrons while it runs, its title along it */
+.cal-root{--ag:#5B4FC4;--ag-ink:#352C8C}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .cal-root{--ag:#A99BFF;--ag-ink:#E2DCFF}}
+:root[data-theme="dark"] .cal-root{--ag:#A99BFF;--ag-ink:#E2DCFF}
+.cal-cin{position:absolute;left:0;top:0;bottom:0;right:var(--runw,0px)}
+.cal-run{position:absolute;z-index:4;width:18px;padding:0;border:0;border-radius:6px;background:transparent;cursor:pointer;transition:background .2s,opacity .25s}
+.cal-run:hover,.cal-run:focus-visible{background:color-mix(in srgb,var(--ag) 12%,transparent);outline:none}
+.cal-run .rl{position:absolute;right:3px;top:0;bottom:0;width:2px;border-radius:2px;background:var(--ag)}
+.cal-run.planned .rl{width:0;border-radius:0;background:none;border-left:2px dotted var(--ag)}
+.cal-run.done .rl{opacity:.42}
+.cal-run.running .rl{box-shadow:0 0 6px color-mix(in srgb,var(--ag) 65%,transparent)}
+.cal-run .rt{position:absolute;right:7px;top:2px;max-height:calc(100% - 4px);writing-mode:vertical-rl;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font:600 9.5px/11px var(--f-m);letter-spacing:.02em;color:var(--ag-ink)}
+.cal-run.done .rt{opacity:.7}
+.cal-run .re{position:absolute;right:1.5px;width:5px;height:5px;margin-top:-2.5px;border-radius:50%;background:var(--ag);box-shadow:0 0 5px 1px color-mix(in srgb,var(--ag) 80%,transparent);opacity:0;pointer-events:none}
+.cal-run.running .re{opacity:1;animation:cal-electron var(--dur,3s) linear infinite}
+.cal-run.running.still .re{display:none}
+.cal-run.running.still .rl{width:3px;box-shadow:0 0 9px 1px color-mix(in srgb,var(--ag) 70%,transparent)}
+.cal-run.dim{opacity:.2}
+@keyframes cal-electron{0%{top:0;opacity:0}12%{opacity:1}88%{opacity:1}100%{top:100%;opacity:0}}
+.cal-tg{display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 11px;border:0;border-radius:999px;background:transparent;color:var(--ink-2);font:600 12px/1 var(--f-d);box-shadow:inset 0 0 0 1px var(--lk-ring);cursor:pointer;transition:background .15s,box-shadow .2s,color .15s}
+.cal-tg:hover{background:var(--lk-hov)}
+.cal-tgd{width:3px;height:14px;border-radius:2px;background:var(--ag);opacity:.5}
+.cal-tg.on{color:var(--ink);background:color-mix(in srgb,var(--ag) 10%,var(--lk-card));box-shadow:inset 0 0 0 1.5px var(--ag)}
+.cal-tg.on .cal-tgd{opacity:1;box-shadow:0 0 6px var(--ag)}
+.cal-ai{display:inline-flex;align-items:center;gap:6px;font:500 11px/1 var(--f-m);color:var(--ink-2)}
+.agdip{font:650 10.5px/1 var(--f-m);color:var(--ag-ink)}
+.cw-type{align-self:flex-start}
+.cal-bub.run .bub-top{background:var(--ag);color:#fff}
+.bub-al{font:500 11.5px/1.4 var(--f-d);color:var(--ink-2)}
+.bub-did{height:auto;min-height:58px;padding:7px 9px;font:400 12.5px/1.4 var(--f-d);resize:vertical;width:100%}
+.pv-run{position:absolute;right:3px;width:2px;border-radius:2px;background:#5B4FC4}
+.pv-run span{position:absolute;right:4px;top:2px;writing-mode:vertical-rl;font:600 8px/9px var(--f-m);color:#5B4FC4;white-space:nowrap}
+.pv-run b{position:absolute;left:-1.5px;width:5px;height:5px;border-radius:50%;background:#5B4FC4;box-shadow:0 0 4px #5B4FC4}
+@media (prefers-reduced-motion:reduce){.cal-run.running .re{animation:none;opacity:1}}
