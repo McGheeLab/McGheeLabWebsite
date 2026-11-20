@@ -83,7 +83,7 @@ const PRESENCE = {
       return h('button.av' + (p.away ? '.away' : '') + (here(p) ? '' : '.elsewhere'), { type: 'button', title: s, 'aria-label': s, style: { '--pc': PRESENCE.colour(p) }, on: { click: e => { e.stopPropagation(); PRESENCE.menu(p, e, s); } } }, PRESENCE.initials(p.name)); }));
     PRESENCE.row.hidden = !L.length; },
   menu(p, e, s) { const pane = PRESENCE.docNow(), docId = pane && pane.docId, here = !p.docId || p.docId === docId;
-    ctxMenu(e.clientX - 160, e.clientY + 10, [{ head: s }, here && p.blockId && M.block(p.blockId) ? { label: 'Go to what they are editing', run: () => pane.reveal(p.blockId) } : null,
+    ctxMenu(e.clientX - 160, e.clientY + 10, [{ head: s }, here && p.blockId && M.block(p.blockId) ? { label: 'Go to what they are editing', run: () => pane.landOn(p.blockId) } : null,
       !here && p.docId && M.doc(p.docId) ? { label: 'Open their note', sub: p.docTitle || '', run: () => App.go('#/doc/' + p.docId) } : null].filter(Boolean)); },
   /** The boxes of the note: shaded and read-only while someone else holds them. */
   paint(docId) { const pane = PRESENCE.docNow(); if (!pane || pane.docId !== docId || !pane.paper) return; $$('.box.cmp', pane.paper.world).forEach(el => PRESENCE.deco(el, M.block(el.dataset.id), pane)); },

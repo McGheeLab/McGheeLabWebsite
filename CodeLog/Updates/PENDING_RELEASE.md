@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (172 changes — ready to push)
+## Pending (173 changes — ready to push)
+
+- **Open a component (V4.74):** opening a task, a search result, a link or a calendar item now takes you to the component and centres it at 50% zoom. Settings → Open a component sets the zoom.
 
 - **Fixed (V4.73):** a Story beat’s Complexity (1–10) can be changed again.
 

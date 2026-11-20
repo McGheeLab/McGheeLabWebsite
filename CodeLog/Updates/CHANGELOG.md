@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.74] — 2026-11-20 — Scientia: going to a component from anywhere (a task’s Open, search, links, the calendar…) centres the canvas on it at 50% zoom
+
+Gabe, 20 Nov: "Clicking open on a task brings you to where it was created and centers the canvas view around it in 50% zoom. This should become the standard for every 'click to navigate to a component' workflow."
+
+App only.
+
+### Added
+- **`App.openComponent(id, e)`** (`11-shell.js`): the one way to a component. It opens the component's note (or the pane already showing it), then calls `DocView.landOn(id, arrive)` (`12-doc.js`).
+  - `landOn` centres it at the zoom set in Settings (50% by default) and keeps the brief highlight. A note just opened takes the view at once; an open one glides.
+  - Alt+click (beside) and Ctrl/Cmd+click (in a split) work as before.
+- **Settings → Open a component** (`opencomp`): the switch (off: move only when it is off the screen) and *Zoom on arrival* 50% / 75% / 100% / Keep mine, with a live preview.
+
+### Changed
+- `App.openBlock` is kept as the same function, because the lab layer calls it. `App.jump` for a component, every `{reveal}` pending focus, the story arc's dots and the presence menu's "Go to what they are editing" all land through `landOn`.
+- Every `App.openBlock(` in `src/` is now `App.openComponent(`, including the calendar's (V4.68–V4.70) and Today's captures (V4.71).
+
+### Tests
+| Test | Result |
+|---|---|
+| `opencomp_t`, lab and plain builds (the helper's), and again on this branch (lab):<br>- a real click on a task's Open, a real search result, `App.openBlock` from another note;<br>- each landing centred within 3 px at 50%, with the highlight;<br>- the zoom choices, the switch off, Alt+click beside, Ctrl+click in a split | 17/17 · 17/17 · 17/17 |
+| On this branch: `mrv_t` (its stub now `App.openComponent`), `cal68_t`, `cal69_t` | 28/28 · 9/9 · 14/14 |
+
+
 ## [V4.73] — 2026-11-20 — Scientia: fix — the Story kind’s Complexity 1–10 could no longer be changed (a side-panel rule hid its buttons)
 
 Gabe, 20 Nov: "Complexity cannot be edited in story kind anymore, fix that."

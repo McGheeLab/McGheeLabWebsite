@@ -152,6 +152,15 @@ const PV = {
   D({ id: 'split', group: 'canvas', label: 'Split panes', desc: '◫ Split on a note: side by side, or a quadrant of up to four notes. Opening a link beside a note (Alt+click) still works when this is off.',
     preview: () => [h('div.pv-split', h('div', h('b', '30 kPa series'), run3({ stamp: null, body: 'The edge collapsed.' })), h('div', h('b', 'Seeding density notes'), PV.box({ num: 'Block', label: 'Seeding', body: 'Seed at 40k/cm².' })))] });
 
+  // V4.67 (DocView.landOn, App.openComponent): the one way to arrive at a component
+  D({ id: 'opencomp', group: 'canvas', label: 'Open a component', isNew: true, presets: { simple: true }, desc: 'Going to a component from anywhere — a task’s Open, a search result, a reminder, a link to a component, a calendar item, a term’s card, the Atlas — opens its note and centres the canvas on it at 50% zoom, so you see it with what is around it, and it glows for a moment. Alt+click opens it beside, and Ctrl+click (⌘ on a Mac) in the pane you clicked in. Off: the canvas only moves when the component is off the screen.',
+    tune: [T('zoom', 'Zoom on arrival', 'seg', { def: '50', opts: [['50', '50%'], ['75', '75%'], ['100', '100%'], ['keep', 'Keep mine']], d: '50%: the component with its neighbours. Keep mine: centred, at the zoom you had.' })],
+    preview: () => {
+      const z = tune('opencomp', 'zoom'), isOn = on('opencomp'), zz = z === 'keep' ? .75 : (+z || 50) / 100, spots = [[4, 6], [30, 9], [66, 6], [7, 40], [74, 42], [9, 74], [36, 76], [66, 74]];
+      return [h('div.pv-open' + (isOn ? '' : '.off'), spots.map(([x, y]) => h('i.po-b', { style: { left: x + '%', top: y + '%' } })), h('i.po-b.po-t', { style: { left: '42.5%', top: 'calc(50% - 14px)' } }, h('b', 'Run 3')),
+        isOn ? h('i.po-f', { style: { width: (30 / zz) + '%' } }) : null), PV.cap(isOn ? 'The screen lands centred on the component, at ' + (z === 'keep' ? 'your own zoom' : Math.round(zz * 100) + '%') : 'Off: the canvas moves only if it is off the screen')];
+    } });
+
   D({ id: 'focus', group: 'canvas', label: 'Focus sessions', desc: '◎ asks how long, then puts the app in full screen with the keyboard locked to it and a frame round the screen until the time is up.',
     preview: () => [h('div.pv-focus', h('div.pv-focus-t', '◎ 38:12 left'), run3({ stamp: null }))] });
 
