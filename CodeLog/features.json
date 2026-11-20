@@ -1487,7 +1487,9 @@
     "scientia/src/14fe-topics.js",
     "scientia/src/45-topics.css",
     "scientia/src/14fg-code.js",
-    "scientia/src/47-code.css"
+    "scientia/src/47-code.css",
+    "scientia/src/14fh-camera.js",
+    "scientia/src/48-camera.css"
    ],
    "distinct_from": {
     "rm.people": "Scientia's 'profiles' store holds note TYPES as data, not people",

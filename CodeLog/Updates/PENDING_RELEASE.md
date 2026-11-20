@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (191 changes — ready to push)
+## Pending (192 changes — ready to push)
+
+- **Quick cast (V4.93):** two new buttons. Float makes the selected component a float (or shows the floats waiting). Photo takes a picture with your camera and puts it in the note as an image panel. Settings → Pills shows each pill opened out; click one to turn its row into a column.
 
 - **Hot notes (V4.92):** your starred notes now sit as small tabs right after the Hot notes button, one click away.
 
