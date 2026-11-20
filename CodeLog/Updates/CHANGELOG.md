@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.52] — 2026-11-19 — Scientia: the Materials demonstration recorded again through the Atlas; the Atlas's row clear of the header
+
+Materials moved into the Atlas (V4.48, Gabe: "Merge Materials into Atlas"); its demonstration clicked the Materials tab, which is gone.
+
+App only.
+
+### Changed
+- **`demokit/materials.mjs` · `demos/materials.mp4` / `.jpg` · `src/20b-demos.js`:** Atlas → Materials instead of the Materials tab (48.5 s, 947 KB).
+
+### Bug Fixes
+- **On the map, the Atlas's row of sections sat partly under the header** (the Atlas page's −8 px top margin): `.atlas.ah-in > .ah-row{margin:12px 0 8px}`.
+
+### Tests
+| Test | Result |
+|---|---|
+| `ah48_t` (the room still fits the window with the row lower) | 17/17 |
+
 ## [V4.51] — 2026-11-19 — Scientia: the tab pill centred on the tab's name
 
 Gabe (19 Nov 2026): "The tab pill is not centered on the tabs."

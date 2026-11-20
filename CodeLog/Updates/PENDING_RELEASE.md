@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (150 changes — ready to push)
+## Pending (151 changes — ready to push)
+
+- **Materials demonstration (V4.52):** Settings → Materials shows its recording made through the Atlas.
 
 - **The tab pill centred (V4.51):** the pill under the tab you are on is now centred on its name. The tabs sit a little closer together.
 
