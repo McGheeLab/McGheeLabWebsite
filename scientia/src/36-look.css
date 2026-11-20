@@ -309,3 +309,8 @@ body:not(.f-off-look) .tl-end{padding:14px 2px 4px}
 body:not(.f-off-look) .tl-host.tl-in .tl-row{animation:lk-rise var(--lk-ds) var(--lk-rise) both;animation-delay:calc(var(--i,0) * 14ms)}
 body:not(.f-off-look) .tl-tile{background:var(--lk-card);border:0;border-radius:12px;box-shadow:var(--lk-sh1),inset 0 0 0 1px var(--lk-ring)}
 body:not(.f-off-look) .tl-row .tl-sub{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.4}
+/* V4.89 — Shift+click zooms: its preview */
+.pv-sz{display:flex;flex-direction:column;align-items:flex-start;gap:6px}
+.pv-szf{display:grid;place-items:center;width:180px;height:96px;border-radius:9px;background:var(--surface);box-shadow:inset 0 0 0 1px var(--rule)}
+.pv-szf i{display:grid;place-items:center;min-width:30px;border-radius:5px;background:var(--lk-card,var(--surface-2));box-shadow:inset 0 0 0 1.5px var(--teal);font:normal 600 9px var(--f-d);overflow:hidden;white-space:nowrap}
+.pv-szk{font:600 10px var(--f-m);padding:2px 7px;border-radius:5px;box-shadow:inset 0 0 0 1px var(--rule);color:var(--ink-2)}

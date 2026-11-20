@@ -192,6 +192,10 @@ const PV = {
         isOn ? h('i.po-f', { style: { width: (30 / zz) + '%' } }) : null), PV.cap(isOn ? 'The screen lands centred on the component, at ' + (z === 'keep' ? 'your own zoom' : Math.round(zz * 100) + '%') : 'Off: the canvas moves only if it is off the screen')];
     } });
 
+  // V4.89 (Gabe: "have the Shift+click on a component to zoom on it"): 12e
+  D({ id: 'shiftzoom', group: 'canvas', label: 'Shift+click zooms', isNew: true, presets: { simple: true, standard: true }, desc: 'Shift+click a component and the canvas zooms onto it (V4.89) — in every build, with any hand, the mouse or the pen; not while you are typing in that component (there Shift+click extends the selection). A click, not a drag: Shift+drag still moves a component a grid cell at a time. Where the lab’s pills fit it first (their move hand), it stays theirs.',
+    tune: [T('how', 'It zooms', 'select', { isNew: true, def: 'fit', opts: [['fit', 'To fit the screen'], ['100', 'To 100%, centred'], ['50', 'To 50%, centred']] })],
+    preview: () => { const how = FEAT.tune('shiftzoom', 'how') || 'fit', w = how === 'fit' ? 86 : how === '100' ? 60 : 34; return [h('div.pv-sz', h('div.pv-szf', h('i', { style: { width: w + '%', height: (w * .45) + '%' } }, 'Run 3 · 30 kPa')), h('span.pv-szk', 'Shift + click')), PV.cap(how === 'fit' ? 'The component fills the screen, with a margin.' : 'The canvas centres on it at ' + how + '%.')]; } });
   D({ id: 'focus', group: 'canvas', label: 'Focus sessions', desc: '◎ asks how long, then puts the app in full screen with the keyboard locked to it and a frame round the screen until the time is up.',
     preview: () => [h('div.pv-focus', h('div.pv-focus-t', '◎ 38:12 left'), run3({ stamp: null }))] });
 
