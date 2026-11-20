@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (155 changes — ready to push)
+## Pending (156 changes — ready to push)
+
+- **Calendar (V4.57):** a new Calendar tab before Tasks — your week as a day planner. Click a free spot to add an event; drag to move it; rest on one to change it; click it to open (or make) its note. Colour by project, kind, tag, note type or load, and click a colour to single those events out.
 
 - **Freewrite placeholders (V4.56):** type / in a freewrite (or use its new bar) to drop in a placeholder — /result makes an empty Result, /html inside it says it will be an HTML file.
 
