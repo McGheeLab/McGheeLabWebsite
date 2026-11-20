@@ -224,9 +224,7 @@ const REGION = {
   /** Kinds copied (their files and data shared); text components and the rest are embedded live, the origin kept. */
   CLONE: ['ink', 'figure', 'html', 'pdf', 'deck', 'table', 'plot', 'eq', 'calc', 'plate', 'view'],
   copyDialog(d, r) {
-    const m = modal({ title: 'Bridge “' + snippet(r.name, 40) + '” to another note', wide: true, actions: [{ label: 'Cancel' }], body: optionPicker({ placeholder: 'Search notes…', sort: 'region-copy',
-      items: q => DB.where('documents', x => x.id !== d.id && !x.deleted && (!q || (x.title + ' ' + M.docPath(x)).toLowerCase().includes(q))).sort((x, y) => (y.modified || '').localeCompare(x.modified || '')),
-      render: x => h('div', typechip(x.type), ' ', x.title, h('span.s', M.docPath(x))), onPick: x => { m.close(); REGION.copyTo(d, r, x.id); } }) });
+    MPANEL.note({ title: 'Bridge “' + snippet(r.name, 40) + '” to another note', exclude: [d.id] }).then(x => { if (x) REGION.copyTo(d, r, x.id); });   // 13zzzd: the move panel
   },
   copyTo(d, r, destId, pos) {
     const dest = M.doc(destId); if (!dest || !d) return null;

@@ -541,16 +541,16 @@ const CAL = {
     draw(); modal({ title: 'Event types', body: list, actions: [{ label: 'Done', pri: true }] });
   },
   /** Choose a note in the Portfolio: the calendar waits; a click on a note links it and brings you back. */
-  pickInPortfolio(ctx) { CAL.closeAll(); CAL.pickFor = ctx; CAL.pickBanner(); App.go('#/portfolio'); },
-  pickBanner() {
-    let b = $('#cal-pick'); if (!CAL.pickFor) { if (b) b.remove(); return; }
-    const t = CAL.pickFor.kind === 'event' ? ((DB.get('events', CAL.pickFor.id) || {}).title || 'the event') : ((CAL.pickFor.state || {}).title || 'the new event');
-    if (!b) { b = h('div#cal-pick.cal-pick', { role: 'status' }); document.body.append(b); }
-    b.replaceChildren(CAL.ic('note'), h('span', 'Click a note to link it to “' + t + '”'), h('button.cal-btn', { type: 'button', on: { click: () => CAL.pickCancel() } }, 'Cancel'));
+  pickInPortfolio(ctx) {
+    CAL.closeAll(); CAL.pickFor = ctx;
+    // the bar, the click on a note and Cancel are the shared PFPICK (13zzzd, the move panel's Portfolio view); the calendar brings itself back (pickBack)
+    PFPICK.start({ id: 'cal-pick', btnCls: 'cal-btn', icon: CAL.ic('note'), back: false,
+      text: () => { const P = CAL.pickFor || ctx, t = P.kind === 'event' ? ((DB.get('events', P.id) || {}).title || 'the event') : ((P.state || {}).title || 'the new event'); return 'Click a note to link it to “' + t + '”'; },
+      onPick: id => CAL.pickDone(id), onCancel: () => CAL.pickCancel() });
   },
-  pickCancel() { const P = CAL.pickFor; CAL.pickFor = null; CAL.pickBanner(); CAL.pickBack(P, null); },
+  pickCancel() { const P = CAL.pickFor; CAL.pickFor = null; CAL.pickBack(P, null); },
   pickDone(docId) {
-    const P = CAL.pickFor; CAL.pickFor = null; CAL.pickBanner(); if (!P) return; const d = M.doc(docId);
+    const P = CAL.pickFor; CAL.pickFor = null; if (!P) return; const d = M.doc(docId);
     if (P.kind === 'event') { const ev = DB.get('events', P.id); if (ev) { DB.beginGroup('Note'); ev.docId = docId; if (!ev.projectId) ev.projectId = (d || {}).projectId || null; ev.modified = isoLocal(new Date()); DB.put('events', ev); changed(); toast('“' + ((d || {}).title || 'The note') + '” linked to “' + ev.title + '”', 2600); } }
     CAL.pickBack(P, docId);
   },
@@ -993,9 +993,7 @@ VIEWS.calendar = CalendarView;
   document.addEventListener('keydown', e => { try { CAL.key(e); } catch (er) { console.warn('[calendar] key', er); } });
   document.addEventListener('mousedown', e => { if (CAL.cw && !CAL.cw.contains(e.target) && !e.target.closest('.ovl')) { CAL._swallow = !!e.target.closest('.cal-grid'); CAL.close(); setTimeout(() => { CAL._swallow = false; }, 400); }
     if (CAL.bubEl && !CAL.bubEl.contains(e.target) && !e.target.closest('.ovl')) CAL.closeBub(); }, true);
-  // V4.65 — Pick in the Portfolio: a note opened there is linked instead, and you are back in the calendar
-  { const go0 = App.go; App.go = function (hash) { if (CAL.pickFor && /^#\/doc\//.test(String(hash))) { const id = decodeURIComponent(String(hash).slice(6).split('/')[0]); if (M.doc(id)) return CAL.pickDone(id); } return go0.apply(this, arguments); }; }
-  document.addEventListener('click', e => { if (!CAL.pickFor) return; const a = e.target.closest && e.target.closest('a[href^="#/doc/"]'); if (!a) return; e.preventDefault(); e.stopPropagation(); const id = decodeURIComponent(a.getAttribute('href').slice(6).split('/')[0]); if (M.doc(id)) CAL.pickDone(id); }, true);
+  // V4.65 — Pick in the Portfolio: a note opened there is linked instead, and you are back in the calendar (the click on a note is PFPICK's, 13zzzd)
   // now moves: the line, once a minute
   setInterval(() => { if (App.route && App.route.name === 'calendar' && CAL.root && CAL.root.isConnected) { const n = $('.cal-now', CAL.root); if (n) n.style.top = `calc(var(--hpx) * ${CAL.nowMin() / 60})`; } }, 60000);
   // V4.67 — the bell: today's all-day events count until it is opened once, then sit under "Seen"

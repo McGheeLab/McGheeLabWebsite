@@ -35,14 +35,9 @@ const TCAP = {
     }
     return out;
   },
-  /** Where it goes: a note ({doc}) or a project / theme ({projectId, themeId}); null when cancelled. */
+  /** Where it goes: a note ({doc}) or a project / theme ({projectId, themeId}); null when cancelled. The move panel (13zzzd): a search, or a click on a note in the Portfolio. */
   target(b) {
-    return new Promise(res => { let got = false;
-      const notes = q => DB.where('documents', d => !d.deleted && !d.archived && d.type !== 'day' && (!q || ((d.title || '') + ' ' + M.docPath(d)).toLowerCase().includes(q))).sort((x, y) => String(y.modified || '').localeCompare(String(x.modified || ''))).map(d => ({ doc: d }));
-      const places = q => { const out = []; DB.all('projects').forEach(p => { out.push({ projectId: p.id, themeId: null, label: p.name, sub: 'a new note in the project' }); DB.where('themes', t => t.projectId === p.id && t.status === 'active').forEach(t => out.push({ projectId: p.id, themeId: t.id, label: p.name + ' › ' + t.name, sub: 'a new note in the theme' })); }); return out.filter(r => !q || r.label.toLowerCase().includes(q)); };
-      const m = modal({ title: 'Move “' + snippet(b.body.text, 40) + '” to…', wide: true, actions: [{ label: 'Cancel' }], onClose: () => { if (!got) res(null); },
-        body: optionPicker({ placeholder: 'Search notes, projects, themes…', items: q => [...notes(q).slice(0, 40), ...places(q)],
-          render: r => r.doc ? h('div', typechip(r.doc.type), ' ', r.doc.title || 'Untitled', h('span.s', M.docPath(r.doc))) : h('div', h('b', r.label), h('span.s', r.sub)), onPick: r => { got = true; m.close(); res(r); } }) }); });
+    return MPANEL.pick({ title: 'Move “' + snippet(b.body.text, 40) + '” to…', exclude: [b.docId], places: MPANEL.projectRows({ sub: ['a new note in the project', 'a new note in the theme'] }) });
   },
   /** Move a capture to what target(b) chooses. */
   async move(b) {
