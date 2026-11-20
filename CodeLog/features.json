@@ -1480,7 +1480,9 @@
     "scientia/src/15d-pfkit.js",
     "scientia/pen-button/**",
     "scientia/src/14fb-atlashub.js",
-    "scientia/src/37-atlashub.css"
+    "scientia/src/37-atlashub.css",
+    "scientia/src/14fd-compendiums.js",
+    "scientia/src/44-compendiums.css"
    ],
    "distinct_from": {
     "rm.people": "Scientia's 'profiles' store holds note TYPES as data, not people",

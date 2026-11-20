@@ -4,6 +4,33 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.85] — 2026-11-20 — Scientia: the Compendiums — a new tab after the Atlas: All (a gallery of cards), Materials, Data and Protocols (every registered protocol); the Atlas keeps only its Map
+
+Gabe, 20 Nov: "Remove all tabs from Atlas apart from its original function, and move them to a new tab called Compendiums, which acts as the gallery for all of these different things. Add registered protocols to Compendiums."
+
+App only.
+
+### Added
+- **The Compendiums tab** (`COMP`, made with the new `HUBPAGE(o)` like the Atlas, `14fb-atlashub.js`; `14fd-compendiums.js`, `44-compendiums.css`):
+  - **All** (`CGAL.render`), a gallery: a card per compendium, with its count, what it is for and a few of its entries;
+  - **Materials** and **Data**, moved from the Atlas;
+  - **Protocols** (`CPRO`): every registered protocol, with its steps, runs, last run and home note, and a search. Open goes to it centred; a run's chip goes to the run.
+- **Settings → Compendiums** (`compendiums`): the switch, *Registered protocols*, *Cards show a few entries*, and a live preview.
+
+### Changed
+- The Atlas keeps only its Map (no section row).
+- `#/materials`, `#/atlas/materials` and `#/atlas/data` lead to the compendiums; a material's page lights the Compendiums tab.
+- With Compendiums off, they are the Atlas's sections again (`ATHUB.extra`), and `#/compendiums/…` leads to the Atlas.
+
+### Tests
+| Test | Result |
+|---|---|
+| `comp85_t`, lab and plain builds:<br>- the tab after the Atlas; the Atlas has no row; All's cards and row; the Protocols card's count and entry;<br>- Protocols: 4 steps, 2 runs, the first three steps and "+ 1 more step"; search; Open; a run; the title;<br>- `#/materials`, `#/atlas/materials` and `#/atlas/data` lead there; the two settings;<br>- off: no tab, the Atlas holds them, their links lead to it; the preview; the Settings page | 22/22 · 22/22 |
+| `ad49_t` and `ah48_t` (the V4.48–V4.49 Atlas row), with Compendiums off | 19/20 · 16/17 — the two misses are intended: Protocols joins the Atlas's row; Materials is described as a compendium |
+| `refs_t45` | 28/28 |
+| Lab harness v3869 (`#/materials` is the Materials compendium, with the lab's inventory card; the header says Materials) | 287/287 |
+
+
 ## [V4.84] — 2026-11-20 — Scientia: Portfolio — a References section under each theme and project-wide: every paper cited in its notes, numbered in citation order
 
 Gabe, 20 Nov: "References becomes a new section in Portfolio that adds all papers in citation mode within the References page referenced per theme."
