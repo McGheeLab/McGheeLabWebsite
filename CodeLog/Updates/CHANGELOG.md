@@ -4,6 +4,33 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.78] — 2026-11-20 — Scientia: Templates — Edit opens a note canvas; placeholder image panels and whiteboards wait in a new note for a click
+
+Gabe, 20 Nov: "Templates in settings should bring up a note canvas with placeholder components. For example, you can add a placeholder image panel that waits for you to click on them to add images when you create a note with that template."
+
+App only.
+
+### Added
+- **The template canvas** (`20c-tplcanvas.js`, `TPLC.edit`; `41-tplcanvas.css`): Settings → Templates → Edit opens a wide canvas.
+  - It shows a header band, and each component as a card at its place.
+  - You drag a card by its title (14 px grid), type its label and default text in place, and remove it with ×.
+  - The toolbar adds a text component, an image placeholder or a whiteboard placeholder, and Tidy lays the cards out again.
+  - An older template with no positions opens laid out as a note would place it.
+- **Placeholders:** a template row stays `{label, body, x, y}`, with new optional keys `w`, `ph: 'image'|'board'` and `fig: {rows, cols}`.
+  - **Image:** the note gets a dashed panel of its real size, "Image panel · 2 × 3 — click to add images" (`FIG.phBody`, `fillPh`). A click or a drop adds images; the first one makes it a real panel.
+  - **Whiteboard:** a click starts the lab's whiteboard in it.
+  - The image placeholder's shape uses V4.77's m×n box and preview.
+- **Settings → Template canvas** (`templates`): *A new image placeholder starts as* (1×1, 1×2, 2×2, 1×3), with a live preview of the canvas. Off: the plain list editor; placeholders already saved are still made.
+
+### Changed
+- `M.createDoc` makes placeholder rows; `M.saveAsTemplate` keeps an image panel as an image placeholder of its shape; template lists say what waits (`M.templateSummary`).
+
+### Tests
+| Test | Result |
+|---|---|
+| `wkB2_t`, lab and plain builds (the helper's), and again on this branch (lab):<br>- an old-shape template still makes a note; a real click on Edit opens the canvas;<br>- a placeholder added, `2x3` typed, a real drag, an edit in place, ×; Save and the saved shape;<br>- a note from it: the placeholders wait; a click adds an image (the panel is real); the whiteboard starts;<br>- Save structure as template; the switch off; the preview; Cancel changes nothing | 27/27 · 27/27 · 27/27 |
+
+
 ## [V4.77] — 2026-11-20 — Scientia: Image panels — Start empty (replacing “Empty 1×2”) for any shape, and one m×n box whose preview reshapes as you type
 
 Gabe, 20 Nov: "For image panels, make sure that image panels have the option to start empty, replacing the Empty 1x2 option. The list of panel options should have all most used ones like it has right now, with one mxn input that allows you to input into them, reshaping the preview widget of what the panel looks like."

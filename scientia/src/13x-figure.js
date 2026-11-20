@@ -34,7 +34,8 @@ const FIG = {
     const cells = FIG.cells(b); let k = at;
     for (const f of files) { while (k < cells.length && (cells[k].media || cells[k].board)) k++; if (k >= cells.length) { toast('The grid is full — change its layout to add more'); break; }
       const rec = await MEDIA.add(f); if (!['image', 'gif', 'video'].includes(rec.kind)) { toast(rec.name + ' is not an image'); continue; } cells[k].media = rec.id; cells[k].crop = null; k++; }
-    const cur = M.block(b.id); cur.fig = b.fig; FIG.save(cur); changed();
+    const cur = M.block(b.id); cur.fig = b.fig; if (cells.some(c => c.media)) delete cur.ph;   // V4.68: a template's placeholder becomes a real panel with its first image
+    FIG.save(cur); changed();
   },
   pick(b, at) { PLATE.pickFiles(fs => FIG.addFiles(M.block(b.id), fs, at), true, 'image/*,video/mp4,video/webm,.gif'); },
   /** A structure on one image: its text is the caption (or "Panel A"). */
@@ -52,8 +53,29 @@ const FIG = {
     ctxMenu(e.clientX, e.clientY + 8, [{ head: title }, ...KINDS.map(k => ({ label: (k.id === current ? '✓ ' : '') + k.label, run: () => onPick(k.id) })), onRemove ? 'sep' : null, onRemove ? { label: 'Remove label', danger: true, sub: 'The record is kept, unlinked', run: onRemove } : null].filter(Boolean));
   },
 
+  /* ---------------- V4.68 — a placeholder panel, made by a template ---------------- */
+  /** The height a panel of this shape will have at width w (bar, rows of 4:3 cells, caption) — a placeholder takes the room its panel will. */
+  phHeight(w, rows, cols) { const cw = (w - 28 - FIG.GAP * (cols - 1)) / cols; return Math.round(34 + rows * cw * .75 + FIG.GAP * (rows - 1) + 46); },
+  /** `b.ph` is 'image' (waits for images) or 'board' (waits for a click to start a whiteboard); the first image, or the board, makes it a real panel. */
+  phBody(b, d, ro) {
+    const F = b.fig, board = b.ph === 'board', hh = FIG.phHeight(b.w || 560, F.rows, F.cols);
+    const el = h('div.fgbox.fg-ph' + (ro ? '.ro' : ''), { style: { minHeight: hh + 'px' }, tabindex: ro ? -1 : 0, role: ro ? null : 'button', title: ro ? '' : board ? 'Click to start a whiteboard here' : 'Click to add images — or drop them here' },
+      FIG.shapeWidget(F.rows, F.cols, true, 220, Math.max(60, Math.min(150, hh - 90))), h('b.fg-ph-t', board ? 'Whiteboard' : 'Image panel · ' + F.rows + ' × ' + F.cols),
+      h('span.tiny.muted', ro ? 'waiting for ' + (board ? 'a whiteboard' : 'images') : board ? 'click to draw here' : 'click to add images'));
+    if (ro) return el;
+    const go = () => FIG.fillPh(M.block(b.id));
+    el.addEventListener('click', e => { e.stopPropagation(); go(); });
+    el.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+    el.addEventListener('dragover', e => { if (b.ph !== 'board' && [...e.dataTransfer.types].includes('Files')) { e.preventDefault(); el.classList.add('over'); } });
+    el.addEventListener('dragleave', () => el.classList.remove('over'));
+    el.addEventListener('drop', e => { el.classList.remove('over'); if (b.ph === 'board' || !(e.dataTransfer.files && e.dataTransfer.files.length)) return; e.preventDefault(); e.stopPropagation(); FIG.addFiles(M.block(b.id), [...e.dataTransfer.files], 0); });
+    return el;
+  },
+  fillPh(b) { if (!b || !b.ph) return; if (b.ph === 'board') { delete b.ph; FIG.save(b); changed(); BOARD.make(M.block(b.id), 0); } else FIG.pick(b, 0); },
+
   /* ---------------- the box ---------------- */
   body(b, d, pane, ro) {
+    if (b.ph) return FIG.phBody(b, d, ro);
     const F = b.fig, cells = FIG.cells(b), grid = h('div.fg-grid'), panelIt = F.itemId && M.item(F.itemId);
     const draw = () => {
       const W = Math.max(120, grid.clientWidth || (b.w || 560) - 28), L = FIG.layout(b, W); grid.replaceChildren();

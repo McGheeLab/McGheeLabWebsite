@@ -1871,7 +1871,9 @@
     "scientia/src/20b-demos.js",
     "scientia/src/21-export.js",
     "scientia/src/22-seed.js",
-    "scientia/src/21c-labexport.js"
+    "scientia/src/21c-labexport.js",
+    "scientia/src/20c-tplcanvas.js",
+    "scientia/src/41-tplcanvas.css"
    ],
    "distinct_from": {
     "rm.admin": "the app's own preferences (notebook folder, pens, citation style); RM settings are site roles and workflows"

@@ -194,7 +194,7 @@ const SettingsView = {
           h('span.tiny.muted', en === 0 ? 'blank notes' : en === 1 ? 'one template — used automatically' : `${en} enabled — you choose on create`),
           h('button.btn.xs', { on: { click: () => SettingsView.editTemplate({ id: uid('tp'), type: p.type, name: 'New ' + p.label.toLowerCase() + ' template', isStandard: false, enabled: true, blocks: [{ label: '', body: '' }] }, true) } }, '+ template')),
         list.map(t => h('div.tplrow', h('input', { type: 'checkbox', checked: t.enabled, title: 'Use this template', on: { change: e => { t.enabled = e.target.checked; DB.put('templates', t); App.refresh(); } } }),
-          h('span', { style: { flex: 1, minWidth: 0 } }, h('b', { style: { fontSize: '13px' } }, t.name), ' ', t.isStandard ? h('span.pill', 'standard') : null, h('div.tiny.muted', { style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, t.blocks.map(b => b.label || '·').join(' → '))),
+          h('span', { style: { flex: 1, minWidth: 0 } }, h('b', { style: { fontSize: '13px' } }, t.name), ' ', t.isStandard ? h('span.pill', 'standard') : null, h('div.tiny.muted', { style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, M.templateSummary(t))),
           h('button.btn.xs', { on: { click: () => SettingsView.editTemplate(t) } }, 'Edit'),
           h('button.btn.xs', { on: { click: () => { DB.put('templates', Object.assign(JSON.parse(JSON.stringify(t)), { id: uid('tp'), isStandard: false, name: t.name + ' (copy)' })); App.refresh(); } } }, 'Duplicate'),
           !t.isStandard ? h('button.btn.xs.ghost', { on: { click: () => { DB.del('templates', t.id); App.refresh(); } } }, '×') : null)));
@@ -284,6 +284,7 @@ const SettingsView = {
       h('table.t', h('thead', h('tr', h('th', 'Store'), h('th', 'In database'), h('th', 'In export'), h('th', ''))), h('tbody', rows.map(r => h('tr', h('td', r.n), h('td', r.a), h('td', r.b), h('td', r.a === r.b ? '✓' : '✗')))))) });
   },
   editTemplate(t, isNew) {
+    if (typeof TPLC !== 'undefined' && FEAT.on('templates')) return TPLC.edit(t, isNew);   // V4.68: the template as a note canvas (20c-tplcanvas.js); off: the list below
     const name = h('input.inp', { value: t.name, style: { width: '100%' } }), rows = h('div');
     const blocks = JSON.parse(JSON.stringify(t.blocks));
     const draw = () => rows.replaceChildren(...blocks.map((b, i) => h('div.row', { style: { marginBottom: '6px', flexWrap: 'nowrap' } }, h('span.mono.tiny.muted', { style: { width: '22px' } }, i + 1),
