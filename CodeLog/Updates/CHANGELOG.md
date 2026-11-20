@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.66] — 2026-11-20 — Scientia: terms in notes — three readable looks (A · Quiet underline by default, B · Soft tag, C · Ghost until you look) and one card: the Ledger with a timeline of every note down its left
+
+Gabe, 20 Nov: "What I meant is the term look inside of notes themselves. The outline is distracting, hard to read, and highlighting text makes it go invisible. Give me three options on how to repurpose and relook it in the note canvas. I have an idea in mind already: hovering on it for 1 second brings a quick card of neighboring notes uses of it along with a metric dashboard style."
+
+After the options on the design canvas (https://claude.ai/artifact/KGVrFzrVNnKp3KQwdRoyFV): "Include all term options in settings, with Option A as default. The dashboard should be universal across all, and it needs some work. Bring three new designs to light." Then: "I like the ledger as the default view, with an accompanied timeline vertical, almost like a left side panel to the popup, where the viewer can interact with it just like the Timeline hover option."
+
+App only.
+
+### Changed
+- **Terms in notes and bubbles are filled text** in the look you choose (Settings → Terms → Terms in your notes): A (the default, a dotted teal line), B (a faint tint) or C (plain until you are over its component). No more outline; readable when selected.
+- **A term's card** (`TLOOK.card` via `ED.termCard`), after about a second:
+  - the Ledger — uses · notes · this month, its 12 weeks, open barriers, the pointed note's sentence, the nearest notes;
+  - a timeline down its left — a dot per note by date, this note ringed; point to read, click to open there.
+- **`hoverCard(anchor, build, wait)`**: a wait of its own, and leaving before it shows cancels it (it used to open anyway).
+
+### Tests
+| Test | Result |
+|---|---|
+| `tl66_t`, lab build · without the lab layer. Real hovers:<br>- A by default, filled, no stroke, dotted; selected, still filled;<br>- a quick pass opens nothing; resting: the card (4 uses · 3 notes · this month, the line);<br>- three dots, this note ringed, left of the Ledger; the nearest note's sentence in bold;<br>- pointing at the Butler dot shows its sentence; its click opens that note;<br>- B tinted; C plain until over its component;<br>- the preview and description; Terms off | 16/16 · 16/16 |
+| `terms63_t` · `fw_t33` | 11/11 · 69/69 |
+
+
 ## [V4.65] — 2026-11-20 — Scientia: Calendar — event types of your own (＋ Type, Manage types); drag down an empty stretch to create (15-minute steps); link a note from the recent ones or pick it in the Portfolio; Barrier → Custom… clicks where it moves to
 
 Gabe, 20 Nov: "Calendar should give you the option to add kinds (rewrite as event type) to the calendar. There should be a drag option precise within 15 minute increments. Link to a note should be a click and popup of the recent notes, with an option to go in Portfolio and click on a note. Barrier should have a Custom button to allow you to click on the calendar of when it is going to be pushed back."

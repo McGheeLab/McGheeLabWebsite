@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (164 changes — ready to push)
+## Pending (165 changes — ready to push)
+
+- **Terms in notes (V4.66):** terms no longer show as hollow outlined letters — choose how they read in Settings (a quiet underline by default). Rest on one for a second: a card with its uses, its notes on a timeline, and the sentences around it.
 
 - **Calendar (V4.65):** add event types of your own, drag on the calendar to create an event of exactly that length, link a note from your recent ones (or pick it in the Portfolio), and push an event back to wherever you click.
 

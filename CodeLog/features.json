@@ -1588,7 +1588,9 @@
     "scientia/src/16b-termforms.js",
     "scientia/src/13w-termscan.js",
     "scientia/src/14e-bubble.js",
-    "scientia/src/25-bubbles.css"
+    "scientia/src/25-bubbles.css",
+    "scientia/src/16c-termlook.js",
+    "scientia/src/40-termlook.css"
    ]
   },
   {
