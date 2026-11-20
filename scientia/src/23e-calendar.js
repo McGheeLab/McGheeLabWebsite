@@ -59,7 +59,12 @@ const CAL = {
   pm(s) { const m = String(s || '').match(/^(\d{1,2}):(\d{2})/); return m ? clamp(+m[1] * 60 + +m[2], 0, 1440) : null; },
   addD: (day, n) => localDate(addDays(parseDay(day), n)),
   weekOf(day) { const d = parseDay(day), k = (d.getDay() - CAL.wk0() + 7) % 7; return CAL.addD(day, -k); },
-  days() { const a = CAL.st.day || CAL.today(); if (CAL.st.view === 'day') return [a]; const s = CAL.weekOf(a); return [0, 1, 2, 3, 4, 5, 6].map(i => CAL.addD(s, i)); },
+  days() {
+    const a = CAL.st.day || CAL.today(), v = CAL.st.view; if (v === 'day') return [a];
+    if (v === 'agenda') return Array.from({ length: 14 }, (_, i) => CAL.addD(a, i));
+    if (v === 'month') { const f = a.slice(0, 8) + '01', s = CAL.weekOf(f), d1 = parseDay(f), last = localDate(new Date(d1.getFullYear(), d1.getMonth() + 1, 0)); const out = []; for (let d = s; out.length < 42 && (d <= last || out.length % 7); d = CAL.addD(d, 1)) out.push(d); return out; }
+    const s = CAL.weekOf(a); return [0, 1, 2, 3, 4, 5, 6].map(i => CAL.addD(s, i));
+  },
 
   /* ---------------- records ---------------- */
   all: () => DB.all('events'),
@@ -124,34 +129,39 @@ const CAL = {
 
   /* ---------------- the page ---------------- */
   title() {
+    if (CAL.st.view === 'month') { const a = parseDay(CAL.st.day || CAL.today()); return ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][a.getMonth()] + ' ' + a.getFullYear(); }
     const D = CAL.days(), a = parseDay(D[0]), b = parseDay(D[D.length - 1]);
     if (D.length === 1) return fmtDayLong(a);
     return a.getMonth() === b.getMonth() ? `${a.getDate()} – ${b.getDate()} ${MON[b.getMonth()]} ${b.getFullYear()}` : `${fmtDay(a)} – ${fmtDay(b)} ${b.getFullYear()}`;
   },
-  step(n) { const a = CAL.st.day || CAL.today(); CAL.st.day = CAL.addD(a, n * (CAL.st.view === 'day' ? 1 : 7)); CAL._scrollTo = 'keep'; CAL.paint(); },
-  setView(v, day) { CAL.st.view = v; if (day) CAL.st.day = day; CAL.keep(); CAL._scrollTo = 'auto'; CAL.paint(); },
+  step(n) { const a = CAL.st.day || CAL.today(), v = CAL.st.view;
+    if (v === 'month') { const d = parseDay(a); CAL.st.day = localDate(new Date(d.getFullYear(), d.getMonth() + n, 1)); CAL.st.mday = null; }
+    else CAL.st.day = CAL.addD(a, n * (v === 'day' ? 1 : v === 'agenda' ? 14 : 7)); CAL._scrollTo = 'keep'; CAL.paint(); },
+  setView(v, day) { CAL.st.view = v; if (day) CAL.st.day = day; if (v !== 'month') CAL.st.mday = null; CAL.keep(); CAL._scrollTo = 'auto'; CAL.paint(); },
   render() { CAL.root = h('div.cal-root'); CAL._scrollTo = 'auto'; CAL.paint(); return CAL.root; },
   paint() {
     const R = CAL.root; if (!R || !R.isConnected && R.parentNode) return;
     const old = $('.cal-scroll', R), top = old ? old.scrollTop : null;
-    const D = CAL.days(), items = D.flatMap(CAL.dayItems), ads = D.flatMap(CAL.allDayItems), all = items.concat(ads.filter(x => x.ev));
-    R.replaceChildren(CAL.bar(all), h('div.cal-card', CAL.planner(D)));
-    const sc = $('.cal-scroll', R); sc.style.setProperty('--hpx', CAL.hpx + 'px');
+    const v = CAL.st.view, D = CAL.days(), items = D.flatMap(CAL.dayItems), ads = D.flatMap(CAL.allDayItems), all = items.concat(ads.filter(x => x.ev));
+    const body = v === 'month' ? [CAL.month(D), CAL.st.mday ? CAL.side(CAL.st.mday) : null] : v === 'agenda' ? CAL.agenda(D) : CAL.planner(D);
+    R.replaceChildren(CAL.bar(all), h('div.cal-card' + (v === 'month' ? '.mo' : v === 'agenda' ? '.ag' : ''), body));
+    const n = items.filter(x => x.ev).length + ads.filter(x => x.ev).length;
+    try { App.setTitle('Calendar', [h('span', plural(n, 'event') + ({ day: ' today', week: ' this week', month: ' this month', agenda: ' in the next two weeks' }[v] || ''))]); } catch (e) { }
+    const sc = $('.cal-scroll', R); if (!sc) { if (CAL.ro) CAL.ro.disconnect(); return; } sc.style.setProperty('--hpx', CAL.hpx + 'px');
     if (CAL._scrollTo === 'keep' && top != null) sc.scrollTop = top; else if (CAL._scrollTo !== 'auto' && top != null) sc.scrollTop = top;
     requestAnimationFrame(() => CAL.fit(sc));
     if (CAL.ro) CAL.ro.disconnect(); if (typeof ResizeObserver !== 'undefined') { CAL.ro = new ResizeObserver(() => CAL.fit(sc, true)); CAL.ro.observe(sc); }
-    try { App.setTitle('Calendar', [h('span', plural(items.filter(x => x.ev).length + ads.filter(x => x.ev).length, 'event') + (CAL.st.view === 'day' ? ' today' : ' this week'))]); } catch (e) { }
   },
   /** The hour's height: `span` hours fill what is visible under the banner. */
   fit(sc, resized) {
     if (!sc || !sc.isConnected) return; const top = $('.cal-top', sc), avail = sc.clientHeight - (top ? top.offsetHeight : 0) - 14;
     const hpx = Math.max(22, Math.round(avail / CAL.span() * 10) / 10); const was = CAL.hpx;
     if (Math.abs(hpx - was) > .4) { const mid = sc.scrollTop / Math.max(1, was); CAL.hpx = hpx; sc.style.setProperty('--hpx', hpx + 'px'); if (resized) sc.scrollTop = mid * hpx; }
-    if (CAL._scrollTo === 'auto') { CAL._scrollTo = null; const D = CAL.days(), t = CAL.today(); const m = D.includes(t) ? CAL.nowMin() : 480;
+    if (CAL._scrollTo === 'auto') { CAL._scrollTo = null; const D = sc._days || CAL.days(), t = CAL.today(); const m = D.includes(t) ? CAL.nowMin() : 480;
       sc.scrollTop = Math.max(0, m / 60 * CAL.hpx - (D.includes(t) ? (sc.clientHeight - (top ? top.offsetHeight : 0)) / 3 : 8)); }
   },
   bar(all) {
-    const v = CAL.st.view, seg = [['day', 'Day', 'D'], ['week', 'Week', 'W']];
+    const v = CAL.st.view, seg = [['day', 'Day', 'D'], ['week', 'Week', 'W'], ['month', 'Month', 'M'], ['agenda', 'Agenda', 'A']];
     const L = CAL.legend(all), S = CAL.st.single;
     return h('div.cal-bar',
       h('div.cal-nav', h('button.cal-ib', { title: 'Back (←)', 'aria-label': 'Back', on: { click: () => CAL.step(-1) } }, CAL.ic('l')),
@@ -178,11 +188,12 @@ const CAL = {
         h('span.dw', DOW[d.getDay()]), h('span.dn', String(d.getDate())), mins ? h('span.dl', (Math.round(mins / 6) / 10) + ' h') : null); });
     const adc = D.map(day => h('div.cal-adc', { 'data-day': day, on: { click: e => { if (e.target.closest('.cal-ad')) return; const r = e.currentTarget.getBoundingClientRect(); CAL.create({ day, allDay: true, x: r.left, y: r.bottom + 6 }); } } },
       CAL.allDayItems(day).map(CAL.adEl)));
-    return h('div.cal-scroll' + (D.length === 1 ? '.one' : ''), { 'data-span': n },
+    const sc = h('div.cal-scroll' + (D.length === 1 ? '.one' : ''), { 'data-span': n },
       h('div.cal-top', h('div.cal-row', h('div.cal-gut', D.length > 1 ? 'W' + isoWeekNo(parseDay(D[3] || D[0])) : ''), h('div.cal-cells', heads)),
         h('div.cal-row.cal-adr', h('div.cal-gut', 'all day'), h('div.cal-cells', adc))),
       h('div.cal-body', h('div.cal-times', { 'aria-hidden': 'true' }, Array.from({ length: 23 }, (_, i) => h('span', { style: { top: `calc(var(--hpx) * ${i + 1})` } }, pad(i + 1) + ':00'))),
         h('div.cal-grid', { on: { click: CAL.gridClick, pointerdown: CAL.down } }, D.map(CAL.col))));
+    sc._days = D; return sc;
   },
   /** One day's column: the free time, the cards, now. */
   col(day) {
@@ -224,6 +235,61 @@ const CAL = {
     return h('div.cal-ad' + (it.task ? '.task' : it.rem ? '.rem' : '') + (it.done ? '.done' : '') + (CAL.dim(it) ? '.dim' : ''), { 'data-k': it.k, style: { '--ecol': c.col }, on: it.ev ? { pointerenter: e => CAL.hovIn(it, e.currentTarget), pointerleave: () => CAL.hovOut() } : {} },
       it.task ? h('button.adck', { 'aria-pressed': String(!!it.done), 'aria-label': 'Done: ' + it.title, on: { click: e => { e.stopPropagation(); TASK.toggle(it.task); } } }, it.done ? CAL.ic('ck') : null) : it.rem ? CAL.ic('bell') : null,
       h('button.adm', { title: it.title + (it.time ? ' · ' + it.time : ''), on: { click: e => { e.stopPropagation(); CAL.open(it); } } }, it.time ? h('b', it.time) : null, it.title));
+  },
+
+  /* ---------------- V4.58: Month, a day on the side, Agenda ---------------- */
+  /** Month: a tile per day; a click on a day (or its number, or "+N more") opens it on the right; Load shows each day's hours. */
+  month(D) {
+    const t = CAL.today(), a = parseDay(CAL.st.day || t), mo = a.getMonth(), weeks = D.length / 7, load = CAL.st.by === 'load';
+    const tileH = (Math.max(480, innerHeight - 170) - 34) / weeks - 10, cap = Math.max(1, Math.floor((tileH - 34) / 23));
+    const dows = D.slice(0, 7).map(d => DOW[parseDay(d).getDay()]);
+    const rows = []; for (let w = 0; w < weeks; w++) rows.push(h('div.cal-mrow', D.slice(w * 7, w * 7 + 7).map(day => {
+      const d = parseDay(day), list = CAL.allDayItems(day).concat(CAL.dayItems(day)), mins = CAL.dayItems(day).filter(x => x.ev).reduce((s, x) => s + (x.e - x.s), 0);
+      const sel = CAL.st.mday === day, shown = list.slice(0, list.length > cap ? cap - 1 : cap), more = list.length - shown.length;
+      return h('div.cal-tile' + (d.getMonth() !== mo ? '.out' : '') + (day === t ? '.today' : '') + (sel ? '.sel' : ''), { 'data-day': day, on: { click: e => { if (e.target.closest('.cal-mc') || CAL._dragged) return; CAL.side1(day); } } },
+        h('div.t-top', h('button.tnum', { 'aria-label': (sel ? 'Close ' : 'Open ') + fmtDayLong(d) + (sel ? '' : ' on the side'), 'aria-pressed': String(sel) }, String(d.getDate())),
+          load && mins ? h('span.tld', { title: CAL.dur(mins) + ' planned' }, h('span.tld-b', h('i', { style: { width: Math.min(100, mins / 480 * 100) + '%' } })), h('b', (Math.round(mins / 6) / 10) + ' h')) : null),
+        shown.map(it => CAL.mchip(it)),
+        more > 0 ? h('button.tmore', { title: 'Open the day on the side' }, '+' + more + ' more') : null);
+    })));
+    return h('div.cal-mo', { on: { pointerdown: CAL.mdown } }, h('div.cal-moh', dows.map(x => h('span', x))), h('div.cal-mob', rows));
+  },
+  mchip(it) {
+    const c = CAL.colour(it), len = it.ad ? 0 : it.e - it.s;
+    return h('button.cal-mc' + (it.ad ? '.ad' : '') + (it.done ? '.done' : '') + (CAL.dim(it) ? '.dim' : '') + (c.cls ? '.' + c.cls : ''), { 'data-k': it.k, style: { '--ecol': c.col }, title: it.title + (it.ad ? ' · all day' : ' · ' + CAL.hm(it.s) + '–' + CAL.hm(it.e) + ' · ' + CAL.dur(len)),
+      on: { click: e => { if (CAL._dragged) return; e.stopPropagation(); CAL.open(it); }, pointerenter: e => { if (it.ev) CAL.hovIn(it, e.currentTarget); }, pointerleave: () => CAL.hovOut() } },
+      h('i'), it.ad ? null : h('b', CAL.hm(it.s)), h('span', it.title), CAL.st.by === 'load' && len ? h('em.tdur', CAL.dur(len)) : null);
+  },
+  /** A month chip dragged onto another day: that day, the same time. */
+  mdown(e) {
+    if (e.button !== 0) return; const chip = e.target.closest('.cal-mc'); if (!chip) return; const it = CAL.find(chip.dataset.k); if (!it || !it.ev) return;
+    const x0 = e.clientX, y0 = e.clientY; let moving = false, tgt = null;
+    const mv = ev => { if (!moving && Math.hypot(ev.clientX - x0, ev.clientY - y0) < 5) return; if (!moving) { moving = true; CAL.hovOut(true); chip.classList.add('drag'); document.body.classList.add('cal-dragging'); }
+      const t = document.elementsFromPoint(ev.clientX, ev.clientY).find(x => x.classList && x.classList.contains('cal-tile')); $$('.cal-tile.drop').forEach(x => { if (x !== t) x.classList.remove('drop'); }); if (t) t.classList.add('drop'); tgt = t ? t.dataset.day : null; };
+    const up = () => { removeEventListener('pointermove', mv); removeEventListener('pointerup', up); removeEventListener('pointercancel', up); document.body.classList.remove('cal-dragging'); chip.classList.remove('drag'); $$('.cal-tile.drop').forEach(x => x.classList.remove('drop'));
+      if (!moving) return; CAL._dragged = true; setTimeout(() => { CAL._dragged = false; }, 0); if (tgt && tgt !== it.day) CAL.moveTo(it, tgt, it.ev.start, it.ev.end, 'Move'); };
+    addEventListener('pointermove', mv); addEventListener('pointerup', up); addEventListener('pointercancel', up);
+  },
+  side1(day) { CAL.closeAll(); CAL.st.mday = CAL.st.mday === day ? null : day; CAL._scrollTo = 'auto'; CAL.paint(); },
+  /** The month's day on the right: that day's planner column — the same scroll and scale, its banner, cards, click-to-create. */
+  side(day) {
+    const d = parseDay(day), it = CAL.dayItems(day), mins = it.filter(x => x.ev).reduce((s, x) => s + (x.e - x.s), 0), sc = CAL.planner([day]);
+    $('.cal-row', sc).remove();   // its name is in the header above
+    $('.cal-top', sc).prepend(h('div.ms-h', h('div.ms-d', h('span.dw', DOW[d.getDay()]), h('span.ms-n', fmtDay(d)), h('span.ms-sub', plural(it.length + CAL.allDayItems(day).length, 'item') + (mins ? ' · ' + CAL.dur(mins) + ' planned' : ''))),
+      h('button.cal-btn', { on: { click: () => CAL.setView('day', day) } }, 'Open as a day'),
+      h('button.cal-ib.sm', { 'aria-label': 'Close the day (Esc)', title: 'Close (Esc)', on: { click: () => { CAL.st.mday = null; CAL.paint(); } } }, CAL.ic('x'))));
+    return h('aside.cal-mside', { 'aria-label': fmtDayLong(d) }, sc);
+  },
+  /** Agenda: the next two weeks as a list, all-day items first each day. */
+  agenda(D) {
+    const t = CAL.today(), days = D.map(day => ({ day, list: CAL.allDayItems(day).concat(CAL.dayItems(day)) })).filter(x => x.list.length || x.day === t);
+    return h('div.cal-ag', days.length ? days.map(({ day, list }) => { const d = parseDay(day);
+      return h('section.ag-day' + (day === t ? '.today' : ''), h('h3.ag-h', h('span.dw', DOW[d.getDay()]), h('b', fmtDay(d)), day === t ? h('span.ag-t', 'today') : null),
+        list.length ? list.map(it => { const c = CAL.colour(it), doc = CAL.docOf(it);
+          return h('button.ag-r' + (CAL.dim(it) ? '.dim' : '') + (it.done ? '.done' : ''), { 'data-k': it.k, style: { '--ecol': c.col }, on: { click: () => CAL.open(it), pointerenter: e => { if (it.ev) CAL.hovIn(it, e.currentTarget); }, pointerleave: () => CAL.hovOut() } },
+            h('span.ag-tm', it.ad ? (it.time || 'all day') : CAL.hm(it.s) + '–' + CAL.hm(it.e)), h('i'), h('span.ag-tt', it.title),
+            h('span.ag-k', c.label + (it.ad ? '' : ' · ' + CAL.dur(it.e - it.s))), doc ? h('span.ag-n', CAL.ic('note'), doc.title) : null); }) : h('div.ag-none', 'Nothing planned'));
+    }) : h('div.ag-none', 'Nothing in these two weeks.'));
   },
 
   /* ---------------- gestures ---------------- */
@@ -379,9 +445,10 @@ const CAL = {
   key(e) {
     if (App.route.name !== 'calendar' || e.ctrlKey || e.metaKey || e.altKey || $('.ovl')) return;
     const t = e.target; if (t && (t.closest('input, textarea, select, [contenteditable="true"]') || t.closest('.cal-cw, .cal-bub'))) return;
-    const k = e.key.toLowerCase(), act = { arrowleft: () => CAL.step(-1), arrowright: () => CAL.step(1), t: () => { CAL.st.day = null; CAL._scrollTo = 'auto'; CAL.paint(); }, d: () => CAL.setView('day', CAL.days().includes(CAL.today()) ? CAL.today() : CAL.days()[0]), w: () => CAL.setView('week'),
+    const k = e.key.toLowerCase(), act = { arrowleft: () => CAL.step(-1), arrowright: () => CAL.step(1), t: () => { CAL.st.day = null; CAL._scrollTo = 'auto'; CAL.paint(); }, d: () => CAL.setView('day', CAL.days().includes(CAL.today()) ? CAL.today() : CAL.days()[0]), w: () => CAL.setView('week'), m: () => CAL.setView('month'), a: () => CAL.setView('agenda'),
+      escape: () => { CAL.st.mday = null; CAL.paint(); },
       n: () => { const d = CAL.days().includes(CAL.today()) ? CAL.today() : CAL.days()[0]; CAL.create({ day: d, start: CAL.snap(Math.min(1380, CAL.nowMin() + 30)), x: innerWidth / 2 - 170, y: 140 }); } }[k];
-    if (act) { e.preventDefault(); act(); }
+    if (act) { if (k === 'escape' && !(CAL.st.view === 'month' && CAL.st.mday)) return; e.preventDefault(); act(); }
   },
   /** For Settings' preview: a two-day planner in miniature. */
   preview() {
