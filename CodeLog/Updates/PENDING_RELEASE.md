@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (175 changes — ready to push)
+## Pending (176 changes — ready to push)
+
+- **Image panels (V4.77):** any panel shape can start empty, its cells waiting for a click. Type any shape (e.g. 2x3) in one box and watch the preview reshape.
 
 - **Tidy layout (V4.76):** choose a style (Packed, Top down, Left to right, By kind or Grid), and go back to your own layout at any time with *Undo tidy*.
 
