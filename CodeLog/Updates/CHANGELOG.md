@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.84] — 2026-11-20 — Scientia: Portfolio — a References section under each theme and project-wide: every paper cited in its notes, numbered in citation order
+
+Gabe, 20 Nov: "References becomes a new section in Portfolio that adds all papers in citation mode within the References page referenced per theme."
+
+App only.
+
+### Added
+- **References** (`15i-pfrefs.js`, `43-pfrefs.css`): each theme, and Project-wide (with the project's lit reviews), gets a References group.
+  - It lists every paper cited in those notes, numbered as cited: the notes in the order written, each note's citations in order (`ED.citeNumbers`), and a paper keeps its first number. Papers cited by author only (`ED.citeAuthorOnly`) follow, unnumbered.
+  - Each row has the number, the APA reference (or a short form), "cited in N notes" and a PDF tag. A click opens its PDF in the reader, else its link, else its Library card.
+  - The section switch gains References (last), with its count.
+- **Settings → References in the Portfolio** (`pfrefs`): the switch, *A reference reads* (APA / short), *Shown before Show all* (5, 8, 15, All; the rest behind a button, so nothing opens by itself), *Show the section where nothing is cited yet*, and a preview.
+
+### Tests
+| Test | Result |
+|---|---|
+| `pfrefs_t`, lab and plain builds (the helper's), and again on this branch (lab) | 21/21 · 21/21 · 21/21 |
+| On this branch: `pfproto_t`, `fb_t416` (its switch now ends with References) | 19/19 · 26/26 |
+
+
 ## [V4.83] — 2026-11-20 — Scientia: Portfolio — a Protocols section under each theme and project-wide (the protocols filed there, and those its notes run)
 
 Gabe, 20 Nov: "Make sure that Protocols are added in Portfolio view as a new section under the projects or themes they are a part of."

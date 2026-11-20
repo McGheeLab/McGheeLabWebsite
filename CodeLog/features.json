@@ -1566,16 +1566,19 @@
     "scientia/src/15g-milestones.js",
     "scientia/src/19b-pfactivity.js",
     "scientia/src/15h-pfprotocols.js",
-    "scientia/src/42-pfprotocols.css"
+    "scientia/src/42-pfprotocols.css",
+    "scientia/src/15i-pfrefs.js",
+    "scientia/src/43-pfrefs.css"
    ],
    "status": "active",
    "related": [
     "rm.projects",
     "rm.research",
     "scientia.activity",
-    "scientia.protocol-blocks"
+    "scientia.protocol-blocks",
+    "scientia.library"
    ],
-   "note": "V3.866 §6 decision resolved by V3.880: yes — what the PI assigns in rm.research / rm.projects (member_uids) is mirrored by the hub as Scientia projects (an aim under an assigned grant = a theme); on the web the Portfolio draws them first as movable, foldable region cards (rm/scientia/lab-mode.js §10), then Quick notes (15b's General notes, opening blank with a template bar), then the person's own projects. Notes filed under RM work are listed on that card / project in RM (scientiaNotes; the owner chooses only-me or lab). V4.69: 15h-pfprotocols.js — a Protocols section under each project and theme (protocol notes filed there, and protocols run in the theme’s notes), in the Portfolio’s own classes."
+   "note": "V3.866 §6 decision resolved by V3.880: yes — what the PI assigns in rm.research / rm.projects (member_uids) is mirrored by the hub as Scientia projects (an aim under an assigned grant = a theme); on the web the Portfolio draws them first as movable, foldable region cards (rm/scientia/lab-mode.js §10), then Quick notes (15b's General notes, opening blank with a template bar), then the person's own projects. Notes filed under RM work are listed on that card / project in RM (scientiaNotes; the owner chooses only-me or lab). V4.69: 15h-pfprotocols.js — a Protocols section under each project and theme (protocol notes filed there, and protocols run in the theme’s notes), in the Portfolio’s own classes. V4.70: 15i-pfrefs.js — a References section per theme (the papers cited in its notes, numbered as cited), in the Portfolio’s own classes."
   },
   {
    "id": "scientia.review",

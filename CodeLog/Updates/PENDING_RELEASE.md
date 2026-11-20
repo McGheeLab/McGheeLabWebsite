@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (182 changes — ready to push)
+## Pending (183 changes — ready to push)
+
+- **Portfolio references (V4.84):** each theme in the Portfolio (and Project-wide) has a References section: every paper cited in its notes, numbered in citation order.
 
 - **Portfolio protocols (V4.83):** each theme in the Portfolio (and Project-wide) has a Protocols section, listing the protocols filed there and those its notes run.
 
