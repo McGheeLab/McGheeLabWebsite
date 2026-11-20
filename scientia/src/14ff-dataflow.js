@@ -51,10 +51,12 @@ const DFLOW = {
   },
   autoComps() { if (!DFLOW.on() || DFLOW.tn('auto', true) === false) return [];
     return DB.where('blocks', b => b.status === 'live' && !(b.dtree && (b.dtree.items || []).length) && (b.kind === 'figure' || b.kind === 'table' || (((b.binds || {}).datasets) || []).length > 0) && !!ADATA.liveDoc(b.docId) && DFLOW.auto(b).length > 0); },
+  /** The file types that name an instrument (V4.88: not .csv, .tif, .h5… — formats any instrument writes). */
+  MAKERS: ['nd2', 'czi', 'lif', 'lsm', 'oib', 'oir', 'vsi', 'ims', 'fcs'],
   /** The instrument the files' types point to (DATA.INSTR: .nd2 → Nikon (ND2)…), or ''. */
   guess(b) {
     if (DFLOW.tn('guess', true) === false || typeof DATA === 'undefined') return ''; const n = {};
-    const walk = L => (L || []).forEach(e => { if (e.dir) return walk(e.k); const x = String(e.n || '').split('.').pop().toLowerCase(); if (DATA.INSTR[x] && x !== 'xlsx') n[x] = (n[x] || 0) + 1; });
+    const walk = L => (L || []).forEach(e => { if (e.dir) return walk(e.k); const x = String(e.n || '').split('.').pop().toLowerCase(); if (DATA.INSTR[x] && DFLOW.MAKERS.includes(x)) n[x] = (n[x] || 0) + 1; });
     walk(DTREE.items(b)); const top = Object.entries(n).sort((a, z) => z[1] - a[1])[0]; return top ? DATA.INSTR[top[0]] : '';
   },
   setInst(b, ids) { const cur = M.block(b.id); if (!cur) return; DB.beginGroup('Instrument'); cur.dtree = Object.assign({ items: [] }, cur.dtree, { inst: [...new Set(ids)] }); cur.modified = isoLocal(new Date()); DB.put('blocks', cur); changed(); },
