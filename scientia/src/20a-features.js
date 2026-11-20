@@ -146,13 +146,14 @@ const PV = {
 
   // V4.15 (13c): + Experiment asks the name and can continue a series; one name for every note of an experiment
   D({ id: 'expseries', group: 'canvas', label: 'Experiment series', isNew: true, presets: { simple: true },
-    desc: '+ Experiment asks the experiment’s name, and can continue a series of its theme: pick “30 kPa series Run 2” and it is named “30 kPa series Run 3”. Every note of an experiment carries its name alone — the stage is its chip and the strip, not part of the title — and renaming one renames them all. A series’ runs share one Synthesis. Off: no series to continue (the name is still asked); series already made stay.',
+    tune: [T('runchip', 'Show the run number', 'switch', { isNew: true, def: true, d: 'Beside the experiment in the Portfolio, and beside the title in the note', changed: () => { try { App.refresh(); } catch (e) { } } })],
+    desc: '+ Experiment asks the experiment’s name, and can continue a series of its theme: pick “30 kPa series” and its next run is made — named “30 kPa series” too, its number (Run 3) beside the title, never in it (V4.97): next to the experiment in the Portfolio and beside the title in the note. Titles that ended in “Run N” lost it once; the number stays on the notes. Every note of an experiment carries its name alone — the stage is its chip and the strip, not part of the title — and renaming one renames them all. A series’ runs share one Synthesis. Off: no series to continue (the name is still asked); series already made stay.',
     preview: () => { const on = FEAT.on('expseries');
       return [h('div.pv-xs', h('div.pv-xs-h', 'New experiment'),
-        on ? h('div.pv-xs-f', h('span', 'Continue a series'), h('div.pv-xs-sel', '30 kPa series Run 2 · 2 runs', h('i', '▾'))) : null,
-        h('div.pv-xs-f', h('span', 'Name'), h('div.pv-xs-in', on ? '30 kPa series Run 3' : '30 kPa series'))),
-        h('div.pv-xs-notes', ['Planning', 'Run', 'Analysis'].map(s => h('div.pv-xs-n', h('span.pv-xs-st', s), h('b', on ? '30 kPa series Run 3' : '30 kPa series')))),
-        PV.cap(on ? 'Picking a series names the next run; its three notes all carry the name, each stage as its chip.' : 'Off: the name is asked, with no series to continue; each note still carries the name alone.')]; } });
+        on ? h('div.pv-xs-f', h('span', 'Continue a series'), h('div.pv-xs-sel', '30 kPa series · 2 runs', h('i', '▾'))) : null,
+        h('div.pv-xs-f', h('span', 'Name'), h('div.pv-xs-in', '30 kPa series'))),
+        h('div.pv-xs-notes', ['Planning', 'Run', 'Analysis'].map(s => h('div.pv-xs-n', h('span.pv-xs-st', s), h('b', '30 kPa series'), on && FEAT.tune('expseries', 'runchip') !== false ? h('span.run-chip', 'Run 3') : null))),
+        PV.cap(on ? 'Picking a series makes its next run; its three notes all carry the series’ name, each stage as its chip' + (FEAT.tune('expseries', 'runchip') !== false ? ', and “Run 3” beside the title (the Portfolio, the note).' : '; the run number is not shown.') : 'Off: the name is asked, with no series to continue; each note still carries the name alone.')]; } });
 
   // V4.16 (15e): one Synthesis per series; Syntheses in the Portfolio; a note's synthesis in its first block and under its row
   D({ id: 'synthnotes', group: 'canvas', label: 'Synthesis notes', isNew: true, presets: { simple: true },

@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.97] — 2026-11-20 — Scientia: experiments — the run number beside the title (the Portfolio, the note's header and first box), never in it; titles ending in "Run N" lose it once
+
+Gabe, 20 Nov: "Each experiment should not have Run x in their note title, but rather have it as information next to their placement in Portfolio. The run number also appears when you are in the note canvas."
+
+App only.
+
+### Changed
+- **+ Experiment, continuing a series,** names the run with the series' name alone (`CHAIN.nextRun`); the number stays on the notes (`run`).
+- **Titles that ended in "Run N"** lose it once, the number kept (`CHAIN.migrateRuns`).
+
+### Added
+- **"Run 3" beside the title** (`CHAIN.runChip`): in the Portfolio (an experiment's row, or a one-note experiment's), in the note's header, and in its first box on the canvas.
+- **Settings → Experiment series:** *Show the run number*, in the preview.
+
+### Tests
+| Test | Result |
+|---|---|
+| `v97_t`, lab and plain builds:<br>- once: "30 kPa series Run 2" → "30 kPa series" on both its notes, run 2 kept;<br>- + Experiment continuing the series: the name alone, the hint "Run 3 of…"; Create → titled "30 kPa series", run 3;<br>- in the note: the title alone with "Run 3" beside it in the header and in the first box;<br>- the Portfolio: the three runs under the name, Run 1, 2, 3 beside them;<br>- the switch off: no chips; the preview | 12/12 · 12/12 |
+
+
 ## [V4.96] — 2026-11-20 — Scientia: shortcut keys you can change (19 actions) — Change in the shortcuts list or behind ?; a key the browser, the computer or the app already uses is refused and Alt+key is offered
 
 Gabe, 20 Nov: "Have the option for users to customize shortcut keys while on canvas or in lab notebook. Ones that are taken by the browser or another should be brought up and provide alternative of Alt+key the user wanted."
