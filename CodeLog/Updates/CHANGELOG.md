@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.89] — 2026-11-20 — Scientia: Shift+click a component and the canvas zooms onto it — in every build, with the mouse or the pen; Shift+drag still moves it by the grid
+
+Gabe, 20 Nov: "In RTgabrieldeclercq repo, have the Shift+click on a component to zoom on it. Look for any missing shortcuts or features that do not reside in the current repo or pull requests."
+
+App only.
+
+### Added
+- **Shift+click zooms** (`12e-shiftzoom.js`, `SHZOOM.fit`): fits the component (or centres it at 100% / 50%).
+  - It works with any hand, the mouse or the pen; not while typing in it; decided on release, so Shift+drag is unchanged.
+  - The pills' own fit, where they take the click, is left alone.
+- **Settings → Shift+click zooms** (`shiftzoom`): *It zooms*, and a live preview. The shortcuts list has the row.
+
+### Tests
+| Test | Result |
+|---|---|
+| `sz89_t`, lab and plain builds:<br>- the mouse: zooms, the component centred and in view;<br>- the pen (the app's own, the pills skip the pen): the same;<br>- Shift+drag moves it by the grid without zooming; typing in it: no zoom;<br>- 100% centred; off: the pen's Shift+click does nothing;<br>- the shortcuts list's row; the preview | 11/11 · 11/11 |
+| Probe of Gabe's repo main (V4.66, built with its `build.py`) before this change | the mouse with the move hand fits; the pen does not |
+
+
 ## [V4.88] — 2026-11-20 — Scientia: Code — Compendiums → Code holds your .py scripts (title, what it does); a component of the Code kind runs one in the browser on data from the data tree and shows the figure, the table, what it printed
 
 Gabe, 20 Nov: "In Atlas, add Code tab where you can upload .py with title and user description of what it is. Allow the user to input a new kind called code which asks the input data (from the data tree), and reflects with the output result as a figure, plot, table, etc..." (The Atlas's galleries are the Compendiums since V4.85.)

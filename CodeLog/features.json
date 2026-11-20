@@ -1414,6 +1414,7 @@
     "scientia/src/11-shell.js",
     "scientia/src/12-doc.js",
     "scientia/src/12b-wires.js",
+    "scientia/src/12e-shiftzoom.js",
     "scientia/src/13-docpanels.js",
     "scientia/src/13g-embed.js",
     "scientia/src/13p-edit.js",
@@ -1490,7 +1491,8 @@
    ],
    "distinct_from": {
     "rm.people": "Scientia's 'profiles' store holds note TYPES as data, not people",
-    "rm.chat": "the chat's presence is who is online in the lab; Scientia's (13zzk) is who is in this note and which component they hold, fed by the hub's presence/lock routes"
+    "rm.chat": "the chat's presence is who is online in the lab; Scientia's (13zzk) is who is in this note and which component they hold, fed by the hub's presence/lock routes",
+    "scientia.this-computer": "V4.88: the core's Code (Compendiums → Code, the Code kind, 14fg) is analysis scripts run on your data; this-computer's \"code\" is the one-time pairing code of an installed computer"
    }
   },
   {

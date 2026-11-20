@@ -105,6 +105,7 @@ const SHORT = {
     if (SHORT.tune('gestures')) {
       K('mouse', '~Double-click the paper', 'A new component there');
       K('mouse', '~Shift + drag a component', 'Move it a grid cell at a time', { tags: 'grid snap' });
+      K('mouse', '~Shift + click a component', 'Zoom onto it (not while typing in it)', { feat: 'shiftzoom', tags: 'zoom fit focus' });
       K('mouse', '~Right-click', 'Pull in barriers or structures; bridge a component to another note; the component’s actions', { tags: 'context menu' });
       K('mouse', '~Drag ● on a component', 'Connect two components and say how — the direction matters', { feat: 'wires', tags: 'wire connect' });
       K('mouse', '~Drag the paper · wheel', 'Pan; Shift+wheel pans sideways', { tags: 'move scroll' });
