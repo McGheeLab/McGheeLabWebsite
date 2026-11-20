@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.88] — 2026-11-20 — Scientia: Code — Compendiums → Code holds your .py scripts (title, what it does); a component of the Code kind runs one in the browser on data from the data tree and shows the figure, the table, what it printed
+
+Gabe, 20 Nov: "In Atlas, add Code tab where you can upload .py with title and user description of what it is. Allow the user to input a new kind called code which asks the input data (from the data tree), and reflects with the output result as a figure, plot, table, etc..." (The Atlas's galleries are the Compendiums since V4.85.)
+
+App only.
+
+### Added
+- **The `scripts` store** (`DB_VERSION` 13) and **Compendiums → Code** (`CODE.render`, `upload`, `details`, `useIn`, `view`, `del`).
+- **The Code kind** (`CKINDS.BASE` + `code`; `CODE.foot` under the component's text):
+  - a script; inputs from the data tree (`CODE.inputsAll`, `pickInput`, `bytes`: a logged file from its folder or chosen again, a table as CSV, an image);
+  - ▶ Run (`CODE.run`, `engine`: Pyodide in a worker);
+  - the output: figures (kept as images), a table (`result`), the text, or the error;
+  - ＋ As an image panel / ＋ As a table, connected.
+- **Settings → Code** (`code`): *A table shows*, *Show what the script prints*, and a live preview.
+
+### Bug Fixes
+- V4.87's instrument guess offered "Table (CSV)" for a .csv file. It now reads only instruments' formats (`DFLOW.MAKERS`).
+
+### Tests
+| Test | Result |
+|---|---|
+| `code88_t`, lab and plain builds:<br>- Code empty; ＋ Upload a .py (a .py chooser); Keep it: the card;<br>- double-click the label → Code: the kind and its panel; the script; ＋ From the data tree lists the table (CSV) and the logged file;<br>- Run (a stub engine): the code and the CSV go in; a figure (kept), a table and the text come back;<br>- ＋ As an image panel / ＋ As a table, connected;<br>- a logged file this device cannot read: "Choose field1.csv", then it goes in; an error comes back;<br>- **a real run of Python (Pyodide)**: prints "2 wells", returns the rows as a table;<br>- Use in a note…; the settings; the feature off (scripts and outputs kept); the preview; the Settings page | 18/18 · 18/18 |
+| `df87_t` (the guess now from instruments' formats) | 18/18 |
+| Lab harnesses v3869 · v3880 (the new store and DB version, the kind); `story_cx_t` (the other kind with a footer) | 287/287 · 13/13 · 10/10 |
+
+
 ## [V4.87] — 2026-11-20 — Scientia: the Data compendium reworked — a data tree says which instrument made it (guessed from the files' types); an experiment's image panels, tables and datasets join by themselves; Add to a note…; a Material → instrument → data view
 
 Gabe, 20 Nov: "Data tab rework for input of instruments related to data and way to visualize material to instrument/data. Make sure that the data present in experiment note canvases is automatically added and tied to the note component, and can be added from the data tree compendium/gallery in Atlas." (The Atlas's Data is the Data compendium since V4.85.)

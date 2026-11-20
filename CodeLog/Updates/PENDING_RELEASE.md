@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (186 changes — ready to push)
+## Pending (187 changes — ready to push)
+
+- **Code (V4.88):** upload your Python scripts to Compendiums → Code, each with a title and what it does. Make a component a Code component, choose a script and data from your data trees, and run it: the figures, tables and printed lines appear in the note.
 
 - **Data (V4.87):** each data tree can say which instrument made it (guessed from the file types). Experiments' image panels and tables appear in the Data compendium by themselves. Add data to another note from there, and see a Material → instrument → data view.
 
