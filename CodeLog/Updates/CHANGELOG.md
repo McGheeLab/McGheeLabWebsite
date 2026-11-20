@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.87] — 2026-11-20 — Scientia: the Data compendium reworked — a data tree says which instrument made it (guessed from the files' types); an experiment's image panels, tables and datasets join by themselves; Add to a note…; a Material → instrument → data view
+
+Gabe, 20 Nov: "Data tab rework for input of instruments related to data and way to visualize material to instrument/data. Make sure that the data present in experiment note canvases is automatically added and tied to the note component, and can be added from the data tree compendium/gallery in Atlas." (The Atlas's Data is the Data compendium since V4.85.)
+
+App only.
+
+### Added
+- **Instruments** (`DFLOW.bar`, `pick`, `guess`, `setInst`; `b.dtree.inst`): an instrument bar on each data tree.
+  - Instruments are materials of kind "instrument": chosen, made by name, or guessed from the files' types (`DATA.INSTR`).
+- **Experiments' data by itself** (`DFLOW.auto`, `autoComps`; `ADATA.items`): image panels, tables and bound datasets in experiment notes are listed under their note, tied to their component, "from the canvas".
+- **Add to a note…** on the master tree's rows: a live reference (`M.pullInto`) in the note picked with the move panel.
+- **Material → instrument → data** (`DFLOW.graph`, `flow`): the third view, with three columns and curves; resting lights the paths, a click opens.
+- **Settings → Data: instruments and flow** (`dataflow`): the two settings and a live preview.
+
+### Tests
+| Test | Result |
+|---|---|
+| `df87_t`, lab and plain builds:<br>- the bar's guess "Looks like Nikon (ND2)", one click: an instrument material (kind instrument) on the tree;<br>- Change… → a new one by name; × takes one off;<br>- the master tree: the image panel and the table "from the canvas", the instrument chip, Add to a note… on each row, 6 files;<br>- Add to a note… → a live reference of the table in the note picked;<br>- the flow: the gel, the Nikon, three data, four curves; resting on the Nikon lights 3 nodes and 2 paths; a click opens the component;<br>- each setting off; the feature off (the instrument kept); the preview; the Settings page | 18/18 · 18/18 |
+| `comp85_t`, `ad49_t` with Compendiums off (Protocols and Topic syntheses join the Atlas row; the Data section unchanged), `dt_t` (its build-identity check fails as it did before) | 22/22 · 19/20 · 45/46 |
+
+
 ## [V4.86] — 2026-11-20 — Scientia: region kinds — Mark as a topic synthesis (a region's ⋯); its tab says so; Compendiums → Topic syntheses lists every one, with a small map, and Open goes to it centred
 
 Gabe, 19 Nov: "You may now label a region as a 'region kind', for now only one, being topic synthesis. Topic syntheses get logged into their own gallery in Atlas." On 20 Nov the Atlas's galleries moved to the Compendiums (V4.85), and he asked again: "the Topic synthesis region kind and its Atlas gallery".

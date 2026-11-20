@@ -42,9 +42,11 @@ const ADATA = {
   liveDoc: id => { const d = M.doc(id); return d && !d.deleted && !d.archived ? d : null; },
   comps: () => DB.where('blocks', b => b.status === 'live' && DTREE.shows(b) && DTREE.items(b).length > 0 && !!ADATA.liveDoc(b.docId)),
   copy: list => JSON.parse(JSON.stringify(list || [])),
+  /** A component's entries in the master tree (V4.87: an experiment's image panels, tables and datasets too, 14ff). */
+  items: b => DTREE.items(b),
   stats() {
     const C = ADATA.comps(), c = { dirs: 0, files: 0, bytes: 0, notes: new Set(), projects: new Set() };
-    C.forEach(b => { const x = DTREE.count(DTREE.items(b)); c.dirs += x.dirs; c.files += x.files; c.bytes += x.bytes; c.notes.add(b.docId); c.projects.add(ADATA.liveDoc(b.docId).projectId || '-'); });
+    C.forEach(b => { const x = DTREE.count(ADATA.items(b)); c.dirs += x.dirs; c.files += x.files; c.bytes += x.bytes; c.notes.add(b.docId); c.projects.add(ADATA.liveDoc(b.docId).projectId || '-'); });
     return { dirs: c.dirs, files: c.files, bytes: c.bytes, notes: c.notes.size, projects: c.projects.size, comps: C.length };
   },
   /** The master tree: { items, meta } — meta by path: { t: 'project' | 'note' | 'comp', id, doc, blk, src: [docIds] }. */
@@ -58,7 +60,7 @@ const ADATA = {
         if (!x._src.includes(docId)) x._src.push(docId);
         if (e.dir) { merge(x.k, e.k || [], docId); x.more = Math.max(x.more || 0, e.more || 0); }
       });
-      C.forEach(b => merge(items, ADATA.copy(DTREE.items(b)), b.docId));
+      C.forEach(b => merge(items, ADATA.copy(ADATA.items(b)), b.docId));
       DTREE.sortAll(items);
       const walk = (list, base) => list.forEach(e => { const p = base ? base + '/' + e.n : e.n; meta.set(p, { t: 'merged', src: e._src || [] }); if (e.dir) walk(e.k || [], p); });
       walk(items, '');
@@ -73,8 +75,8 @@ const ADATA = {
         const pnode = { n: pn, dir: 1, k: [] }; meta.set(pn, { t: 'project', id: pk });
         docs.forEach(d => { const bs = notes.get(d.id), nn = uniq(d.title || 'Untitled', nnames), npath = pn + '/' + nn, nnode = { n: nn, dir: 1, k: [] };
           meta.set(npath, { t: 'note', doc: d.id, blk: bs[0].id });
-          if (bs.length === 1) nnode.k = ADATA.copy(DTREE.items(bs[0]));
-          else { const cn = new Set(); bs.forEach(b => { const lab = uniq((b.label || '').trim() || snippet((b.body && b.body.text) || 'A component', 40), cn); meta.set(npath + '/' + lab, { t: 'comp', doc: d.id, blk: b.id }); nnode.k.push({ n: lab, dir: 1, k: ADATA.copy(DTREE.items(b)) }); }); }
+          if (bs.length === 1) nnode.k = ADATA.copy(ADATA.items(bs[0]));
+          else { const cn = new Set(); bs.forEach(b => { const lab = uniq((b.label || '').trim() || snippet((b.body && b.body.text) || 'A component', 40), cn); meta.set(npath + '/' + lab, { t: 'comp', doc: d.id, blk: b.id }); nnode.k.push({ n: lab, dir: 1, k: ADATA.copy(ADATA.items(b)) }); }); }
           pnode.k.push(nnode); });
         items.push(pnode);
       });
