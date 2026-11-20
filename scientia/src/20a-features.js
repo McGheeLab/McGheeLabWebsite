@@ -591,6 +591,17 @@ const PV = {
     tune: [T('motion', 'Movement', 'seg', { isNew: true, def: 'full', opts: [['full', 'Full'], ['calm', 'Calm'], ['still', 'Still']], d: 'Full: panels glide and capsules spring. Calm: quicker, no spring. Still: nothing moves.', changed: lkPaint }),
       T('lib', 'The mini library shows papers as', 'node', { isNew: true, d: 'Kept on this device; the two buttons at the top of the mini library switch it too', render: () => { const mode = LOOK.libMode(), b = (v, l) => h('button.btn.sm' + (mode === v ? '.on' : ''), { type: 'button', 'aria-pressed': String(mode === v), on: { click: e => { e.stopPropagation(); LOOK.setLib(v); try { SettingsView.repaint(); } catch (er) { } } } }, l); return h('div.row', b('book', 'Spines on a shelf'), b('list', 'A list')); } })],
     preview: () => LOOK.preview() });
+  // V4.68 (20d-look.js LOOK.settle, 36-look.css lk-settle): the note you go back or forward to
+  D({ id: 'navsettle', group: 'canvas', label: 'Back and forward', isNew: true, needs: 'look', presets: { simple: true, standard: true },
+    desc: 'Alt+Left and Alt+Right (and the bar’s arrows) go back and forward through the notes you opened. The note you arrive at shows every component with the shadow it gets when you point at it, all together, then the shadows settle and fade out. Nothing moves under Still or reduced motion; it needs the new look.',
+    tune: [T('fade', 'Fade out', 'seg', { def: 'gentle', opts: [['quick', 'Quick · 0.6 s'], ['gentle', 'Gentle · 1 s'], ['slow', 'Slow · 1.6 s']], d: 'How long the shadows take to settle. Calm movement shortens it.' })],
+    preview: () => {
+      const isOn = on('navsettle'), still = typeof LOOK !== 'undefined' && LOOK.motion() === 'still', sec = typeof LOOK !== 'undefined' ? LOOK.settleSecs() : 1;
+      const stage = h('div.pv-settle', { style: { '--st-dur': sec + 's' } }, PV.box({ num: 'Step 2', label: 'Run 3', kind: 'claim', body: 'The edge collapsed at 10 ng/mL.' }), PV.box({ num: 'Block', label: 'Seeding', body: 'Seed at 40k/cm².' }), PV.box({ num: 'Block', label: 'Imaging', body: 'Image after 4 h.' }), PV.box({ num: 'Block', label: 'Notes', body: 'Plate 2 looked even.' }));
+      const play = () => { stage.classList.remove('nav-settle'); void stage.offsetWidth; if (isOn && !still) stage.classList.add('nav-settle'); };
+      setTimeout(play, 60);
+      return [stage, h('div.row', { style: { gap: '8px', marginTop: '6px' } }, h('button.btn.xs', { type: 'button', on: { click: play } }, 'Replay'), PV.cap(!isOn ? 'Off: a note you go back to appears as it is' : still ? 'Still: nothing moves' : 'Shadows together, then settling over ' + sec + ' s'))];
+    } });
   /* =============================== Widgets =============================== */
   const W = (id, label, desc, rows, pv, o = {}) => D(Object.assign({ id, group: 'widgets', label, desc: desc + ' Off: it leaves + Insert and the / commands; those already in your notes stay.', inserts: rows, preview: pv }, o));
   W('equations', 'Equations', '∑ Equation in a note, or in the text, and the registered equations shared by every note.', ['equation', 'equation-reg'],

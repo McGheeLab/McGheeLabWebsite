@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.75] — 2026-11-20 — Scientia: back and forward (Alt+Left / Alt+Right) — the components arrive with their hover shadow, which settles and fades out
+
+Gabe, 20 Nov: "Navigating between notes with Alt + left or right arrows should settle the shadows of components as if they are hovered on initially, fading out."
+
+App only.
+
+### Added
+- **The settle** (`20d-look.js`: `HIST.go` wrapped, `LOOK.settle` from `App.refresh`; `36-look.css`: `lk-settle`):
+  - Only an arrival at a note by back or forward (Alt+Left / Alt+Right, the bar's ← →, `/back`, `/forward`) marks the canvas `.nav-settle`.
+  - Every component except the selected one starts with its hover shadow and ring, holds it for the first 28%, then settles to its resting shadow.
+  - It lasts 1 s by default, 30% shorter under Calm movement. It is off under Still, reduced motion, or with the look off.
+- **Settings → Back and forward** (`navsettle`, needs the look): the switch and *Fade out* Quick 0.6 s / Gentle 1 s / Slow 1.6 s, with a live preview and Replay.
+
+### Tests
+| Test | Result |
+|---|---|
+| `navsettle_t` with real Alt+Arrow keys, lab and plain builds (the helper's), and again on this branch (lab):<br>- the shadow at the start equals the hover shadow, mid-fade lies between, and after about 1 s equals the resting one;<br>- forward; Slow; the switch off; Still; reduced motion; the Settings page and preview;<br>- a note opened by a link is not marked | 17/17 · 17/17 · 17/17 |
+| Regressions (the helper's): `fw_t33` 69/69 and `fw_t34` 24/24 (LOOKOFF=1), `lk44_t` 30/30, `lk43_t` 10/10 | pass |
+
+
 ## [V4.74] — 2026-11-20 — Scientia: going to a component from anywhere (a task’s Open, search, links, the calendar…) centres the canvas on it at 50% zoom
 
 Gabe, 20 Nov: "Clicking open on a task brings you to where it was created and centers the canvas view around it in 50% zoom. This should become the standard for every 'click to navigate to a component' workflow."
