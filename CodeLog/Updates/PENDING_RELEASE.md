@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (153 changes — ready to push)
+## Pending (154 changes — ready to push)
+
+- **Freewrite: merge two sentences (V4.55):** with each sentence its own component, the small + between two sentences makes them one; two kinds or two titles are flagged for you to choose.
 
 - **Freewrite labels and links (V4.54):** click a component's label to change its kind or structure; drag one component onto another to link them.
 
