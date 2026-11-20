@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.49] — 2026-11-19 — Scientia: the Atlas's Data — every data tree in the notebook in one master tree (by project, or one merged tree)
+
+Gabe (19 Nov 2026): "… and create data tab in Atlas, which organizes all trees recorded there for a master tree."
+
+App only.
+
+### Added
+- **`ADATA` (`14fc-atlasdata.js`):**
+  - `render`, `build(by, q)` (the master tree and its row meta), `tree`, `dress`, `stats`, `paint`, `preview`;
+  - drawn with `DTREE.el(_adata, { ro, decorate })` (a wrapper on `DTREE.el` runs `o.decorate` after each draw);
+  - by project: projects → notes (kind label, Open) → components when several → folders and files;
+  - merged: folders merged by name with their source notes ("in N notes", a menu to go there);
+  - the sum line and Search (it opens the folders above a match).
+- **`NOTEKIND`:** `of(d)` (`exp` / `notes` / `lit` / `syn`), `chip(d)` in the section colour.
+- **Settings:** `atlasdata` ("Data (in the Atlas)").
+- **`ATHUB` section `data`.**
+
+### Tests
+| Test | Result |
+|---|---|
+| `ad49_t`, real clicks: the row (3 notes); the page and its sum (4 folders · 6 files · 2.87 MB — in 3 notes of 2 projects); by project (projects in order, kinds and the experiment colour, Open); unfolding; two trees in a note; Open → the component; merged ("in 2 notes", files from both, the list); Search and nothing found; the switch and the data tree off; Settings — lab · without the lab layer | 20/20 · 20/20 |
+| `ah48_t` (V4.48, with the third section), both builds | 17/17 · 17/17 |
+
 ## [V4.48] — 2026-11-19 — Scientia: Materials is a section of the Atlas — the Atlas page has sections, in a row of gliding pills
 
 Gabe (19 Nov 2026): "Merge Materials into Atlas, and create data tab in Atlas, which organizes all trees recorded there for a master tree."

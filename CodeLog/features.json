@@ -1617,7 +1617,8 @@
    ],
    "paths": [
     "scientia/src/13i-data.js",
-    "scientia/src/13zzyc-datatree.js"
+    "scientia/src/13zzyc-datatree.js",
+    "scientia/src/14fc-atlasdata.js"
    ],
    "related": [
     "rm.outputs"
