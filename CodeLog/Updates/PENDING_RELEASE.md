@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (166 changes — ready to push)
+## Pending (167 changes — ready to push)
+
+- **Calendar tasks (V4.68):** add tasks to a calendar event — they go into the event's note, due when it starts.
 
 - **Calendar bell (V4.67):** today's all-day events now show once in the bell — counted until you open it, then under Seen.
 

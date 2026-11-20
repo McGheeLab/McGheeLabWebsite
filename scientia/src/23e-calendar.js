@@ -238,7 +238,7 @@ const CAL = {
         h('span.ec-time', CAL.hm(it.s) + '–' + CAL.hm(it.e) + (CAL.st.by === 'load' ? ' · ' + CAL.dur(len) : '')), h('span.ec-t', it.title)),
       ev && (ev.tags || []).length && !short ? h('span.ec-tags', ev.tags.map(t => h('button.ec-tag', { title: 'Show only #' + t, on: { pointerdown: e => e.stopPropagation(), click: e => { e.stopPropagation(); CAL.st.tag = CAL.st.tag === t ? null : t; CAL.paint(); } } }, '#' + t))) : null,
       !short ? CAL.offLinks(ev, CAL._vis || new Set()) : null,
-      h('span.ec-ic', has ? CAL.ic('link') : null, ev && ev.repeat && ev.repeat !== 'none' ? CAL.ic('rep') : null, CAL.docOf(it) ? CAL.ic('note') : null, it.rem ? CAL.ic('bell') : null),
+      h('span.ec-ic', ev && CAL.tasksOf(ev).length ? h('span.ec-tkn', { title: 'Tasks for this event' }, CAL.ic('ck'), CAL.tasksOf(ev).filter(b => !TASK.t(b).done).length + '/' + CAL.tasksOf(ev).length) : null, has ? CAL.ic('link') : null, ev && ev.repeat && ev.repeat !== 'none' ? CAL.ic('rep') : null, CAL.docOf(it) ? CAL.ic('note') : null, it.rem ? CAL.ic('bell') : null),
       ln.n > 1 && !short ? h('span.ec-conf', 'Overlaps') : null,
       ev ? h('span.ec-rz', { 'aria-hidden': 'true' }) : null);
     if (CAL.isFocus(ev)) {   // V4.64: a focus block — warm gold, breathing; what its session did
@@ -604,6 +604,26 @@ const CAL = {
     return h('div.cal-bell', fresh.length ? [h('div.cal-blh', 'Today · all day'), fresh.map(it => row(it, true))] : null, seen.length ? [h('div.cal-blh.seen', 'Seen'), seen.map(it => row(it, false))] : null);
   },
 
+  /* ---------------- V4.68: tasks for an event, kept in its note ---------------- */
+  tasksOf: ev => (ev.tasks || []).map(id => M.block(id)).filter(b => b && b.status === 'live' && b.kind === 'task'),
+  /** A task for this event: a task component in the event's note, due when the event starts (or that day, for an all-day one). */
+  addTask(ev, it, text) {
+    const doc = CAL.docOf(it); text = String(text || '').trim(); if (!doc || !text) return null;
+    DB.beginGroup('Task for ' + ev.title);
+    const b = TASK.create(doc.id, null, { text, task: { due: ev.allDay ? it.day : it.day + 'T' + CAL.hm(ev.start), allDay: !!ev.allDay, prio: 'normal', repeat: 'none', subs: [], done: null, log: [] } });
+    b.eventId = ev.id; DB.put('blocks', b); const cur = DB.get('events', ev.id); cur.tasks = [...new Set((cur.tasks || []).concat([b.id]))]; cur.modified = isoLocal(new Date()); DB.put('events', cur); changed();
+    toast('“' + text + '” — a task in “' + doc.title + '”, due ' + (ev.allDay ? fmtDay(parseDay(it.day)) : CAL.hm(ev.start)), 2600); return b;
+  },
+  /** The card's Tasks row: the event's tasks (tick, open where it is, take off), and one more. */
+  taskRow(ev, it) {
+    const doc = CAL.docOf(it); if (!doc) return h('span.bub-note', 'Link a note above: its tasks are kept in it.');
+    const L = CAL.tasksOf(ev), inp = h('input.bub-tagin.cal-tkin', { placeholder: '+ a task for this event', 'aria-label': 'A task for this event', on: { keydown: e => { if (e.key === 'Enter') { e.preventDefault(); if (CAL.addTask(ev, it, e.target.value)) setTimeout(() => CAL.bubFill(), 0); } } } });
+    return h('div.cal-tks', L.map(b => { const done = !!TASK.t(b).done;
+      return h('div.cal-tk' + (done ? '.done' : ''), h('button.cal-tkb', { type: 'button', 'aria-pressed': String(done), 'aria-label': (done ? 'Not done: ' : 'Done: ') + TASK.text(b), on: { click: () => { TASK.toggle(b); setTimeout(() => CAL.bubFill(), 0); } } }, done ? CAL.ic('ck') : null),
+        h('span', TASK.text(b)), h('button.cal-tko', { type: 'button', title: 'Open it where it is, in “' + doc.title + '”', on: { click: () => { CAL.closeBub(); App.openBlock(b.id); } } }, CAL.ic('note')),
+        h('button.cal-tkx', { type: 'button', title: 'Take it off this event (the task stays in its note)', 'aria-label': 'Take off', on: { click: () => { const cur = DB.get('events', ev.id); cur.tasks = (cur.tasks || []).filter(x => x !== b.id); CAL.save(cur, 'Task off'); setTimeout(() => CAL.bubFill(), 0); } } }, '×')); }), inp);
+  },
+
   /* ---------------- gestures ---------------- */
   minAt(colEl, y) { const r = colEl.getBoundingClientRect(); return clamp((y - r.top) / CAL.hpx * 60, 0, 1440); },
   colAt(x, y) { const els = document.elementsFromPoint(x, y); return els.find(e => e.classList && e.classList.contains('cal-col')) || null; },
@@ -770,6 +790,7 @@ const CAL = {
         CAL.afterOf(ev).map(a => h('span.bub-lk', h('em', '← after'), a.title, h('button', { type: 'button', 'aria-label': 'Unlink ' + a.title, on: { click: () => { CAL.unlink(a, ev); setTimeout(() => CAL.bubFill(), 0); } } }, '×'))),
         CAL.thenOf(ev).map(b => h('span.bub-lk', h('em', 'then →'), b.title, h('button', { type: 'button', 'aria-label': 'Unlink ' + b.title, on: { click: () => { CAL.unlink(ev, b); setTimeout(() => CAL.bubFill(), 0); } } }, '×'))),
         h('button.cw-d', { type: 'button', title: 'Then click the event that comes after it', on: { click: () => CAL.linkStart(ev) } }, CAL.ic('link'), 'Link → then…'))) : null,
+      !CAL.isFocus(ev) ? h('div.bub-r.top', h('span.cw-k', 'Tasks'), CAL.taskRow(ev, it)) : null,
       h('div.bub-f', h('button.cal-btn' + (CAL.isFocus(ev) ? '.pri' : ''), { type: 'button', on: { click: () => CAL.open(it) } }, CAL.isFocus(ev) ? 'Start focus' : CAL.docOf(it) ? 'Open its note' : 'Make its note'),
         h('span.cal-sp'),
         h('button.cal-btn', { type: 'button', on: { click: () => { const cp = CAL.make(Object.assign(JSON.parse(JSON.stringify(ev)), { id: uid('ev'), day: it.day, repeat: 'none', skip: [], notes: null, docId: null, created: isoLocal(new Date()) })); DB.beginGroup('Duplicate'); DB.put('events', cp); changed(); CAL.closeBub(); toast('Duplicated'); } } }, 'Duplicate'),
