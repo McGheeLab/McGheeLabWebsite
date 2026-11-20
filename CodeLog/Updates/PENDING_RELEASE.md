@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (193 changes — ready to push)
+## Pending (194 changes — ready to push)
+
+- **Slash commands (V4.95):** make your own slash commands that run a series of steps: insert text, mark a result, add a task, set a reminder, start the timer, insert a table, and more. Hide, pin or rename the built-in ones.
 
 - **Settings (V4.94):** 20 new settings for things that were fixed — how fast hover cards appear, zoom speed and the grid, reminder defaults and snooze length, the Today page's lists and heatmap, focus length, how long messages stay, and more.
 

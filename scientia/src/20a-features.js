@@ -75,9 +75,13 @@ const PV = {
       return [h('div.pv-ebwrap', bar), run3({ stamp: null }),
         h('label.pv-zoom', 'zoom', h('input', { type: 'range', min: 10, max: 300, step: 5, value: PV.zoom, 'aria-label': 'The note’s zoom, for the bar’s size', on: { input: e => { PV.zoom = +e.target.value; put(); } } }), lab)]; } });
 
-  D({ id: 'slash', group: 'canvas', label: 'Slash commands', presets: { simple: true }, desc: '/ at the start of a word opens the commands that act on the text and every + Insert row; @ names a person. Your own commands (macros) are in Keys & commands.',
-    preview: () => [PV.box({ num: 'Block', label: 'Notes', body: ['The edge held at 2 ng/mL ', h('span.pv-caret', '/cl') ] }),
-      h('div.pv-menu', [['/claim', 'mark the sentence as a claim'], ['/cite', 'a citation from the Library'], ['/clear-format', 'plain text again']].map(([a, b], i) => h('div' + (i ? '' : '.on'), h('b', a), h('span', b))))] });
+  D({ id: 'slash', group: 'canvas', label: 'Slash commands', presets: { simple: true }, desc: '/ at the start of a word opens the commands that act on the text and every + Insert row; @ names a person. V4.90: the commands are yours to tune. Make your own — a name, a description and a workflow of steps run in order (insert text with {date} {time} {selection} {cursor}, make the sentence a Result, tag the note, make a task due +1d, set a reminder, start the timer, insert a table or a template, flag for synthesis, bridge, move, wire to the previous component, log in the day note, open a note, run any command or macro, or ask you for a value at the caret); they show in the menu with a bolt and in the command bar, and Ctrl+Z undoes a whole run. Hide the built-ins you never use, pin favourites, give aliases (/r for result). Try it runs a workflow on a sample component here.',
+    tune: [T('first', 'My commands come first in the menu', 'switch', { isNew: true, def: true, d: 'Before the built-ins, when you have typed nothing or little. Off: they rank with the rest' }),
+      T('icon', 'Mark my commands with a bolt', 'switch', { isNew: true, def: true, d: 'A small bolt before the name in the menu, so yours are told from the built-ins' }),
+      T('say', 'Say what a workflow did when it ends', 'switch', { isNew: true, def: true, d: 'A message naming the steps run and that Ctrl+Z undoes them together. Off: only a problem is said' }),
+      T('mine', '', 'node', { render: () => SWF.settingsUI() }),
+      T('builtin', '', 'node', { render: () => SWF.tuneUI() })],
+    preview: () => SWF.preview() });
 
   // 20f: Shortcuts — every key and gesture in one searchable list (Settings → Keys & commands, and the ? dialog)
   D({ id: 'shortcuts', group: 'canvas', label: 'Shortcuts', isNew: true, presets: { simple: true }, desc: 'Every keyboard shortcut and gesture of the app in one searchable list, grouped by where it works: everywhere, in a note, typing in a component, saying what words are, mouse · pen · touch, the command bar, widgets, the reader and Library, the calendar, the freewrite. It is in Settings → Keys & commands, just above the commands, and opens anywhere with ? (or /keys, or Ctrl+P → Keys and gestures). A key you can rebind (Structures, Terms) shows the binding it has now, with a Change link to the page that sets it.',
