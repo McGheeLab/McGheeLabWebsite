@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (176 changes — ready to push)
+## Pending (177 changes — ready to push)
+
+- **Templates (V4.78):** editing a template now shows it as a note canvas. Add placeholder image panels or whiteboards: a note made from it has them waiting for a click.
 
 - **Image panels (V4.77):** any panel shape can start empty, its cells waiting for a click. Type any shape (e.g. 2x3) in one box and watch the preview reshape.
 

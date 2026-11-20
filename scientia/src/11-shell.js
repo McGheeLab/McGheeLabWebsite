@@ -128,7 +128,7 @@ const App = {
           h('div.tiny.muted', { style: { marginTop: '6px' } }, 'The timer starts with the run. Check each step off to time it; checking the last one stops the timer.'))
         : en.length > 1
           ? h('div', h('div.lab', { style: { margin: '12px 0 6px' } }, 'Template — more than one is in use for this type'),
-            h('div.list', en.map((t, i) => h('label.li.click', h('input', { type: 'radio', name: 'tpl', checked: i === 0, on: { change: () => { tplSel = t.id; } } }), h('span.t', t.name, h('span.s', t.blocks.map(b => b.label || '·').join(' → '))), t.isStandard ? h('span.pill', 'standard') : null))))
+            h('div.list', en.map((t, i) => h('label.li.click', h('input', { type: 'radio', name: 'tpl', checked: i === 0, on: { change: () => { tplSel = t.id; } } }), h('span.t', t.name, h('span.s', M.templateSummary(t))), t.isStandard ? h('span.pill', 'standard') : null))))
           : h('div.tiny.muted', { style: { marginTop: '10px' } }, en.length ? `Uses “${en[0].name}”` : 'No template in use for this type — starts on an empty page'));
     };
     proj.onchange = () => { fillThemes(); fillTpl(); }; typ.onchange = fillTpl;
