@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.73] — 2026-11-20 — Scientia: fix — the Story kind’s Complexity 1–10 could no longer be changed (a side-panel rule hid its buttons)
+
+Gabe, 20 Nov: "Complexity cannot be edited in story kind anymore, fix that."
+
+App only.
+
+### Bug Fixes
+- **The Story beat's ten Complexity buttons** (`button.sf-n`, `STORY.foot`) were hidden since V4.10.
+  - Cause: V4.10 added `.sf-n{display:none}` (`30-sidefold.css`) for the reader side panel's count badge, which uses the same class name.
+  - Fix: the rule is now `.sf-top > .sf-n`, so it only reaches the badge.
+
+### Tests
+| Test | Result |
+|---|---|
+| `story_cx_t` (real clicks on two beats' numbers; the arc follows): before the fix, lab and plain | 5/10 · 5/10 |
+| the same after the fix, lab and plain (the helper's), and again on this branch (lab) | 10/10 · 10/10 · 10/10 |
+
+
 ## [V4.72] — 2026-11-20 — Scientia: one move panel for Move to, Bridge to, Flag for synthesis, Project & theme… — a search bar with results, or a click on a note in the Portfolio
 
 Gabe, 20 Nov: "Move panels (bridge to, flag for synthesis, etc.. show up as a search bar with results or a Portfolio view to click on a note in the Portfolio."
