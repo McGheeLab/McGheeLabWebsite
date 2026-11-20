@@ -238,7 +238,7 @@ const CAL = {
         h('span.ec-time', CAL.hm(it.s) + '–' + CAL.hm(it.e) + (CAL.st.by === 'load' ? ' · ' + CAL.dur(len) : '')), h('span.ec-t', it.title)),
       ev && (ev.tags || []).length && !short ? h('span.ec-tags', ev.tags.map(t => h('button.ec-tag', { title: 'Show only #' + t, on: { pointerdown: e => e.stopPropagation(), click: e => { e.stopPropagation(); CAL.st.tag = CAL.st.tag === t ? null : t; CAL.paint(); } } }, '#' + t))) : null,
       !short ? CAL.offLinks(ev, CAL._vis || new Set()) : null,
-      h('span.ec-ic', ev && CAL.tasksOf(ev).length ? h('span.ec-tkn', { title: 'Tasks for this event' }, CAL.ic('ck'), CAL.tasksOf(ev).filter(b => !TASK.t(b).done).length + '/' + CAL.tasksOf(ev).length) : null, has ? CAL.ic('link') : null, ev && ev.repeat && ev.repeat !== 'none' ? CAL.ic('rep') : null, CAL.docOf(it) ? CAL.ic('note') : null, it.rem ? CAL.ic('bell') : null),
+      h('span.ec-ic', ev && (ev.rg || {})[it.day] && (ev.rg[it.day].list || []).length ? h('span.ec-tkn', { title: 'What was written during it is a region in its note' }, CAL.ic('note'), (ev.rg[it.day].list || []).length > 1 ? String(ev.rg[it.day].list.length) : '') : null, ev && CAL.tasksOf(ev).length ? h('span.ec-tkn', { title: 'Tasks for this event' }, CAL.ic('ck'), CAL.tasksOf(ev).filter(b => !TASK.t(b).done).length + '/' + CAL.tasksOf(ev).length) : null, has ? CAL.ic('link') : null, ev && ev.repeat && ev.repeat !== 'none' ? CAL.ic('rep') : null, CAL.docOf(it) ? CAL.ic('note') : null, it.rem ? CAL.ic('bell') : null),
       ln.n > 1 && !short ? h('span.ec-conf', 'Overlaps') : null,
       ev ? h('span.ec-rz', { 'aria-hidden': 'true' }) : null);
     if (CAL.isFocus(ev)) {   // V4.64: a focus block — warm gold, breathing; what its session did
@@ -624,6 +624,64 @@ const CAL = {
         h('button.cal-tkx', { type: 'button', title: 'Take it off this event (the task stays in its note)', 'aria-label': 'Take off', on: { click: () => { const cur = DB.get('events', ev.id); cur.tasks = (cur.tasks || []).filter(x => x !== b.id); CAL.save(cur, 'Task off'); setTimeout(() => CAL.bubFill(), 0); } } }, '×')); }), inp);
   },
 
+  /* ---------------- V4.69: what was written during an event becomes a region named after it ---------------- */
+  RGDAYS: 14,
+  regionsOn: () => CAL.tn('regions', true) !== false,
+  startMs(ev, day) { const d = parseDay(day || ev.day); return +new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, ev.start); },
+  /** Once an event has ended (in the last two weeks): the components written during it — in its note, or in any note if it has none — become a region in their note, named after it; nothing written, it asks. */
+  regionSweep() {
+    if (!CAL.regionsOn() || typeof REGION === 'undefined') return; const now = Date.now(), t = CAL.today(); let grp = false;
+    CAL.all().forEach(ev => { if (ev.allDay || ev.kind === 'run' || ev.kind === 'focus') return;
+      for (let i = 0; i <= CAL.RGDAYS; i++) { const day = CAL.addD(t, -i); if (!CAL.occurs(ev, day) || (ev.rg || {})[day] || CAL.endMs(ev, day) > now) continue;
+        if (+new Date(ev.created || 0) > CAL.endMs(ev, day)) { ev.rg = Object.assign({}, ev.rg, { [day]: { skip: true } }); DB.put('events', ev); continue; }   // made after it ended: nothing to gather
+        if (!grp) { DB.beginGroup('Regions from the calendar'); grp = true; }
+        const cur = DB.get('events', ev.id); cur.rg = Object.assign({}, cur.rg, { [day]: CAL.regionFor(cur, day) }); DB.put('events', cur); } });
+    if (grp) { CAL.regionLinks(); changed(); }
+  },
+  regionFor(ev, day) {
+    const a = CAL.startMs(ev, day), b = CAL.endMs(ev, day), noteId = ((ev.repeat && ev.repeat !== 'none') ? (ev.notes || {})[day] : ev.docId) || null;
+    const made = DB.where('blocks', x => { if (x.status !== 'live' || /^(ref|freewrite|ink)$/.test(x.kind) || x.synthHead) return false; if (noteId && x.docId !== noteId) return false;
+      if (x.kind === 'component' && !String((x.body || {}).text || '').trim() && !x.label) return false; const tm = +new Date(x.made || x.created); return tm >= a && tm <= b; });
+    if (!made.length) return { none: true, docId: noteId };
+    const byDoc = new Map(); made.forEach(x => { if (!byDoc.has(x.docId)) byDoc.set(x.docId, []); byDoc.get(x.docId).push(x.id); });
+    const list = []; byDoc.forEach((ids, docId) => { const d = M.doc(docId); if (!d || d.deleted) return; const r = REGION.create(d, ids), rr = REGION.list(d).find(x => x.id === r.id);
+      if (rr) { rr.name = ev.title; rr.event = { id: ev.id, day }; REGION.save(d); } list.push({ docId, rg: r.id }); });
+    return { list };
+  },
+  /** Linked events, once both have their regions: in one note a connection between the regions; across notes a bridge on each. */
+  regionLinks() {
+    const last = ev => { const R = Object.values(ev.rg || {}).filter(x => x && x.list && x.list.length); return R.length ? R[R.length - 1].list : null; };
+    CAL.all().forEach(a => (a.then || []).forEach(bid => { const b = DB.get('events', bid); if (!b) return; const A = last(a), B = last(b); if (!A || !B) return;
+      A.forEach(x => B.forEach(y => {
+        if (x.docId === y.docId) { if (!DB.where('wires', w => (w.from === x.rg && w.to === y.rg) || (w.from === y.rg && w.to === x.rg)).length) M.wire(x.rg, y.rg, 'leads', true); return; }
+        [[x, y], [y, x]].forEach(([p, q]) => { const d = M.doc(p.docId), r = d && REGION.list(d).find(z => z.id === p.rg); if (!r) return; r.bridges = (r.bridges || []).filter(z => z.rg !== q.rg).concat([{ docId: q.docId, rg: q.rg }]); REGION.save(d); });
+      })); }));
+  },
+  /** Events whose time passed with nothing written: [{ev, day, docId}] (for one note, or all). */
+  asks(docId) {
+    const out = []; CAL.all().forEach(ev => Object.entries(ev.rg || {}).forEach(([day, x]) => { if (!x || !x.none || x.dismissed) return; const nid = ((ev.repeat && ev.repeat !== 'none') ? (ev.notes || {})[day] : ev.docId) || x.docId || null;
+      if (docId && nid !== docId) return; out.push({ ev, day, docId: nid }); })); return out.sort((p, q) => q.day.localeCompare(p.day));
+  },
+  /** "Log anything from it?" — yes: a component in its note, in a region named after it, ready to write in. */
+  askMake(q) {
+    const ev = DB.get('events', q.ev.id), doc = q.docId && M.doc(q.docId); if (!ev) return;
+    if (!doc) { return CAL.open({ ev, day: q.day, k: ev.id + '@' + q.day, s: ev.start, e: ev.end, title: ev.title }); }   // no note yet: make it; the question then waits in it
+    DB.beginGroup('Log from ' + ev.title); const bs = M.docBlocks(doc.id).filter(Boolean), y = bs.length ? Math.max(...bs.map(b => (b.y || 0) + 200)) : 80;
+    const b = M.addBlock(doc.id, null, { label: 'From ' + ev.title, x: 0, y: Math.round(y / 14) * 14, w: 420 }); b.body = { text: '', marks: [] }; DB.put('blocks', b);
+    const r = REGION.create(doc, [b.id]), rr = REGION.list(doc).find(x => x.id === r.id); if (rr) { rr.name = ev.title; rr.event = { id: ev.id, day: q.day }; REGION.save(doc); }
+    ev.rg = Object.assign({}, ev.rg, { [q.day]: { list: [{ docId: doc.id, rg: r.id }], asked: true } }); DB.put('events', ev); CAL.regionLinks(); changed();
+    App.go('#/doc/' + doc.id); setTimeout(() => { try { App.openBlock(b.id); } catch (e) { } }, 250); toast('A region for “' + ev.title + '” — write what happened', 2600);
+  },
+  askSkip(q) { const ev = DB.get('events', q.ev.id); if (!ev) return; DB.beginGroup('Not this time'); ev.rg = Object.assign({}, ev.rg, { [q.day]: Object.assign({}, (ev.rg || {})[q.day], { dismissed: true }) }); DB.put('events', ev); changed(); },
+  askRow(q) { return h('div.cal-ask', h('span', CAL.ic('note'), 'Nothing was written during ', h('b', q.ev.title), ' (' + fmtDay(parseDay(q.day)) + ' ' + CAL.hm(q.ev.start) + '–' + CAL.hm(q.ev.end) + '). Log anything from it?'),
+    h('button.cal-btn.pri', { type: 'button', on: { click: () => CAL.askMake(q) } }, q.docId ? 'Make its region' : 'Make its note'), h('button.cal-btn', { type: 'button', on: { click: () => CAL.askSkip(q) } }, 'Not this time')); },
+  /** In a note: its question, at the top of the canvas. */
+  askBar() {
+    let bar = $('#cal-askbar'); const r = App.route || {}, id = r.name === 'doc' ? r.args[0] : null, L = id && CAL.regionsOn() ? CAL.asks(id) : [];
+    if (!L.length) { if (bar) bar.remove(); return; } const host = $('#view'); if (!host) return;
+    if (!bar || bar.parentNode !== host) { if (bar) bar.remove(); bar = h('div#cal-askbar.cal-askbar'); host.append(bar); } bar.replaceChildren(...L.slice(0, 2).map(CAL.askRow));
+  },
+
   /* ---------------- gestures ---------------- */
   minAt(colEl, y) { const r = colEl.getBoundingClientRect(); return clamp((y - r.top) / CAL.hpx * 60, 0, 1440); },
   colAt(x, y) { const els = document.elementsFromPoint(x, y); return els.find(e => e.classList && e.classList.contains('cal-col')) || null; },
@@ -817,7 +875,7 @@ const CAL = {
           cards.filter(x => x[0] === c).map(([, s, e, t, col]) => h('div.pv-ec', { style: { top: (s - 8) * hp + 2 + 'px', height: Math.max(14, (e - s) * hp - 4) + 'px', background: col } }, t)),
           c === 1 ? h('i.pv-run', { style: { top: (9 - 8) * hp + 'px', height: 3 * hp + 'px' } }, h('span', 'Digest papers'), CAL.tn('electrons', true) !== false ? [h('b', { style: { top: '30%' } }), h('b', { style: { top: '65%' } })] : null) : null,
           c === 1 ? h('i.pv-now', { style: { top: (10.6 - 8) * hp + 'px' } }) : null)))),
-      PV.cap(n + ' hours fill the height; the rest scrolls. ' + (slots ? 'Free time between events shows dashed (7:00–21:00); a click adds an event there.' : 'Free time is not drawn; a click on an empty stretch still adds an event.') + ' Weeks start on ' + (CAL.wk0() ? 'Monday' : 'Sunday') + '.' + (CAL.bellOn() ? ' Today’s all-day events show once in the bell.' : '') + (CAL.focusOn() ? ' Focus (gold): full screen, your activity counts double (2×); leaving asks first, then 5 minutes to come back before the session ends and the doubling goes.' : ' Focus is off.') + ' With Agent runs on (G), a run is a line beside the day' + (CAL.tn('electrons', true) !== false ? ', electrons flowing down it while it runs.' : '; a running one glows, without electrons.'))];
+      PV.cap(n + ' hours fill the height; the rest scrolls. ' + (slots ? 'Free time between events shows dashed (7:00–21:00); a click adds an event there.' : 'Free time is not drawn; a click on an empty stretch still adds an event.') + ' Weeks start on ' + (CAL.wk0() ? 'Monday' : 'Sunday') + '.' + (CAL.bellOn() ? ' Today’s all-day events show once in the bell.' : '') + (CAL.regionsOn() ? ' What you write during an event becomes a region named after it.' : '') + (CAL.focusOn() ? ' Focus (gold): full screen, your activity counts double (2×); leaving asks first, then 5 minutes to come back before the session ends and the doubling goes.' : ' Focus is off.') + ' With Agent runs on (G), a run is a line beside the day' + (CAL.tn('electrons', true) !== false ? ', electrons flowing down it while it runs.' : '; a running one glows, without electrons.'))];
   },
 };
 function isoWeekNo(d) { d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); const n = d.getUTCDay() || 7; d.setUTCDate(d.getUTCDate() + 4 - n); const y0 = new Date(Date.UTC(d.getUTCFullYear(), 0, 1)); return Math.ceil(((d - y0) / 864e5 + 1) / 7); }
@@ -845,6 +903,16 @@ VIEWS.calendar = CalendarView;
     const p0 = REM.panel; REM.panel = function () { const r = p0.apply(this, arguments); try { const pop = $('.pop.rmpop'), sec = CAL.bellSection(); if (pop && sec) { const head = $('.rm-ph', pop); head ? head.after(sec) : pop.prepend(sec); } CAL.bellMark(); REM.badge(); } catch (e) { console.warn('[calendar] bell', e); } return r; };
     setInterval(() => { try { REM.badge(); } catch (e) { } }, 60000);
   }
+  // V4.69 — regions from the calendar: gathered once an event has ended (each minute, and after a start); the question in its note and on Today; the regions say where they came from
+  setInterval(() => { try { CAL.regionSweep(); } catch (e) { console.warn('[calendar] regions', e); } }, 60000);
+  { const w = setInterval(() => { if (!window.__ready && !(typeof DB !== 'undefined' && DB.mode)) return; clearInterval(w); setTimeout(() => { try { CAL.regionSweep(); } catch (e) { } }, 1500); }, 500); }
+  { const r0 = App.refresh; App.refresh = function () { const x = r0.apply(this, arguments); try { CAL.askBar(); } catch (e) { } return x; }; }
+  if (VIEWS.home && VIEWS.home.render) { const h0 = VIEWS.home.render; VIEWS.home.render = function () { const el = h0.apply(this, arguments); try { const L = CAL.regionsOn() ? CAL.asks(null) : []; if (L.length && el) { const sec = h('div.cal-today', h('div.sec-h', h('h2', 'From your calendar'), h('span.k', plural(L.length, 'event') + ' with nothing written')), L.slice(0, 6).map(CAL.askRow)); const at = el.querySelector('.sec-h'); at ? at.parentNode.insertBefore(sec, at) : el.append(sec); } } catch (e) { console.warn('[calendar] today', e); } return el; }; }
+  if (typeof REGION !== 'undefined') { const rr0 = REGION.render; REGION.render = function (pane) { const x = rr0.apply(this, arguments); try { const d = M.doc(pane.docId); if (!d || !pane.paper) return x;
+    $$(':scope > .region', pane.paper.world).forEach(el => { const r = REGION.list(d).find(z => z.id === el.dataset.rg), tab = $('.rg-tab', el); if (!r || !tab) return; const name = $('.rg-name', tab);
+      const chips = []; if (r.event) { const ev = DB.get('events', r.event.id); chips.push(h('button.rg-chip.rg-ev', { type: 'button', title: 'From the calendar' + (ev ? ': ' + ev.title + ', ' + fmtDay(parseDay(r.event.day)) + ' ' + CAL.hm(ev.start) + '–' + CAL.hm(ev.end) : '') + ' — open the day', on: { pointerdown: e => e.stopPropagation(), click: e => { e.stopPropagation(); CAL.st.day = r.event.day; CAL.st.view = 'day'; App.go('#/calendar'); } } }, CAL.ic('focus'), fmtDay(parseDay(r.event.day)))); }
+      (r.bridges || []).forEach(b => { const od = M.doc(b.docId); if (!od) return; chips.push(h('button.rg-chip.rg-br', { type: 'button', title: 'Bridged: its event is linked to one written in “' + od.title + '” — open it', on: { pointerdown: e => e.stopPropagation(), click: e => { e.stopPropagation(); App.go('#/doc/' + od.id); } } }, CAL.ic('link'), od.title)); });
+      if (chips.length && name) name.after(...chips); }); } catch (e) { console.warn('[calendar] region chips', e); } return x; }; }
   // V4.64 — focus: Esc in a session asks first; leaving full screen starts the 5 minutes; a session left running (a reload) is away
   document.addEventListener('keydown', e => { if (e.key !== 'Escape') return; let L = null; try { L = CAL.live(); } catch (er) { } if (!L || L.s.state !== 'live' || !document.fullscreenElement || $('.ovl') || (typeof _pop !== 'undefined' && _pop)) return; e.preventDefault(); e.stopPropagation(); CAL.confirmLeave(); }, true);
   document.addEventListener('fullscreenchange', () => { if (document.fullscreenElement) return; try { const L = CAL.live(); if (L && L.s.state === 'live') CAL.away(); } catch (e) { } });

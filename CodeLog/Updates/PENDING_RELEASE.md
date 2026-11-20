@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (167 changes — ready to push)
+## Pending (168 changes — ready to push)
+
+- **Calendar regions (V4.69):** when an event ends, what you wrote during it becomes a region named after it. Nothing written? The note (and Today) asks whether to log anything from it.
 
 - **Calendar tasks (V4.68):** add tasks to a calendar event — they go into the event's note, due when it starts.
 

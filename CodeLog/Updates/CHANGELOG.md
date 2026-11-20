@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.69] — 2026-11-20 — Scientia: Calendar — what was written during an event becomes a region named after it; linked events connect or bridge their regions; nothing written, its note and Today ask "Log anything from it?"
+
+Gabe, 19 Nov: "Actvity logged during an event automatically groups them in a region after the event ends, and if there is a dependency, it bridges that region to the other dependency region if it is in another note, and links them if they are in the same note. The region name is the event name. If nothing is logged into that event time, later in that note, it asks you if you want to log anything from that event, thus creating the region for you to work in. It also appears as a reminder on the Today tab." Asked again on 20 Nov.
+
+App only.
+
+### Added
+- **Regions from events** (`CAL.regionSweep`, `regionFor`; `ev.rg[day]`): once an event ends, the components written during it become a region named after it, in its note or in any note.
+- **Links between them** (`CAL.regionLinks`): a wire in one note, a bridge across notes (`region.bridges`); chips on the region's tab.
+- **"Log anything from it?"** (`CAL.asks`, `askBar`, `askMake`, `askSkip`): in its note (Make its region / Not this time) and on Today under "From your calendar".
+- **Settings → Calendar:** the switch, in the preview.
+
+### Tests
+| Test | Result |
+|---|---|
+| `cal69_t`, lab build:<br>- two components written during A → its region, one written before stays out;<br>- A → C in one note: a wire; A → B across notes: a bridge on each; the tab's chips;<br>- "Lab meeting" with nothing written: its note asks; Make its region → "From Lab meeting" in a region, the question gone;<br>- Today lists the one with no note (Make its note); Not this time clears it;<br>- off: none made, the preview follows | 14/14 |
+
+
 ## [V4.68] — 2026-11-20 — Scientia: Calendar — tasks for an event, made in its linked note and due when it starts
 
 Gabe, 20 Nov: "You may add tasks to a calendar event, which associates that task to the linked note."
