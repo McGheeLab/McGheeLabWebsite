@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (173 changes — ready to push)
+## Pending (174 changes — ready to push)
+
+- **Back and forward (V4.75):** when you go back or forward between notes (Alt+Left / Alt+Right), the components arrive with their hover shadow, which then fades.
 
 - **Open a component (V4.74):** opening a task, a search result, a link or a calendar item now takes you to the component and centres it at 50% zoom. Settings → Open a component sets the zoom.
 

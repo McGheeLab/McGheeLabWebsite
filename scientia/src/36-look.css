@@ -95,6 +95,10 @@ body:not(.f-off-look) .toast{border-radius:999px;padding:10px 18px;animation:lk-
 /* ---------- components on a note: a warm card, a hairline ring, a soft shadow; the kind is a dot and a wash ---------- */
 body:not(.f-off-look) .box{border-radius:12px;border-color:var(--lk-ring);background:var(--lk-card);box-shadow:var(--lk-sh1);transition:border-color var(--lk-dh) ease,box-shadow .25s ease}
 body:not(.f-off-look) .box:hover{border-color:var(--lk-ring-2);box-shadow:var(--lk-lift)}
+/* V4.68: a note you came back or forward to (Alt+Left / Alt+Right): every component shows its hover shadow together, holds it a moment, then settles and fades (the one second is --st-dur) */
+@keyframes lk-settle{0%,28%{box-shadow:var(--lk-lift);border-color:var(--lk-ring-2)}100%{box-shadow:var(--lk-sh1);border-color:var(--lk-ring)}}
+body:not(.f-off-look):not(.f-off-navsettle):not(.lk-still) .nav-settle :is(.box:not(.sel),.pvb){animation:lk-settle var(--st-dur,1s) ease-out backwards}
+@media (prefers-reduced-motion:reduce){body .nav-settle :is(.box,.pvb){animation:none!important}}
 body:not(.f-off-look) .box.sel{border-color:var(--teal);box-shadow:0 0 0 1px var(--teal),var(--lk-lift)}
 body:not(.f-off-look) .box.cmp{border-left-width:1px;border-left-color:var(--lk-ring)}
 body:not(.f-off-look) .box.cmp.sel{border-left-color:var(--teal)}
