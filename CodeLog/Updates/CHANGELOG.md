@@ -4,6 +4,34 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.44] — 2026-11-19 — Scientia: Look and motion, the rest of the boards — highlights by page on a thread, the beside / full-screen glide, popups rising and shrinking back, the pills' wheels, Freewrite's Convert, the Settings sidebar
+
+Gabe (19 Nov 2026), on the design canvas: "Don't change the Portfolio, it looks good as it is. The rest is approved"
+
+App only (the pills change by CSS; `lab-mode.js` untouched).
+
+### Added (`20d-look.js` wrappers, `36-look.css`)
+- **Highlights by page:** page markers on a thread in every reader's panel (`.mx-side`, `.rd-side`). Filters, search, the badge and the capsule's counts still work.
+- **The glide** on ⤢, ◧ and Esc (the pane uncovers or clips).
+- **Popups:** rise from the pane on ⧉; shrink into their reading set's tab on × (`RPOP.back`) and on Maximize.
+- **The pills' wheels:** buttons spring out one after another (≤ 320 ms) and close quickly.
+- **Freewrite's Convert:** components come in one after another.
+- **The data tree:** files drop in when a folder opens.
+- **Settings:** the sidebar is a rounded panel.
+
+### Bug Fixes (V4.42)
+- **Menus moved under a quick click** (an overshooting 0.26 s pop): now 98 % → 100 % in 0.16 s.
+- **The Freewrite page didn't cover the app for half a second** while it slid up: now it is in place at once, and its parts rise.
+- **At 400 px the header pushed the reader button off the screen:** icons are 24 px below 760 px.
+- **Popup corners:** 12 px.
+
+### Tests
+| Test | Result |
+|---|---|
+| `lk44_t`, real pointer events, each animation caught part-way: the glide on ⤢ and Esc; popups rising, and shrinking on × and Maximize; the wheel's stagger and quick close; Convert; the data-tree drop; the Settings sidebar; Still, Calm, emulated reduced motion; the look off. Lab · without the lab layer | 30/30 · 30/30 |
+| `lk_t` · `lk43_t` · `lk_lib_t` · `rt41_t` · `rt40_t` (`LOOKOFF=1`) · `rb_t32b` · `px_t41` · `fw_t33` · `fw_t34`, both builds | 32/32 · 10/10 · 6/6 · 23/23 · 24/24 · 50/50 · 15/15 · 69/69 · 24/24, each in both |
+| `sf_t40` (`LOOKOFF=1`) · lab harnesses v3869 · v3880 | 29/29 · 287/287 · 13/13 |
+
 ## [V4.43] — 2026-11-19 — Scientia: Look and motion leaves the Portfolio as it was; the page rise plays
 
 Gabe (19 Nov 2026), on V4.42 and its design canvas: "Don't change the Portfolio, it looks good as it is. The rest is approved"
