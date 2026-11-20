@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.46] — 2026-11-19 — Scientia: the gliding tab pill covers the whole tab — its name and its count — every time
+
+Gabe (19 Nov 2026): "Add the gliding tab pill and make sure it covers the entire tab name everytime."
+
+App only.
+
+### Bug Fixes
+- **The pill covered only the letters of the tab's name** (11 `renderTabs` sized `.tink` to `.tlab`), left counts outside, and didn't move when a tab changed size. Now `LOOK.tabPill()` sizes it to the whole tab. It runs after every `App.renderTabs`, on a `ResizeObserver` (tabs and bar), on `document.fonts.ready`, and on the switch. It glides with the look's curve.
+- **`#tabs .tab > .tc:empty`** gives back its gap (`margin-left:-4px`), keeping the header's height.
+- **Look off:** the underline under the name, as before.
+
+### Tests
+| Test | Result |
+|---|---|
+| `pill46_t`: 9 tabs clicked, the pill is each whole tab with its name inside; part-way through the glide; a count appears (Review 12); the text grows; the window narrows; off → the 2 px underline; on again; the words; no errors — lab · without the lab layer (on V4.45: 5/12) | 12/12 · 12/12 |
+| `lk43_t` (the Portfolio unchanged with the look on and off) · `lk_t`, both builds | 10/10 · 32/32 |
+
 ## [V4.45] — 2026-11-19 — Scientia: demonstrations — Look and motion (new), Fold the side panel (again)
 
 Gabe (19 Nov 2026), on the proposed demonstration of Look and motion (and the note that Fold the side panel needed recording again): "The rest is approved"
