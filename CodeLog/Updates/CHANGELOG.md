@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.91] — 2026-11-20 — Scientia: edge pan in full screen — Sensitivity, the rest before it starts and how close to the edge it reacts, in Settings
+
+Gabe, 20 Nov: "Edge pan in full screen should have its sensitivity tunable."
+
+App only.
+
+### Added
+- **Settings → Edge pan in full screen** (`edgepan`):
+  - *Sensitivity* (25–300%), *Rest at the edge before it starts* (0–800 ms) and *Reacts within* (1–24 px);
+  - read by `HANDS.sens`, `HANDS.dwell` and `HANDS.edge` (`13zzh-hands.js`);
+  - a preview that follows them.
+
+### Tests
+| Test | Result |
+|---|---|
+| `v91_t`, lab and plain builds (full screen stubbed; the real mouse at the edge):<br>- it pans at 100%; 300% pans more than twice as far;<br>- an 800 ms rest: nothing at 450 ms, a pan after;<br>- 12 px from the edge: nothing within 2 px, a pan within 20 px;<br>- the preview follows; the Settings page has the three sliders | 10/10 · 10/10 |
+
+
 ## [V4.90] — 2026-11-20 — Scientia: the Terms page as its table again — V4.63's cards removed
 
 Gabe, 20 Nov: "Remove the V4.63's cards version of the Terms page". (V4.63 came from reading "Change terms to look like a new UI in the cards" as the Terms page; Gabe meant terms inside notes, which V4.66 built.)

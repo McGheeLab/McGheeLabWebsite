@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (189 changes — ready to push)
+## Pending (190 changes — ready to push)
+
+- **Edge pan (V4.91):** in full screen, set how sensitive the edge pan is, how long it waits at the edge, and how close to the edge it reacts (Settings → Edge pan in full screen).
 
 - **Terms page (V4.90):** back to its table; the cards from V4.63 are gone. Terms inside notes keep their new look.
 
