@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (188 changes — ready to push)
+## Pending (189 changes — ready to push)
+
+- **Terms page (V4.90):** back to its table; the cards from V4.63 are gone. Terms inside notes keep their new look.
 
 - **Shift+click zooms (V4.89):** Shift+click any component and the canvas zooms onto it, with the mouse or the pen.
 
