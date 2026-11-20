@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (144 changes — ready to push)
+## Pending (145 changes — ready to push)
+
+- **The tab pill (V4.46):** the pill that glides under the tab you are on now covers the whole tab, its name and any count, and stays right when the window or the text changes size.
 
 - **New demonstrations (V4.45):** Settings → Look and motion now has a short recording of the new look in use, and Fold the side panel's recording shows the new capsule.
 
