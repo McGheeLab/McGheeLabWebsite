@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.63] — 2026-11-20 — Scientia: the Terms page as cards, in the new look — each term a card with its uses, its last 12 weeks, its structures and when it was last used
+
+Gabe, 20 Nov: "Change terms to look like a new UI in the cards based on the newly added theme."
+
+App only.
+
+### Changed
+- **Terms are cards** under Look and motion (`36-look.css`):
+  - a grid under each group, each card on the look's surface with its ring and shadow;
+  - name, project and notes, uses with a bar, the 12-week line, structures, last used;
+  - lifts on hover; rises in once when the page opens;
+  - no column header.
+  - Look off: the table as before.
+- **Arrow keys on cards** (`TermsView.nav`): ← → next or previous, ↑ ↓ the card above or below.
+
+### Tests
+| Test | Result |
+|---|---|
+| `terms63_t`, lab build · without the lab layer:<br>- 8 terms as cards, three or more to a row, 12 px corners, the ring, no header;<br>- name, "2 uses", the line, last used;<br>- a lift on hover; → ↓ ↑; the search with its mark; Enter opens;<br>- Look off: the table with its header | 11/11 · 11/11 |
+
+
 ## [V4.62] — 2026-11-20 — Scientia: lists keep their shape — a new item added to an earlier part of a list no longer runs into the item before or after it
 
 Gabe, 20 Nov: "Sometimes when in bullet point list, numbered list, etc..., going back into previous bullet points and adding a new one causes it to go into the previous one instead of maintaining the list architecture."
