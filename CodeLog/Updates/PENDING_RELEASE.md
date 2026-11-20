@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (142 changes — ready to push)
+## Pending (143 changes — ready to push)
+
+- **More of the new motion (V4.44):** highlights are grouped by page on a thread. The reader glides between beside and full screen. Popups rise out of their pane and shrink back into their tab. The pills' wheels spring open. Freewrite's components come in one after another. Settings has a rounded sidebar. Fixed: menus no longer shift under a quick click.
 
 - **The Portfolio as it was (V4.43):** the new look leaves the Portfolio exactly as it was. Going to a note, its page now gently rises in.
 
