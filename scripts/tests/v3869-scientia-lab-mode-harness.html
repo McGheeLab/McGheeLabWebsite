@@ -145,7 +145,7 @@
     /* 1. the tab row */
     var keys = qa('#tabs a.tab').map(function (a) { return a.dataset.k; });
     check('Activity and Data are not tabs on the web', keys.indexOf('activity') < 0 && keys.indexOf('data') < 0, keys.join(','));
-    check('Today, Portfolio, Review, Terms, Library, Materials, Canvas, Settings stay', ['home', 'portfolio', 'review', 'terms', 'library', 'materials', 'settings'].every(function (k) { return keys.indexOf(k) >= 0; }), keys.join(','));
+    check('Today, Portfolio, Review, Terms, Atlas, Library, Settings stay; Materials is a section of the Atlas now (V4.48), not a tab', ['home', 'portfolio', 'review', 'terms', 'atlas', 'library', 'settings'].every(function (k) { return keys.indexOf(k) >= 0; }) && keys.indexOf('materials') < 0, keys.join(','));
     /* 2. the record arrived: cites resolve RM papers */
     check('the library store holds the 2 RM papers and the desktop-only one', ev("DB.all('library').length") === 3 && ev("DB.all('library').filter(function (r) { return r.rm; }).length") === 2, ev("DB.all('library').map(function (r) { return r.id; }).join(',')"));
     check('M.lib(<RM id>) resolves, so a cite in a note renders', ev("(M.lib('p-smith-2024') || {}).title") === 'Granular hydrogels for printed tissue');
