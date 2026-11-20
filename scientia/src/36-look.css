@@ -11,6 +11,11 @@
    • Motion: five curves (glide, spring, rise, pop, hover), their times as
      variables so Movement (Full / Calm / Still) and reduced motion change
      them in one place. Hover changes colour and shadow only.
+   • V4.43 (Gabe: "Don't change the Portfolio, it looks good as it is"): nothing
+     here reaches inside the Portfolio (.pf-root) — its list, rows, buttons,
+     banners, and the page coming in, are as before. The header around it
+     (tabs, search, buttons) and what floats over it (menus, dialogs, toasts)
+     are the app's, and keep the look.
    ========================================================================== */
 :root{
   --lk-card:#F8F5EF; --lk-rail:#FBF9F4; --lk-ring:#DED7C9; --lk-ring-2:#CFC7B7; --lk-hov:#EFEAE0; --lk-shelf:#CFC6B5;
@@ -60,15 +65,15 @@ body:not(.f-off-look) #tabs .tab{z-index:1;border-radius:999px;padding:5px 11px 
 body:not(.f-off-look) #tabs .tink{z-index:0;top:1px;bottom:3px;height:auto;border-radius:999px;background:var(--lk-rail);box-shadow:var(--lk-sh1),inset 0 0 0 1px var(--lk-ring);transition:transform .45s var(--lk-soft),width .45s var(--lk-soft)}
 body.lk-still:not(.f-off-look) #tabs .tink{transition:none}
 /* a page you go to fades in and rises 6 px (only when you navigate: 20d sets #view.lk-nav for a moment) */
-body:not(.f-off-look) #view.lk-nav > *{animation:lk-rise .28s var(--lk-rise) both}
+body:not(.f-off-look) #view.lk-nav > :not(.pf-root){animation:lk-rise .28s var(--lk-rise) both}
 body.lk-still:not(.f-off-look) #view.lk-nav > *{animation:none}
 
 /* ---------- buttons and fields ---------- */
-body:not(.f-off-look) .btn{border-radius:8px;transition:background var(--lk-dh) ease,border-color var(--lk-dh) ease,color var(--lk-dh) ease,transform var(--lk-dp) var(--lk-pop)}
-body:not(.f-off-look) .btn:active{transform:scale(.97)}
-body:not(.f-off-look) .btn.sm{border-radius:7px}
-body:not(.f-off-look) .btn.xs{border-radius:6px}
-body:not(.f-off-look) .inp{border-radius:9px}
+body:not(.f-off-look) .btn:not(.pf-root *){border-radius:8px;transition:background var(--lk-dh) ease,border-color var(--lk-dh) ease,color var(--lk-dh) ease,transform var(--lk-dp) var(--lk-pop)}
+body:not(.f-off-look) .btn:not(.pf-root *):active{transform:scale(.97)}
+body:not(.f-off-look) .btn.sm:not(.pf-root *){border-radius:7px}
+body:not(.f-off-look) .btn.xs:not(.pf-root *){border-radius:6px}
+body:not(.f-off-look) .inp:not(.pf-root *){border-radius:9px}
 
 /* ---------- menus and popovers: the rail surface, popping from where they open ---------- */
 body:not(.f-off-look) .pop{border:0;border-radius:14px;background:var(--lk-rail);box-shadow:var(--lk-sh2),inset 0 0 0 1px var(--lk-ring);transform-origin:16px 0;animation:lk-pop var(--lk-dp) var(--lk-pop) both}
@@ -101,14 +106,9 @@ body:not(.f-off-look) .dt-r{position:relative;border-radius:8px}
 body:not(.f-off-look) .dt-r:hover{background:var(--lk-hov)}
 body:not(.f-off-look) .dt-tg{transition:transform .3s var(--lk-rise)}
 
-/* ---------- the Portfolio: the project list as a docked panel, the open project lifted on the rail surface ---------- */
-body:not(.f-off-look) .pf-list{background:var(--surface)}
-body:not(.f-off-look) .pf-row{border-radius:12px}
-body:not(.f-off-look) .pf-row:hover{background:var(--lk-rail)}
-body:not(.f-off-look) .pf-ind{border-radius:12px;background:var(--lk-rail);box-shadow:var(--lk-sh1),inset 0 0 0 1px var(--lk-ring);transition:transform .45s var(--lk-soft),height .45s var(--lk-soft)}
-body:not(.f-off-look) .tb-ban{border-radius:14px}
-body:not(.f-off-look) .tb-ban[data-place="page"]{border-radius:16px}
-body:not(.f-off-look) .pf-gl.pf-box{border-radius:9px}
+/* ---------- the Portfolio keeps its own look (V4.43); a project's page and its banner take the new one ---------- */
+body:not(.f-off-look) .tb-ban:not(.pf-root *){border-radius:14px}
+body:not(.f-off-look) .tb-ban[data-place="page"]:not(.pf-root *){border-radius:16px}
 
 /* ---------- Settings: the live preview on the rail surface ---------- */
 body:not(.f-off-look) .fp-pv{border-radius:14px}
@@ -207,8 +207,8 @@ body:not(.f-off-look) .lab-dock-rail{border:0;background:var(--lk-rail);box-shad
 /* ---------- Still and reduced motion: nothing slides or springs ---------- */
 body.lk-still:not(.f-off-look) :is(.pop,.modal,.toast,.ovl,.lk-rail,.rs-grip.lk-grip,.rs-lib .rs-paper){animation:none!important}
 @media (prefers-reduced-motion:reduce){
-  body:not(.f-off-look) :is(.pop,.modal,.toast,.lk-rail,.rs-grip.lk-grip,.rs-lib .rs-paper,#view.lk-nav > *){animation:lk-fade .12s ease both!important}
-  body:not(.f-off-look) :is(.sf-col,.rs-lib,#tabs .tink,.pf-ind,.rs-lib .rs-paper){transition:none!important}
+  body:not(.f-off-look) :is(.pop,.modal,.toast,.lk-rail,.rs-grip.lk-grip,.rs-lib .rs-paper,#view.lk-nav > :not(.pf-root)){animation:lk-fade .12s ease both!important}
+  body:not(.f-off-look) :is(.sf-col,.rs-lib,#tabs .tink,.rs-lib .rs-paper){transition:none!important}
 }
 
 /* ---------- the live preview (Settings → Look and motion) ---------- */
