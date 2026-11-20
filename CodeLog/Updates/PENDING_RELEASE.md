@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (162 changes — ready to push)
+## Pending (163 changes — ready to push)
+
+- **Calendar focus (V4.64):** plan focus hours on the calendar and start a focus session — full screen, and everything you make or mark counts double. Leaving asks first, and you have 5 minutes to come back before the session ends.
 
 - **Terms (V4.63):** the Terms page now shows each term as a card in the new look — its uses, its last 12 weeks and its structures at a glance.
 

@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.64] — 2026-11-20 — Scientia: Calendar — focus hours and focus sessions: full screen, your activity counted double, leaving asks first with 5 minutes to come back
+
+Gabe, 20 Nov: "Each day, you can allocate focus hours, Activating focus mode on the lab notebook, etc... The focus mode puts the notebook automatically in full screen and trying to close that maximized view asks you a confirmation with a warning sign, saying that you will disturb your focus time, invalidating that focus session. You then have a 5 minute timer to get back into focus mode with no penalty. As an incentive, any activity during focus mode is doubled. Make sure that it is explicitly mentioned in settings and before starting it." And later: "You didn't build the focus feature I asked you to include in the calendar."
+
+App only.
+
+### Added
+- **Focus blocks** (event type Focus, gold and breathing): Plan focus (P) and a click; their hours on the day's head.
+- **The start sheet** (`CAL.focusSheet`): it states the rules — full screen, 2× activity, leaving asks first, 5 minutes to come back or the doubling goes. Focus now for 25 · 50 · 90 min.
+- **Sessions** (`ev.fs`): full screen with Esc locked where allowed; a capsule with the time left and 2×; "Leave focus?" with a warning sign (`CAL.confirmLeave`); away with 5 minutes to come back (`CAL.away` / `back`); given up after 5 minutes; done at the block's end.
+- **2× on activity:** `PFKIT.events` scores a moment twice inside the minutes in focus of a session not given up (`CAL.focusWins`).
+- **Settings → Calendar:** Focus sessions, Focus now's length, the rules in the description and the preview.
+
+### Tests
+| Test | Result |
+|---|---|
+| `cal64_t`, lab build · without the lab layer:<br>- Focus and Plan focus; P and a click → 14:00–15:00, gold and breathing, "1 h focus";<br>- a block now → the sheet with the four rules; Start → live, the capsule (time left, 2×);<br>- a component made in focus scores 2;<br>- Leave… asks with the warning; Stay; Leave → away, the 5:00 countdown; what is made away scores 1; Back;<br>- away past 5 min → ended, the doubling gone (2 → 1);<br>- F with no block: 25 · 50 · 90 → 25 min; at its end, done and kept 2×;<br>- the preview and the switch; the rules on the feature's page | 21/21 · 21/21 |
+| `cal57_t` (now four event types) · `cal58_t` · `cal59_t` · `cal60_t` | 40/40 · 24/24 · 21/21 · 21/21 |
+
+
 ## [V4.63] — 2026-11-20 — Scientia: the Terms page as cards, in the new look — each term a card with its uses, its last 12 weeks, its structures and when it was last used
 
 Gabe, 20 Nov: "Change terms to look like a new UI in the cards based on the newly added theme."

@@ -36,9 +36,9 @@
    Settings → Tabs & overview → Calendar (calendar, 20a).
    ========================================================================== */
 const CAL = {
-  PAL: { blue: '#2F64A8', teal: '#0B7268', plum: '#9B356B', amber: '#8F5600', green: '#2E7136', indigo: '#4A4DB0', red: '#A9372A', slate: '#525C69' },
+  PAL: { gold: '#B07D12', blue: '#2F64A8', teal: '#0B7268', plum: '#9B356B', amber: '#8F5600', green: '#2E7136', indigo: '#4A4DB0', red: '#A9372A', slate: '#525C69' },
   ORDER: ['blue', 'teal', 'plum', 'amber', 'green', 'indigo', 'red'],
-  KINDS: { meeting: { label: 'Meeting', c: 'blue' }, experiment: { label: 'Experiment', c: 'teal' }, other: { label: 'Other', c: 'slate' } },
+  KINDS: { meeting: { label: 'Meeting', c: 'blue' }, experiment: { label: 'Experiment', c: 'teal' }, other: { label: 'Other', c: 'slate' }, focus: { label: 'Focus', c: 'gold' } },
   BY: [['project', 'Project'], ['kind', 'Kind'], ['tag', 'Tag'], ['ntype', 'Note type'], ['load', 'Load']],
   LOAD: [[30, 'Under 30 min'], [60, '30 min – 1 h'], [120, '1 – 2 h'], [240, '2 – 4 h'], [1e9, '4 h or more']],
   NT: { exp: 'teal', notes: 'blue', lit: 'amber', syn: 'plum' },
@@ -172,6 +172,8 @@ const CAL = {
       h('h2.cal-ttl', CAL.title()),
       h('div.cal-seg', { role: 'group', 'aria-label': 'View' }, seg.map(([k, l, key]) => h('button' + (v === k ? '.on' : ''), { title: l + ' (' + key + ')', 'aria-pressed': String(v === k), on: { click: () => CAL.setView(k) } }, l))),
       h('span.cal-sp'),
+      CAL.focusOn() ? h('button.cal-fbtn' + (CAL.live() ? '.on' : ''), { type: 'button', title: 'Start focus: full screen, and your activity counts double (F)', on: { click: () => CAL.focusSheet(null) } }, h('i.cal-fdot'), CAL.live() ? 'In focus' : 'Focus') : null,
+      CAL.focusOn() ? h('button.cal-tg.cal-pf' + (CAL.st.planFocus ? '.on' : ''), { type: 'button', title: 'Plan focus: a click on the calendar places an hour of focus (P)', 'aria-pressed': String(!!CAL.st.planFocus), on: { click: () => CAL.planFocus() } }, 'Plan focus') : null,
       h('button.cal-tg' + (CAL.st.agents ? '.on' : ''), { title: 'Agent runs over your calendar (G)', 'aria-pressed': String(!!CAL.st.agents), on: { click: () => CAL.toggleAgents() } }, h('i.cal-tgd'), 'Agent runs'),
       CAL.st.agents && v !== 'month' ? (() => { const T = CAL.tally(CAL.days()); return h('span.cal-ai', { title: 'AI hours shown, and how much of it ran while you had something on' }, T.n ? [h('b.agdip', 'AI ' + CAL.hrs(T.all)), ' · 2× for ' + CAL.hrs(T.al) + ' alongside you'] : 'No agent run here'); })() : null,
       h('label.cal-by', h('span', 'Colour by'), h('select', { on: { change: e => { CAL.st.by = e.target.value; CAL.st.single = []; CAL.keep(); CAL.paint(); } } }, CAL.BY.map(([k, l]) => h('option', { value: k, selected: CAL.st.by === k }, l)))),
@@ -183,14 +185,14 @@ const CAL = {
       h('button.cal-btn.pri', { title: 'A new event (N)', on: { click: e => { const d = CAL.days().includes(CAL.today()) ? CAL.today() : CAL.days()[0]; const r = e.currentTarget.getBoundingClientRect(); CAL.create({ day: d, start: CAL.snap(Math.min(1380, CAL.nowMin() + 30)), x: r.left - 300, y: r.bottom + 8 }); } } }, '＋ New'));
   },
   ic(k) {
-    const P = { l: 'M15 18l-6-6 6-6', r: 'M9 6l6 6-6 6', x: 'M6 6l12 12M18 6 6 18', ck: 'M20 6 9 17l-5-5', bell: 'M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5h4', note: 'M7 3h7l5 5v13H7zM14 3v5h5', rep: 'M17 2l4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3', link: 'M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1' };
+    const P = { l: 'M15 18l-6-6 6-6', r: 'M9 6l6 6-6 6', x: 'M6 6l12 12M18 6 6 18', ck: 'M20 6 9 17l-5-5', bell: 'M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5h4', note: 'M7 3h7l5 5v13H7zM14 3v5h5', rep: 'M17 2l4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3', focus: 'M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M12 7.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9z', warn: 'M12 3.5 2.5 20h19L12 3.5zM12 10v4.5M12 17.4v.2', link: 'M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1' };
     return h('span.cal-i', { html: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${P[k]}"/></svg>` });
   },
   planner(D) {
     const t = CAL.today(), n = CAL.span(); CAL._vis = new Set(D);
     const heads = D.map(day => { const d = parseDay(day), it = CAL.dayItems(day), mins = it.reduce((a, x) => a + (x.e - x.s), 0);
       return h('button.cal-dh' + (day === t ? '.today' : '') + (day < t ? '.past' : ''), { title: 'Open ' + fmtDayLong(d) + (CAL.st.view === 'day' ? '' : ' as a day'), on: { click: () => CAL.setView('day', day) } },
-        h('span.dw', DOW[d.getDay()]), h('span.dn', String(d.getDate())), mins ? h('span.dl', (Math.round(mins / 6) / 10) + ' h') : null); });
+        h('span.dw', DOW[d.getDay()]), h('span.dn', String(d.getDate())), CAL.focusMinOn(day) ? h('span.dfo', { title: 'Focus planned this day' }, (Math.round(CAL.focusMinOn(day) / 6) / 10) + ' h focus') : null, mins ? h('span.dl', (Math.round(mins / 6) / 10) + ' h') : null); });
     const adc = D.map(day => h('div.cal-adc', { 'data-day': day, on: { click: e => { if (e.target.closest('.cal-ad')) return; const r = e.currentTarget.getBoundingClientRect(); CAL.create({ day, allDay: true, x: r.left, y: r.bottom + 6 }); } } },
       CAL.allDayItems(day).map(CAL.adEl)));
     const sc = h('div.cal-scroll' + (D.length === 1 ? '.one' : ''), { 'data-span': n },
@@ -237,6 +239,11 @@ const CAL = {
       h('span.ec-ic', has ? CAL.ic('link') : null, ev && ev.repeat && ev.repeat !== 'none' ? CAL.ic('rep') : null, CAL.docOf(it) ? CAL.ic('note') : null, it.rem ? CAL.ic('bell') : null),
       ln.n > 1 && !short ? h('span.ec-conf', 'Overlaps') : null,
       ev ? h('span.ec-rz', { 'aria-hidden': 'true' }) : null);
+    if (CAL.isFocus(ev)) {   // V4.64: a focus block — warm gold, breathing; what its session did
+      const fs = (ev.fs || []).filter(x => x.day === it.day), L = fs.find(x => x.state === 'live' || x.state === 'away'), last = fs[fs.length - 1];
+      el.classList.add('focus'); el.classList.remove('nonote'); if (L) el.classList.add(L.state === 'live' ? 'live' : 'away'); if (last && last.state === 'invalid') el.classList.add('invalid'); if (last && last.state === 'done') el.classList.add('done');
+      const sub = L ? (L.state === 'live' ? 'In focus · 2×' : 'Away — come back') : last ? (last.state === 'done' ? 'Done · ' + CAL.dur(CAL.focusMin(last)) + ' counted 2×' : 'Ended away · not 2×') : '2× while in focus';
+      if (!short) $('.ec-main', el).append(h('span.ec-fs', sub)); }
     return el;
   },
   adEl(it) {
@@ -413,12 +420,101 @@ const CAL = {
   },
   toggleAgents() { CAL.st.agents = !CAL.st.agents; CAL.keep(); CAL.closeAll(); CAL.paint(); },
 
+  /* ---------------- V4.64: focus — focus hours on the calendar, focus sessions in full screen, activity counted double ---------------- */
+  FX: { tick: null },
+  focusOn: () => CAL.tn('focus', true) !== false,
+  isFocus: ev => !!ev && ev.kind === 'focus',
+  GRACE: 5 * 6e4,
+  /** The session running now (in focus, or away and inside its 5 minutes), with its event. */
+  live() { for (const ev of CAL.all()) { if (!CAL.isFocus(ev)) continue; const s = (ev.fs || []).find(x => x.state === 'live' || x.state === 'away'); if (s) return { ev, s }; } return null; },
+  endMs(ev, day) { const d = parseDay(day || ev.day); return +new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, ev.end); },
+  mmss(ms) { const s = Math.max(0, Math.ceil(ms / 1000)); return Math.floor(s / 60) + ':' + pad(s % 60); },
+  /** What counts double: the minutes in focus of every session that was not given up (5 minutes away). */
+  focusWins() {
+    const L = CAL.live(), key = (DB.revOf && DB.revOf.events) || 0; if (!L && CAL._fw && CAL._fwKey === key) return CAL._fw;
+    const W = []; CAL.all().forEach(ev => (ev.fs || []).forEach(s => { if (s.state === 'invalid') return; (s.segs || []).forEach(([a, b]) => W.push([+new Date(a), b ? +new Date(b) : Date.now()])); }));
+    CAL._fw = W; CAL._fwKey = key; return W;
+  },
+  inFocus(t) { return CAL.focusWins().some(([a, b]) => t >= a && t <= b); },
+  /** The sheet before a session: what focus does, said plainly, then Start. */
+  focusSheet(it) {
+    if (!CAL.focusOn()) return toast('Focus is off — Settings → Calendar'); if (CAL.live()) { CAL.fxPaint(); return toast('A focus session is already running'); }
+    CAL.closeAll(); const now = new Date(), nm = now.getHours() * 60 + now.getMinutes(), today = CAL.today();
+    let tg = it && it.ev && CAL.isFocus(it.ev) ? it : CAL.dayItems(today).find(x => CAL.isFocus(x.ev) && x.s <= nm && x.e > nm) || null;
+    const inBlock = !!tg && tg.day === today && tg.s <= nm && tg.e > nm, lens = [25, 50, 90]; let len = clamp(+CAL.tn('focusLen', '50') || 50, 5, 240);
+    const next = !inBlock ? CAL.all().filter(ev => CAL.isFocus(ev) && !(ev.fs || []).length && CAL.ab(ev.day, ev.start) > CAL.ab(today, nm)).sort((a, b) => CAL.ab(a.day, a.start) - CAL.ab(b.day, b.start))[0] : null;
+    const rules = h('ul.cal-frules',
+      h('li', h('b', 'Full screen.'), ' The notebook fills the screen for the session.'),
+      h('li', h('b', 'Your activity counts double (2×).'), ' What you make and mark while in focus counts twice in your projects’ activity.'),
+      h('li', h('b', 'Leaving asks first.'), ' Leaving full screen disturbs your focus time: a warning, then 5 minutes to come back with no penalty.'),
+      h('li', h('b', 'After 5 minutes away the session ends'), ' and its activity no longer counts double. Your work is always kept.'));
+    const lenRow = inBlock ? null : h('div.cal-flen', h('span.cw-k', 'For'), h('div.cw-durs', lens.map(m => h('button.cw-d' + (m === len ? '.on' : ''), { type: 'button', on: { click: e => { len = m; $$('.cw-d', e.currentTarget.parentNode).forEach(b => b.classList.toggle('on', b === e.currentTarget)); } } }, m + ' min'))));
+    const head = inBlock ? '“' + tg.ev.title + '” — until ' + CAL.hm(tg.e) + ', ' + CAL.dur(tg.e - nm) + ' left' : next ? 'No focus block now (the next: ' + fmtDay(parseDay(next.day)) + ' ' + CAL.hm(next.start) + '). Focus now:' : 'No focus block now. Focus now:';
+    modal({ title: inBlock ? 'Start focus' : 'Focus now', body: h('div.cal-fsheet', h('div.cal-fhead', CAL.ic('focus'), h('span', head)), rules, lenRow),
+      actions: [{ label: 'Not now' }, { label: 'Start focus', pri: true, run: () => { CAL.focusStart(inBlock ? tg : null, len); } }] });
+  },
+  async focusStart(it, len) {
+    const now = new Date(), nm = now.getHours() * 60 + now.getMinutes(), today = CAL.today(); let ev, day = today;
+    DB.beginGroup('Focus');
+    if (it) { ev = DB.get('events', it.ev.id); day = it.day; }
+    else { ev = CAL.make({ title: 'Focus', day: today, start: nm, end: Math.min(1440, nm + len), kind: 'focus' }); }
+    const s = { id: uid('fs'), day, state: 'live', at: isoLocal(now), segs: [[isoLocal(now), null]] };
+    ev.fs = (ev.fs || []).concat([s]); ev.modified = isoLocal(now); DB.put('events', ev); changed();
+    await CAL.fsEnter(); CAL.fxTick(); CAL.fxPaint();
+    toast('Focus — your activity counts double. Esc asks before you leave.', 3400);
+  },
+  async fsEnter() {
+    try { if (!document.fullscreenElement) await document.documentElement.requestFullscreen(); if (navigator.keyboard && navigator.keyboard.lock) await navigator.keyboard.lock(['Escape', 'KeyW']); }
+    catch (e) { toast('Full screen was refused (' + (e.message || e) + ') — the session runs, and leaving still asks first', 3600); }
+  },
+  fsSave(ev, s, patch) { Object.assign(s, patch); ev.modified = isoLocal(new Date()); DB.put('events', ev); },
+  /** Out of full screen: the 5 minutes start. */
+  away() { const L = CAL.live(); if (!L || L.s.state !== 'live') return; const seg = L.s.segs[L.s.segs.length - 1], t = isoLocal(new Date()); if (seg && !seg[1]) seg[1] = t;
+    DB.beginGroup('Focus'); CAL.fsSave(L.ev, L.s, { state: 'away', leftAt: t, aways: (L.s.aways || 0) + 1 }); changed(); CAL.fxPaint(); },
+  async back() { const L = CAL.live(); if (!L || L.s.state !== 'away') return; await CAL.fsEnter(); L.s.segs.push([isoLocal(new Date()), null]);
+    DB.beginGroup('Focus'); CAL.fsSave(L.ev, L.s, { state: 'live', leftAt: null }); changed(); CAL.fxPaint(); toast('Back in focus — no penalty', 2200); },
+  /** done: it ran to its end · invalid: 5 minutes away, or ended away (the doubling goes). */
+  end(state) { const L = CAL.live(); if (!L) return; const seg = L.s.segs[L.s.segs.length - 1]; if (seg && !seg[1]) seg[1] = isoLocal(new Date());
+    DB.beginGroup('Focus'); CAL.fsSave(L.ev, L.s, { state, ended: isoLocal(new Date()), leftAt: null }); CAL._fw = null; changed();
+    try { if (document.fullscreenElement) document.exitFullscreen().catch(() => { }); if (navigator.keyboard && navigator.keyboard.unlock) navigator.keyboard.unlock(); } catch (e) { }
+    CAL.fxPaint(); },
+  focusMin(s) { return Math.round((s.segs || []).reduce((m, [a, b]) => m + ((b ? +new Date(b) : Date.now()) - +new Date(a)), 0) / 6e4); },
+  /** Esc in a session: the warning first. */
+  confirmLeave() {
+    if ($('.ovl')) return;
+    modal({ title: 'Leave focus?', body: h('div.cal-fwarn', CAL.ic('warn'), h('div', h('b', 'This disturbs your focus time.'), h('p', 'If you leave full screen you have 5 minutes to come back with no penalty. After that the session ends and its activity no longer counts double. Your work is kept.'))),
+      actions: [{ label: 'Stay in focus', pri: true }, { label: 'Leave', danger: true, run: () => { CAL.away(); try { if (document.fullscreenElement) document.exitFullscreen().catch(() => { }); } catch (e) { } } }] });
+  },
+  fxTick() {
+    clearInterval(CAL.FX.tick);
+    CAL.FX.tick = setInterval(() => { const L = CAL.live(); if (!L) { clearInterval(CAL.FX.tick); CAL.FX.tick = null; CAL.fxPaint(); return; }
+      const now = Date.now();
+      if (now >= CAL.endMs(L.ev, L.s.day)) { const m = CAL.focusMin(L.s); CAL.end('done'); toast('Focus done — ' + CAL.dur(m) + ' in focus, its activity counted double', 4200); return; }
+      if (L.s.state === 'away' && now - +new Date(L.s.leftAt) > CAL.GRACE) { CAL.end('invalid'); toast('Five minutes away: that focus session ended, and its activity no longer counts double. Your work is kept.', 5200); return; }
+      CAL.fxPaint(); }, 1000);
+  },
+  /** The capsule at the top while a session runs: time left and 2× — or, away, the minutes left to come back. */
+  fxPaint() {
+    let cap = $('#cal-fcap'); const L = CAL.live();
+    if (!L) { if (cap) cap.remove(); document.body.classList.remove('cal-focusing'); return; }
+    if (!cap) { cap = h('div#cal-fcap.cal-fcap', { role: 'status', 'aria-live': 'polite' }); document.body.append(cap); }
+    document.body.classList.add('cal-focusing'); const now = Date.now(), away = L.s.state === 'away';
+    cap.className = 'cal-fcap' + (away ? ' away' : '');
+    cap.replaceChildren(h('i.cal-fdot', { 'aria-hidden': 'true' }), away
+      ? [h('b', 'Away from focus'), h('span.cal-fg', CAL.mmss(CAL.GRACE - (now - +new Date(L.s.leftAt))) + ' to come back'), h('button.cal-btn.pri', { type: 'button', on: { click: () => CAL.back() } }, 'Back to focus'), h('button.cal-btn', { type: 'button', on: { click: () => { CAL.end('invalid'); toast('Focus ended — this session no longer counts double'); } } }, 'End it')]
+      : [h('b', 'Focus'), h('span', CAL.mmss(CAL.endMs(L.ev, L.s.day) - now) + ' left'), h('span.cal-f2', { title: 'Your activity counts double while in focus' }, '2×'), h('button.cal-btn', { type: 'button', on: { click: () => CAL.confirmLeave() } }, 'Leave…')]);
+  },
+  planFocus() { CAL.st.planFocus = !CAL.st.planFocus; CAL.closeAll(); CAL.paint(); if (CAL.st.planFocus) toast('Plan focus: a click on the calendar places an hour of focus there', 2600); },
+  placeFocus(day, m) { const ev = CAL.make({ title: 'Focus', day, start: m, end: Math.min(1440, m + 60), kind: 'focus' }); DB.beginGroup('Focus block'); DB.put('events', ev); changed(); toast('Focus ' + CAL.hm(ev.start) + '–' + CAL.hm(ev.end) + ' — drag its edge for its length; a click on it starts it', 3000); },
+  focusMinOn(day) { return CAL.dayItems(day).filter(x => CAL.isFocus(x.ev)).reduce((a, x) => a + (x.e - x.s), 0); },
+
   /* ---------------- gestures ---------------- */
   minAt(colEl, y) { const r = colEl.getBoundingClientRect(); return clamp((y - r.top) / CAL.hpx * 60, 0, 1440); },
   colAt(x, y) { const els = document.elementsFromPoint(x, y); return els.find(e => e.classList && e.classList.contains('cal-col')) || null; },
   gridClick(e) {
     if (CAL._swallow || CAL._dragged) { CAL._swallow = false; return; }
     if (CAL.st.linkFrom) { if (!e.target.closest('.cal-ec')) CAL.linkEnd(); return; }
+    if (CAL.st.planFocus && !e.target.closest('.cal-ec, .cal-run')) { const c0 = e.target.closest('.cal-col'); if (!c0) return; return CAL.placeFocus(c0.dataset.day, Math.min(1380, Math.floor(CAL.minAt(c0, e.clientY) / 15) * 15)); }
     if (e.target.closest('.cal-ec, .cal-run')) return;
     const col = e.target.closest('.cal-col'); if (!col) return;
     const m = Math.min(1425, Math.floor(CAL.minAt(col, e.clientY) / 15) * 15);
@@ -464,6 +560,7 @@ const CAL = {
   /** A click: its note — or a note made for it and linked (a meeting note, an experiment's first stage, a quick note). */
   open(it) {
     if (CAL.st.linkFrom) return CAL.linkTo(it);
+    if (it.ev && CAL.isFocus(it.ev)) return CAL.focusSheet(it);   // V4.64
     CAL.closeAll();
     if (it.task) return App.openBlock(it.task.id);
     if (it.rem) { if (it.rem.kind === 'meeting' && REM.meetingNote) return REM.meetingNote(it.rem, it.at); return REM.edit({ id: it.rem.id }); }
@@ -567,7 +664,7 @@ const CAL = {
         CAL.afterOf(ev).map(a => h('span.bub-lk', h('em', '← after'), a.title, h('button', { type: 'button', 'aria-label': 'Unlink ' + a.title, on: { click: () => { CAL.unlink(a, ev); setTimeout(() => CAL.bubFill(), 0); } } }, '×'))),
         CAL.thenOf(ev).map(b => h('span.bub-lk', h('em', 'then →'), b.title, h('button', { type: 'button', 'aria-label': 'Unlink ' + b.title, on: { click: () => { CAL.unlink(ev, b); setTimeout(() => CAL.bubFill(), 0); } } }, '×'))),
         h('button.cw-d', { type: 'button', title: 'Then click the event that comes after it', on: { click: () => CAL.linkStart(ev) } }, CAL.ic('link'), 'Link → then…'))) : null,
-      h('div.bub-f', h('button.cal-btn', { type: 'button', on: { click: () => CAL.open(it) } }, CAL.docOf(it) ? 'Open its note' : 'Make its note'),
+      h('div.bub-f', h('button.cal-btn' + (CAL.isFocus(ev) ? '.pri' : ''), { type: 'button', on: { click: () => CAL.open(it) } }, CAL.isFocus(ev) ? 'Start focus' : CAL.docOf(it) ? 'Open its note' : 'Make its note'),
         h('span.cal-sp'),
         h('button.cal-btn', { type: 'button', on: { click: () => { const cp = CAL.make(Object.assign(JSON.parse(JSON.stringify(ev)), { id: uid('ev'), day: it.day, repeat: 'none', skip: [], notes: null, docId: null, created: isoLocal(new Date()) })); DB.beginGroup('Duplicate'); DB.put('events', cp); changed(); CAL.closeBub(); toast('Duplicated'); } } }, 'Duplicate'),
         rep ? h('button.cal-btn', { type: 'button', on: { click: () => { CAL.closeBub(); ev.skip = (ev.skip || []).concat([it.day]); CAL.save(ev, 'Delete one'); toast('This one deleted — Ctrl+Z undoes it'); } } }, 'Delete this one') : null,
@@ -578,14 +675,14 @@ const CAL = {
   key(e) {
     if (App.route.name !== 'calendar' || e.ctrlKey || e.metaKey || e.altKey || $('.ovl')) return;
     const t = e.target; if (t && (t.closest('input, textarea, select, [contenteditable="true"]') || t.closest('.cal-cw, .cal-bub'))) return;
-    const k = e.key.toLowerCase(), act = { arrowleft: () => CAL.step(-1), arrowright: () => CAL.step(1), t: () => { CAL.st.day = null; CAL._scrollTo = 'auto'; CAL.paint(); }, d: () => CAL.setView('day', CAL.days().includes(CAL.today()) ? CAL.today() : CAL.days()[0]), w: () => CAL.setView('week'), m: () => CAL.setView('month'), a: () => CAL.setView('agenda'), g: () => CAL.toggleAgents(),
+    const k = e.key.toLowerCase(), act = { arrowleft: () => CAL.step(-1), arrowright: () => CAL.step(1), t: () => { CAL.st.day = null; CAL._scrollTo = 'auto'; CAL.paint(); }, d: () => CAL.setView('day', CAL.days().includes(CAL.today()) ? CAL.today() : CAL.days()[0]), w: () => CAL.setView('week'), m: () => CAL.setView('month'), a: () => CAL.setView('agenda'), g: () => CAL.toggleAgents(), f: () => CAL.focusSheet(null), p: () => { if (CAL.focusOn()) CAL.planFocus(); },
       escape: () => { if (CAL.st.linkFrom) return CAL.linkEnd(); CAL.st.mday = null; CAL.paint(); },
       n: () => { const d = CAL.days().includes(CAL.today()) ? CAL.today() : CAL.days()[0]; CAL.create({ day: d, start: CAL.snap(Math.min(1380, CAL.nowMin() + 30)), x: innerWidth / 2 - 170, y: 140 }); } }[k];
     if (act) { if (k === 'escape' && !CAL.st.linkFrom && !(CAL.st.view === 'month' && CAL.st.mday)) return; e.preventDefault(); act(); }
   },
   /** For Settings' preview: a two-day planner in miniature. */
   preview() {
-    const P = CAL.PAL, n = CAL.span(), slots = CAL.tn('slots', true) !== false, cards = [[0, 9, 10.5, 'Run 4 · seed', P.teal], [0, 11, 12, 'Lab meeting', P.blue], [1, 9.5, 10, 'Order media', P.slate], [1, 13, 15.5, 'Image beads', P.teal]];
+    const P = CAL.PAL, n = CAL.span(), slots = CAL.tn('slots', true) !== false, cards = [[0, 9, 10.5, 'Run 4 · seed', P.teal], [0, 11, 12, 'Lab meeting', P.blue], [1, 9.5, 10, 'Order media', P.slate], [1, 13, 15.5, 'Image beads', P.teal]].concat(CAL.focusOn() ? [[0, 13, 14.5, 'Focus · 2×', 'linear-gradient(115deg,#E7C373,#F7E6BC 50%,#E7C373)']] : []);
     const hp = 150 / n;
     return [h('div.pv-cal', h('div.pv-cal-h', h('span'), h('b', 'Mon 16'), h('b.today', 'Tue 17')),
       h('div.pv-cal-b', h('div.pv-cal-t', [8, 10, 12, 14].map(x => h('span', { style: { top: (x - 8) * hp + 'px' } }, x + ':00'))),
@@ -593,7 +690,7 @@ const CAL = {
           cards.filter(x => x[0] === c).map(([, s, e, t, col]) => h('div.pv-ec', { style: { top: (s - 8) * hp + 2 + 'px', height: Math.max(14, (e - s) * hp - 4) + 'px', background: col } }, t)),
           c === 1 ? h('i.pv-run', { style: { top: (9 - 8) * hp + 'px', height: 3 * hp + 'px' } }, h('span', 'Digest papers'), CAL.tn('electrons', true) !== false ? [h('b', { style: { top: '30%' } }), h('b', { style: { top: '65%' } })] : null) : null,
           c === 1 ? h('i.pv-now', { style: { top: (10.6 - 8) * hp + 'px' } }) : null)))),
-      PV.cap(n + ' hours fill the height; the rest scrolls. ' + (slots ? 'Free time between events shows dashed (7:00–21:00); a click adds an event there.' : 'Free time is not drawn; a click on an empty stretch still adds an event.') + ' Weeks start on ' + (CAL.wk0() ? 'Monday' : 'Sunday') + '. With Agent runs on (G), a run is a line beside the day' + (CAL.tn('electrons', true) !== false ? ', electrons flowing down it while it runs.' : '; a running one glows, without electrons.'))];
+      PV.cap(n + ' hours fill the height; the rest scrolls. ' + (slots ? 'Free time between events shows dashed (7:00–21:00); a click adds an event there.' : 'Free time is not drawn; a click on an empty stretch still adds an event.') + ' Weeks start on ' + (CAL.wk0() ? 'Monday' : 'Sunday') + '.' + (CAL.focusOn() ? ' Focus (gold): full screen, your activity counts double (2×); leaving asks first, then 5 minutes to come back before the session ends and the doubling goes.' : ' Focus is off.') + ' With Agent runs on (G), a run is a line beside the day' + (CAL.tn('electrons', true) !== false ? ', electrons flowing down it while it runs.' : '; a running one glows, without electrons.'))];
   },
 };
 function isoWeekNo(d) { d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); const n = d.getUTCDay() || 7; d.setUTCDate(d.getUTCDate() + 4 - n); const y0 = new Date(Date.UTC(d.getUTCFullYear(), 0, 1)); return Math.ceil(((d - y0) / 864e5 + 1) / 7); }
@@ -612,6 +709,12 @@ VIEWS.calendar = CalendarView;
     if (CAL.bubEl && !CAL.bubEl.contains(e.target)) CAL.closeBub(); }, true);
   // now moves: the line, once a minute
   setInterval(() => { if (App.route && App.route.name === 'calendar' && CAL.root && CAL.root.isConnected) { const n = $('.cal-now', CAL.root); if (n) n.style.top = `calc(var(--hpx) * ${CAL.nowMin() / 60})`; } }, 60000);
+  // V4.64 — focus: Esc in a session asks first; leaving full screen starts the 5 minutes; a session left running (a reload) is away
+  document.addEventListener('keydown', e => { if (e.key !== 'Escape') return; let L = null; try { L = CAL.live(); } catch (er) { } if (!L || L.s.state !== 'live' || !document.fullscreenElement || $('.ovl') || (typeof _pop !== 'undefined' && _pop)) return; e.preventDefault(); e.stopPropagation(); CAL.confirmLeave(); }, true);
+  document.addEventListener('fullscreenchange', () => { if (document.fullscreenElement) return; try { const L = CAL.live(); if (L && L.s.state === 'live') CAL.away(); } catch (e) { } });
+  { const w = setInterval(() => { if (!window.__ready && !(typeof DB !== 'undefined' && DB.mode)) return; clearInterval(w); try { const L = CAL.live(); if (L) { if (L.s.state === 'live' && !document.fullscreenElement) CAL.away(); CAL.fxTick(); CAL.fxPaint(); } } catch (e) { console.warn('[calendar] focus', e); } }, 500); }
+  // the 2×: a moment that scored while in focus (a session not given up) scores twice
+  if (typeof PFKIT !== 'undefined') { const ev0 = PFKIT.events; PFKIT.events = function (d, items) { const L = ev0.call(this, d, items); if (!L.length || !CAL.all().some(CAL.isFocus)) return L; return L.map(e => CAL.inFocus(e.t) ? Object.assign({}, e, { s: e.s * 2, x2: true }) : e); }; }
   // leaving the page closes what floats over it
   addEventListener('hashchange', () => { if (!location.hash.startsWith('#/calendar')) CAL.closeAll(); });
 }
