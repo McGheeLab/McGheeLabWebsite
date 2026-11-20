@@ -1,5 +1,5 @@
 /* ==========================================================================
-   13zzga · Slash commands you make, from workflows (V4.90).
+   13zzga · Slash commands you make, from workflows (V4.95).
    Gabe, 20 Nov 2026: "Slash commands should be tunable with workflows or
    actions (everything you can think of)."
    - A command of your own is a name (what you type after /), a short

@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (194 changes — ready to push)
+## Pending (195 changes — ready to push)
+
+- **Shortcut keys (V4.96):** change your shortcut keys in Settings → Keys & commands (or behind ?). If the key you pick is taken by the browser or by the app, you are told and offered Alt+ that key instead.
 
 - **Slash commands (V4.95):** make your own slash commands that run a series of steps: insert text, mark a result, add a task, set a reminder, start the timer, insert a table, and more. Hide, pin or rename the built-in ones.
 

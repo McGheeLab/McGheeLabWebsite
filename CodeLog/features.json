@@ -2343,7 +2343,7 @@
    "id": "scientia.shortcuts",
    "name": "Scientia Shortcuts (every key and gesture, in one list)",
    "side": "scientia",
-   "summary": "Gabe: \"Add shortcuts list in Settings near command bar commands.\" One searchable list of every keyboard shortcut and gesture of the app, grouped by where it works (everywhere, in a note, typing, saying what words are, mouse · pen · touch, the command bar, widgets, reader and Library, calendar, freewrite, review · terms · atlas), written from the keydown handlers; a rebindable key (structKey, termKey) shows its current binding with a Change link. Drawn by one SHORT.view() in Settings → Keys & commands (above the commands) and in the ? dialog (helpModal), /keys and the palette. FEAT 'shortcuts': the list, the ? key, and whether gestures are listed.",
+   "summary": "Gabe: \"Add shortcuts list in Settings near command bar commands.\" One searchable list of every keyboard shortcut and gesture of the app, grouped by where it works (everywhere, in a note, typing, saying what words are, mouse · pen · touch, the command bar, widgets, reader and Library, calendar, freewrite, review · terms · atlas), written from the keydown handlers; a rebindable key (structKey, termKey) shows its current binding with a Change link. Drawn by one SHORT.view() in Settings → Keys & commands (above the commands) and in the ? dialog (helpModal), /keys and the palette. FEAT 'shortcuts': the list, the ? key, and whether gestures are listed. V4.96: the keys a person really presses can be rebound (settings().keymap, KEYS.is(e, id) in the handlers; Change · Reset in each row), and a combination taken by the browser, the computer or another shortcut of the app is refused with the Alt+key offer (20g-keymap.js).",
    "keywords": [
     "shortcuts",
     "keyboard",
@@ -2351,10 +2351,15 @@
     "gestures",
     "hotkeys",
     "help",
-    "cheat sheet"
+    "cheat sheet",
+    "rebind",
+    "customize keys",
+    "keymap",
+    "key conflict"
    ],
    "paths": [
     "scientia/src/20f-shortcuts.js",
+    "scientia/src/20g-keymap.js",
     "scientia/src/41-shortcuts.css"
    ],
    "extends": "scientia.settings",
@@ -2365,13 +2370,13 @@
     "scientia.reader",
     "scientia.terms"
    ],
-   "note": "The ? dialog (helpModal in 11-shell.js) is now SHORT.open(): one list, both places. A key added to the app belongs in SHORT.items()."
+   "note": "The ? dialog (helpModal in 11-shell.js) is now SHORT.open(): one list, both places. A key added to the app belongs in SHORT.items(). V4.96: handlers of the rebindable keys ask KEYS.is(e, id) (20g-keymap.js); a new rebindable key is a row in KEYS.ACTS and act: id on its SHORT row."
   },
   {
    "id": "scientia.slash-workflows",
    "name": "Slash commands made of workflows",
    "side": "scientia",
-   "summary": "V4.90 (Gabe, 20 Nov: \"Slash commands should be tunable with workflows or actions (everything you can think of)\"): your own /commands — a name, a description and a workflow of steps run in order, each from a list of the app's actions (insert text with {date} {time} {selection} {cursor}, make it a structure, set the component's kind, tag, task, reminder, timer, widget, template, flag for synthesis, bridge, move, float, wire, day-note log, open a note or tab, any command or macro, and an inline Ask step) — run as one undo group; the built-in slash commands hidden, pinned, aliased. Settings → Features → Slash commands (FEAT 'slash'): editor, Try it on a sample in the preview, export / import. A macro (11b) can be copied into a workflow.",
+   "summary": "V4.95 (Gabe, 20 Nov: \"Slash commands should be tunable with workflows or actions (everything you can think of)\"): your own /commands — a name, a description and a workflow of steps run in order, each from a list of the app's actions (insert text with {date} {time} {selection} {cursor}, make it a structure, set the component's kind, tag, task, reminder, timer, widget, template, flag for synthesis, bridge, move, float, wire, day-note log, open a note or tab, any command or macro, and an inline Ask step) — run as one undo group; the built-in slash commands hidden, pinned, aliased. Settings → Features → Slash commands (FEAT 'slash'): editor, Try it on a sample in the preview, export / import. A macro (11b) can be copied into a workflow.",
    "keywords": [
     "slash command",
     "workflow",
