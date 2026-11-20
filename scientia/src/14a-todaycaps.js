@@ -65,7 +65,7 @@ const TCAP = {
   },
   card(b) {
     const d = M.doc(b.docId), date = d && d.dayDate;
-    return TCAP.cardEl({ id: b.id, time: b.label || fmtTime(b.created), date: date && date !== localDate(new Date()) ? fmtDay(date + 'T12:00') : null, kinds: IX.kindsOf(b), text: String(b.body.text || ''), open: () => App.openBlock(b.id), move: () => TCAP.move(b) });
+    return TCAP.cardEl({ id: b.id, time: b.label || fmtTime(b.created), date: date && date !== localDate(new Date()) ? fmtDay(date + 'T12:00') : null, kinds: IX.kindsOf(b), text: String(b.body.text || ''), open: () => App.openComponent(b.id), move: () => TCAP.move(b) });
   },
   ARROW: () => h('span.tcp-i', { html: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>' }),
   /** The Today column's block: the cards, then where this session's moves went. */

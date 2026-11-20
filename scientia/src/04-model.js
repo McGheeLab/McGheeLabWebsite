@@ -256,8 +256,8 @@ const M = {
   clearFlag(type, id) { const f = M.flagFor(type, id); if (f) { f.status = 'resolved'; f.resolvedAt = isoLocal(new Date()); f.resolvedBy = { type: 'unflag' }; DB.put('flags', f); changed(); } },
   async toggleFlag(type, id) { if (M.flagFor(type, id)) { M.clearFlag(type, id); toast('Flag cleared'); } else { const r = await askText('Flag for the weekly review', 'Reason (optional)'); if (r !== null) { M.setFlag(type, id, r); toast('Flagged — it will come up at the next review'); } } },
   describeTarget(type, id) {
-    if (type === 'block') { const b = M.block(id); return b ? { title: M.blockName(b), sub: M.docPath(M.doc(b.docId)), go: () => App.openBlock(id) } : null; }
-    if (type === 'item') { const it = M.item(id); return it ? { title: `${KIND[it.kind].label}: ${snippet(it.text, 70)}`, sub: M.docPath(M.doc(it.originDocId)), kind: it.kind, go: () => App.openBlock(it.originBlockId) } : null; }
+    if (type === 'block') { const b = M.block(id); return b ? { title: M.blockName(b), sub: M.docPath(M.doc(b.docId)), go: () => App.openComponent(id) } : null; }
+    if (type === 'item') { const it = M.item(id); return it ? { title: `${KIND[it.kind].label}: ${snippet(it.text, 70)}`, sub: M.docPath(M.doc(it.originDocId)), kind: it.kind, go: () => App.openComponent(it.originBlockId) } : null; }
     if (type === 'doc') { const d = M.doc(id); return d ? { title: d.title, sub: M.docPath(d), go: () => App.go('#/doc/' + id) } : null; }
     if (type === 'library') { const l = M.lib(id); return l ? { title: l.title, sub: LIB.shortRef(l), go: () => App.go('#/library') } : null; }
     if (type === 'term') { const t = M.term(id); return t ? { title: t.label, sub: 'term', go: () => App.go('#/lens/' + id) } : null; }

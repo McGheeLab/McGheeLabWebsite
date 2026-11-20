@@ -134,7 +134,7 @@ const RESURF = {
     const it = RESURF.pick(); if (!it) return null; const age = Math.floor((Date.now() - +new Date(it.created)) / 864e5), d = M.doc(it.originDocId);
     const act = (label, fn, title) => h('button.btn.xs', { title, on: { click: e => { e.stopPropagation(); fn(); } } }, label);
     return h('div.resurf' + (compact ? '.compact' : ''), { style: { '--kc': `var(--k-${it.kind})` } }, h('div.row', h('span.lab', 'Resurfaced'), kchip(it.kind), h('span.tiny.muted', `${age} days ago · ${d ? d.title : ''}`)),
-      h('div.serif.rs-t', { on: { click: () => App.openBlock(it.originBlockId) } }, it.text),
+      h('div.serif.rs-t', { on: { click: () => App.openComponent(it.originBlockId) } }, it.text),
       h('div.row', { style: { gap: '4px' } }, act(it.kind === 'question' ? 'Still open' : 'Still holds', () => { toast('Noted — it will come back later'); RESURF.pick(undefined, it.id); changed(); }),
         act('Explore lane', () => { if (!M.flagFor('item', it.id)) M.toggleFlag('item', it.id); const f = M.flagFor('item', it.id); if (f) { f.reason = 'Explore — resurfaced ' + fmtDay(new Date()); DB.put('flags', f); } toast('Flagged for the review’s Explore lane'); }, 'Flag it for the weekly review'),
         it.kind === 'question' ? act('Answered', () => { M.closeItem(it); toast('Closed'); }) : act('Contest', () => M.setItem(it, { stance: 'contested' })),

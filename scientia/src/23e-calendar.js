@@ -623,7 +623,7 @@ const CAL = {
     const L = CAL.tasksOf(ev), inp = h('input.bub-tagin.cal-tkin', { placeholder: '+ a task for this event', 'aria-label': 'A task for this event', on: { keydown: e => { if (e.key === 'Enter') { e.preventDefault(); if (CAL.addTask(ev, it, e.target.value)) setTimeout(() => CAL.bubFill(), 0); } } } });
     return h('div.cal-tks', L.map(b => { const done = !!TASK.t(b).done;
       return h('div.cal-tk' + (done ? '.done' : ''), h('button.cal-tkb', { type: 'button', 'aria-pressed': String(done), 'aria-label': (done ? 'Not done: ' : 'Done: ') + TASK.text(b), on: { click: () => { TASK.toggle(b); setTimeout(() => CAL.bubFill(), 0); } } }, done ? CAL.ic('ck') : null),
-        h('span', TASK.text(b)), h('button.cal-tko', { type: 'button', title: 'Open it where it is, in “' + doc.title + '”', on: { click: () => { CAL.closeBub(); App.openBlock(b.id); } } }, CAL.ic('note')),
+        h('span', TASK.text(b)), h('button.cal-tko', { type: 'button', title: 'Open it where it is, in “' + doc.title + '”', on: { click: () => { CAL.closeBub(); App.openComponent(b.id); } } }, CAL.ic('note')),
         h('button.cal-tkx', { type: 'button', title: 'Take it off this event (the task stays in its note)', 'aria-label': 'Take off', on: { click: () => { const cur = DB.get('events', ev.id); cur.tasks = (cur.tasks || []).filter(x => x !== b.id); CAL.save(cur, 'Task off'); setTimeout(() => CAL.bubFill(), 0); } } }, '×')); }), inp);
   },
 
@@ -673,7 +673,7 @@ const CAL = {
     const b = M.addBlock(doc.id, null, { label: 'From ' + ev.title, x: 0, y: Math.round(y / 14) * 14, w: 420 }); b.body = { text: '', marks: [] }; DB.put('blocks', b);
     const r = REGION.create(doc, [b.id]), rr = REGION.list(doc).find(x => x.id === r.id); if (rr) { rr.name = ev.title; rr.event = { id: ev.id, day: q.day }; REGION.save(doc); }
     ev.rg = Object.assign({}, ev.rg, { [q.day]: { list: [{ docId: doc.id, rg: r.id }], asked: true } }); DB.put('events', ev); CAL.regionLinks(); changed();
-    App.go('#/doc/' + doc.id); setTimeout(() => { try { App.openBlock(b.id); } catch (e) { } }, 250); toast('A region for “' + ev.title + '” — write what happened', 2600);
+    App.go('#/doc/' + doc.id); setTimeout(() => { try { App.openComponent(b.id); } catch (e) { } }, 250); toast('A region for “' + ev.title + '” — write what happened', 2600);
   },
   askSkip(q) { const ev = DB.get('events', q.ev.id); if (!ev) return; DB.beginGroup('Not this time'); ev.rg = Object.assign({}, ev.rg, { [q.day]: Object.assign({}, (ev.rg || {})[q.day], { dismissed: true }) }); DB.put('events', ev); changed(); },
   askRow(q) { return h('div.cal-ask', h('span', CAL.ic('note'), 'Nothing was written during ', h('b', q.ev.title), ' (' + fmtDay(parseDay(q.day)) + ' ' + CAL.hm(q.ev.start) + '–' + CAL.hm(q.ev.end) + '). Log anything from it?'),
@@ -753,7 +753,7 @@ const CAL = {
     return h('div.cal-tks', L.map(d => { const open = CAL.dvOpen(d);
       return h('div.cal-tk' + (open ? '' : '.done'), h('span', CAL.DV[d.deliv.what].label + ' · ' + d.title),
         open ? h('button.cw-d.cal-dvat', { type: 'button', title: CAL.dvDue(d) ? 'Due — attach it' : 'Due when it ends — attach it now if it is ready', on: { click: () => { CAL.closeBub(); CAL.attach(d); } } }, 'Attach…')
-          : d.deliv.blockId ? h('button.cal-tko', { type: 'button', title: 'Open what was attached', on: { click: () => { CAL.closeBub(); App.openBlock(d.deliv.blockId); } } }, CAL.ic('ck')) : null,
+          : d.deliv.blockId ? h('button.cal-tko', { type: 'button', title: 'Open what was attached', on: { click: () => { CAL.closeBub(); App.openComponent(d.deliv.blockId); } } }, CAL.ic('ck')) : null,
         h('button.cal-tkx', { type: 'button', 'aria-label': 'Remove it', title: 'Remove this deliverable (what was attached stays)', on: { click: () => { DB.beginGroup('Remove deliverable'); DB.del('events', d.id); changed(); try { REM.badge(); } catch (e) { } setTimeout(() => CAL.bubFill(), 0); } } }, '×')); }),
       chips, h('div.cal-dvadd', nm, h('button.cw-d', { type: 'button', on: { click: add } }, 'Add')));
   },
@@ -761,7 +761,7 @@ const CAL = {
   dvChip(d) { const due = CAL.dvDue(d), open = CAL.dvOpen(d), K = CAL.DV[d.deliv.what], nt = CAL.dvNote(d), w = CAL.dvWhen(d);
     return h('button.cal-dv' + (open ? (due ? '.due' : '') : '.done'), { type: 'button', 'data-dv': d.id, style: { top: `calc(var(--hpx) * ${w.at / 60} - 11px)` },
       title: K.label + ': ' + d.title + ' — ' + (open ? (due ? 'due, attach it' : 'due at ' + CAL.hm(w.at)) : d.deliv.state === 'dropped' ? 'not needed' : 'attached, open it') + (nt ? ' · in “' + nt.title + '”' : ' · no note: a float'),
-      on: { pointerdown: e => e.stopPropagation(), click: e => { e.stopPropagation(); if (open) CAL.attach(d); else if (d.deliv.blockId) App.openBlock(d.deliv.blockId); } } },
+      on: { pointerdown: e => e.stopPropagation(), click: e => { e.stopPropagation(); if (open) CAL.attach(d); else if (d.deliv.blockId) App.openComponent(d.deliv.blockId); } } },
       CAL.ic(open ? 'dv' : 'ck'), h('b', K.label), h('span', d.title)); },
   /** "… is due — attach it" (in its note, on Today). */
   dvAskRow(d) { const K = CAL.DV[d.deliv.what], w = CAL.dvWhen(d), nt = CAL.dvNote(d);
@@ -829,7 +829,7 @@ const CAL = {
     if (CAL.st.linkFrom) return CAL.linkTo(it);
     if (it.ev && CAL.isFocus(it.ev)) return CAL.focusSheet(it);   // V4.64
     CAL.closeAll();
-    if (it.task) return App.openBlock(it.task.id);
+    if (it.task) return App.openComponent(it.task.id);
     if (it.rem) { if (it.rem.kind === 'meeting' && REM.meetingNote) return REM.meetingNote(it.rem, it.at); return REM.edit({ id: it.rem.id }); }
     const ev = it.ev, d = CAL.docOf(it), rep = ev.repeat && ev.repeat !== 'none';
     const mine = rep ? (ev.notes || {})[it.day] : null, md = mine && M.doc(mine);

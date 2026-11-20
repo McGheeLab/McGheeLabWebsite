@@ -220,7 +220,7 @@ const SplitView = {
   render(...args) {
     const { docs, focus } = SplitView.parse(args); if (docs.length < 2) { setTimeout(() => App.go('#/doc/' + (docs[0] || '')), 0); return h('div'); }
     DocView.side = false; PANES.slice(1).forEach(p => p.side = true);
-    if (focus) { const i = docs.indexOf((M.block(focus) || {}).docId); if (i >= 0 && !PANES[i].pendingFocus) PANES[i].pendingFocus = { reveal: focus }; }
+    if (focus) { const i = docs.indexOf((M.block(focus) || {}).docId); if (i >= 0 && !PANES[i].pendingFocus) PANES[i].pendingFocus = { reveal: focus, arrive: true }; }
     const n = docs.length, wrap = h('div.split.n' + n);
     const panes = docs.map((id, i) => { const el = h('div.pane.p' + i); el.append(PANES[i].render(id), PANES[i].paneHead(i)); return el; });
     const vsep = h('div.split-sep.v', { title: 'Drag to resize' }), hsep = n > 2 ? h('div.split-sep.h', { title: 'Drag to resize' }) : null;

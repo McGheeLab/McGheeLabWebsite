@@ -46,36 +46,44 @@ const App = {
     $('#meta').replaceChildren(...(Array.isArray(meta) ? meta : meta ? [meta] : []));
     document.title = (text ? text + ' · ' : '') + 'Scientia In Situ';
   },
-  openBlock(id) {
+  /** V4.67 — THE way to go to a component, from anywhere: a task's Open, a search result, a reminder, a link, a calendar item, a term card, the Atlas, a
+      Portfolio row… It opens the component's note (or the pane already showing it) and centres the canvas on it at 50% zoom (DocView.landOn; Settings → Open a
+      component), with the brief highlight. `e` is the click: Alt+click opens it in another pane, Ctrl/⌘+click in the pane you clicked in (a split view). */
+  openComponent(id, e) {
+    if (e && e.altKey) { e.preventDefault && e.preventDefault(); return App.openSide(id, e.target, false); }
+    if (e && (e.ctrlKey || e.metaKey) && App.route.name === 'split') { e.preventDefault && e.preventDefault(); return App.replacePane(id, e.target, false); }
     const b = M.block(id); if (!b) return;
     const panes = App.panes().filter(p => p.docId === b.docId);
     if (panes.length) { const p = panes.includes(App.pane) ? App.pane : panes[0]; p.pendingFocus = { reveal: id }; p.focusPending(); return; }
-    DocView.pendingFocus = { reveal: id }; App.go('#/doc/' + b.docId);
+    DocView.pendingFocus = { reveal: id, arrive: true }; App.go('#/doc/' + b.docId);
   },
+  /** The older name (the lab layer calls it): the same function. */
+  openBlock(id) { return App.openComponent(id); },
   /** Live note panes on screen: one, or up to four (2×2). */
   panes() { return App.route.name === 'doc' ? [DocView] : App.route.name === 'split' ? PANES.slice(0, SplitView.parse(App.route.args).docs.length) : []; },
   /** Every connection opens its target. Alt+click opens it in another pane (up to four); Ctrl+click opens it in the pane you clicked in. */
   jump(id, e, isDoc) {
+    if (!isDoc) return App.openComponent(id, e);   // a component: the standard way in
     if (e && e.altKey) { e.preventDefault && e.preventDefault(); return App.openSide(id, e.target, isDoc); }
     if (e && (e.ctrlKey || e.metaKey) && App.route.name === 'split') { e.preventDefault && e.preventDefault(); return App.replacePane(id, e.target, isDoc); }
-    if (isDoc) return App.go('#/doc/' + id); App.openBlock(id);
+    App.go('#/doc/' + id);
   },
   openSide(id, fromEl, isDoc) {
     const b = isDoc ? null : M.block(id), docId = isDoc ? id : b && b.docId; if (!docId) return;
     const from = DV(fromEl), cur = App.route.name === 'split' ? SplitView.parse(App.route.args).docs : App.route.name === 'doc' ? [App.route.args[0]] : [];
-    if (!cur.length) return isDoc ? App.go('#/doc/' + docId) : App.openBlock(id);
+    if (!cur.length) return isDoc ? App.go('#/doc/' + docId) : App.openComponent(id);
     const at = cur.indexOf(docId);
     if (at >= 0) { const p = PANES[at]; p.pendingFocus = b ? { reveal: id } : null; p.focusPending(); return; }
     let docs = [...cur, docId];
     if (docs.length > MAXPANES) { const fi = Math.max(0, PANES.indexOf(from)); const drop = fi === MAXPANES - 1 ? MAXPANES - 2 : MAXPANES - 1; docs = cur.slice(); docs[drop] = docId; toast('Four panes is the most — replaced one'); }
-    const i = docs.indexOf(docId); PANES[i].pendingFocus = b ? { reveal: id } : null;
+    const i = docs.indexOf(docId); PANES[i].pendingFocus = b ? { reveal: id, arrive: true } : null;
     App.go(SplitView.route(docs, b ? id : null));
   },
   replacePane(id, fromEl, isDoc) {
     const b = isDoc ? null : M.block(id), docId = isDoc ? id : b && b.docId; if (!docId) return;
     const docs = SplitView.parse(App.route.args).docs, i = Math.max(0, PANES.indexOf(DV(fromEl))), at = docs.indexOf(docId);
     if (at >= 0) { PANES[at].pendingFocus = b ? { reveal: id } : null; PANES[at].focusPending(); return; }
-    docs[i] = docId; PANES[i].pendingFocus = b ? { reveal: id } : null; App.go(SplitView.route(docs, b ? id : null));
+    docs[i] = docId; PANES[i].pendingFocus = b ? { reveal: id, arrive: true } : null; App.go(SplitView.route(docs, b ? id : null));
   },
   renderTabs() {
     const nav = $('#tabs'), cur = App.route.name === 'doc' && (M.doc(App.route.args[0]) || {}).type === 'day' ? 'home' : TABOF[App.route.name] || App.route.name, pend = IX.pendingReviews().length;
