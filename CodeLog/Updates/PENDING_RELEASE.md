@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (179 changes — ready to push)
+## Pending (180 changes — ready to push)
+
+- **Protocols (V4.81):** typing a number then “uL” in a protocol step gives “µL”.
 
 - **Library RIS (V4.80):** looking up a DOI now keeps the publisher’s RIS record. Export papers, a selection or a shelf as a .ris file, and import .ris files.
 

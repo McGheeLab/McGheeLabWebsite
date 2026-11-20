@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.81] — 2026-11-20 — Scientia: Protocols — a number and “uL” typed in a step becomes “µL” (the notes’ own replacements, now in steps too)
+
+Gabe, 20 Nov: "In Protocol add the uL to mu symbol after a number."
+
+App only.
+
+### Added
+- **`PROTO.typing(el)`** (`13b-protocol.js`): a protocol step's text (in its note and in a run's temporary steps) uses the notes' own rule list, `WRITE.autoReplace`.
+  - `5 uL ` becomes `5 µL `; Backspace right after puts back what was typed.
+  - The same Settings switches apply: with "Science symbols" off it is left alone.
+  - The other groups (arrows, dashes, quotes, superscripts) work in steps too, each under its own switch.
+- **Settings → Writing in components:** the description and preview show a protocol step.
+
+### Tests
+| Test | Result |
+|---|---|
+| `protoul_t`, lab and plain builds (the helper's), and again on this branch (lab) | 13/13 · 13/13 · 13/13 |
+
+Not covered: the observation box, the Split dialog and the protocol's name (plain inputs, outside the rule list).
+
+
 ## [V4.80] — 2026-11-20 — Scientia: Library — a DOI lookup keeps the publisher’s RIS record; export .ris (a paper, a selection, a shelf) and import .ris files or pasted RIS
 
 Gabe, 20 Nov: "Library captures .ris from DOI lookup."

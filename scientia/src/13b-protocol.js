@@ -91,6 +91,13 @@ const PROTO = {
     for (let j = i + dir; j >= 0 && j < seq.length; j += dir) if (temp[seq[j]]) return PROTO.focusStep(run.id, seq[j]);
     if (dir > 0 && i === seq.length - 1) PROTO.addTemp(run, sid, null);
   },
+  /** V4.67 (Gabe: "In Protocol add the uL to mu symbol after a number."): the notes' typing replacements (13u WRITE, one rule list, the same Settings
+      switches per group) in a step's text — "5 uL " becomes "5 µL ". Backspace right after one puts back what was typed. */
+  typing(el) {
+    el.addEventListener('input', e => { if (el.contentEditable === 'true' || el.contentEditable === 'plaintext-only') WRITE.autoReplace(el, e); });
+    el.addEventListener('keydown', e => { if (e.key === 'Backspace' && !e.ctrlKey && !e.metaKey && WRITE._last && WRITE.undoReplace()) e.preventDefault(); else if (e.key.length === 1) WRITE._last = null; }, true);
+    return el;
+  },
   focusStep(boxId, stepId) {
     setTimeout(() => { const n = $(`.box[data-id="${boxId}"] .pstep[data-step="${stepId}"] .ptext.edit`) || $(`.pstep[data-step="${stepId}"] .ptext.edit`); if (!n) return;
       n.focus(); const r = document.createRange(), S = getSelection(); r.selectNodeContents(n); r.collapse(false); S.removeAllRanges(); S.addRange(r); }, 80);
@@ -244,6 +251,7 @@ const PROTO = {
   tempEditor(run, t) {
     const el = h('div.ptext.edit', { contenteditable: 'plaintext-only', spellcheck: 'true', 'data-ph': 'A step for this experiment only…' }, t.text);
     if (el.contentEditable !== 'plaintext-only') el.contentEditable = 'true';
+    PROTO.typing(el);
     const save = () => { const v = el.textContent.trim(); if (v !== t.text) { run.temp[t.id] = Object.assign({}, t, { text: v }); PROTO.syncRunBody(run); DB.put('blocks', run); changed(); } };
     el.addEventListener('keydown', e => {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); el._skip = true; save(); PROTO.addTemp(run, t.id, DV(el)); }
@@ -454,6 +462,7 @@ const PROTO = {
   editor(def, s) {
     const el = h('div.ptext.edit', { contenteditable: 'plaintext-only', spellcheck: 'true', 'data-ph': 'Describe the step…' }, s.text);
     if (el.contentEditable !== 'plaintext-only') el.contentEditable = 'true';
+    PROTO.typing(el);
     el.addEventListener('keydown', e => {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); const t = el.textContent; el._skip = true; PROTO.editStep(def, s, t, el); const ns = PROTO.insertStep(def, (PROTO.step(def, s.id).supersededBy || [])[0] || s.id); setTimeout(() => { const n = $(`.pstep[data-step="${ns.id}"] .ptext`); n && n.focus(); }, 80); }
       if (e.key === 'Backspace' && !el.textContent && PROTO.live(def).length > 1) { e.preventDefault(); el._skip = true; PROTO.removeStep(def, s, el); }
