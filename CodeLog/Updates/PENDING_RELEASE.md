@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (147 changes — ready to push)
+## Pending (148 changes — ready to push)
+
+- **Data in the Atlas (V4.49):** a Data section in the Atlas gathers every folder and file logged in your notes into one master tree. View it by project and note, each note labelled by kind with a button to open it, or as one merged tree. It is searchable.
 
 - **Materials in the Atlas (V4.48):** Materials is no longer a tab. It is a section of the Atlas, next to the Map, reached from a row of pills at the top of the Atlas. Old links still work.
 
