@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.90] — 2026-11-20 — Scientia: the Terms page as its table again — V4.63's cards removed
+
+Gabe, 20 Nov: "Remove the V4.63's cards version of the Terms page". (V4.63 came from reading "Change terms to look like a new UI in the cards" as the Terms page; Gabe meant terms inside notes, which V4.66 built.)
+
+App only.
+
+### Changed
+- **The Terms page** shows its table again, with its column names, full-width rows and ↓ ↑ along the list. V4.63's cards (`36-look.css`), the rise-in, the "uses" word and the grid arrow keys (`16-lens.js`) are removed, and the look's description is restored.
+
+### Tests
+| Test | Result |
+|---|---|
+| `v90_t`, lab and plain builds: the table (column names, full-width rows, no grid, no "uses", no rise-in); ↓ ↓ ↑ from the first term → 1, 2, 1 | 6/6 · 6/6 |
+| `tl66_t` (terms in notes, the Ledger card — unchanged) | 16/16 |
+
+
 ## [V4.89] — 2026-11-20 — Scientia: Shift+click a component and the canvas zooms onto it — in every build, with the mouse or the pen; Shift+drag still moves it by the grid
 
 Gabe, 20 Nov: "In RTgabrieldeclercq repo, have the Shift+click on a component to zoom on it. Look for any missing shortcuts or features that do not reside in the current repo or pull requests."
