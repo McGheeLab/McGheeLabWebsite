@@ -2317,6 +2317,34 @@
    "distinct_from": {
     "rm.teaching-service": "a background process (Windows service-like) that keeps the app running; nothing to do with teaching or service records"
    }
+  },
+  {
+   "id": "scientia.shortcuts",
+   "name": "Scientia Shortcuts (every key and gesture, in one list)",
+   "side": "scientia",
+   "summary": "Gabe: \"Add shortcuts list in Settings near command bar commands.\" One searchable list of every keyboard shortcut and gesture of the app, grouped by where it works (everywhere, in a note, typing, saying what words are, mouse · pen · touch, the command bar, widgets, reader and Library, calendar, freewrite, review · terms · atlas), written from the keydown handlers; a rebindable key (structKey, termKey) shows its current binding with a Change link. Drawn by one SHORT.view() in Settings → Keys & commands (above the commands) and in the ? dialog (helpModal), /keys and the palette. FEAT 'shortcuts': the list, the ? key, and whether gestures are listed.",
+   "keywords": [
+    "shortcuts",
+    "keyboard",
+    "keys",
+    "gestures",
+    "hotkeys",
+    "help",
+    "cheat sheet"
+   ],
+   "paths": [
+    "scientia/src/20f-shortcuts.js",
+    "scientia/src/41-shortcuts.css"
+   ],
+   "extends": "scientia.settings",
+   "related": [
+    "scientia.core",
+    "scientia.calendar",
+    "scientia.freewrite",
+    "scientia.reader",
+    "scientia.terms"
+   ],
+   "note": "The ? dialog (helpModal in 11-shell.js) is now SHORT.open(): one list, both places. A key added to the app belongs in SHORT.items()."
   }
  ]
 }

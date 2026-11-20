@@ -16,7 +16,7 @@ const SettingsView = {
      then the ordinary settings, a section each. Search covers both. */
   section: 'features', q: '', spy: null, back: null,
   SECTIONS: [['features', 'Features', '◉'], ['look', 'Look & feel', '◐'], ['keys', 'Keys & commands', '⌘'], ['templates', 'Templates & note types', '⧉'], ['devices', 'Notebook & devices', '⇆'], ['data', 'Data & storage', '⛁']],
-  WORDS: { look: 'theme light dark appearance colour', keys: 'keys shortcut commands macro ctrl+w focus mode', templates: 'templates note types profiles', devices: 'notebook folder devices phone tablet ipad lab computer handwriting recordings whisper obsidian', data: 'storage export import json snapshots backup re-index round-trip start empty' },
+  WORDS: { look: 'theme light dark appearance colour', keys: 'keys shortcut shortcuts hotkeys gestures commands macro ctrl+w focus mode', templates: 'templates note types profiles', devices: 'notebook folder devices phone tablet ipad lab computer handwriting recordings whisper obsidian', data: 'storage export import json snapshots backup re-index round-trip start empty' },
   render(a0, a1) {
     const s = settings(), V = SettingsView;
     App.setTitle('Settings', [h('span', DB.mode === 'idb' ? 'IndexedDB · ' + (DB.durable && DB.durable.persisted ? 'persistent' : 'evictable') : 'memory only')]);
@@ -185,6 +185,7 @@ const SettingsView = {
     return h('div.st-col',
       h('div.callout', h('b.h', 'Where the keys are'), 'Give a phrase its meaning: Features → Structures. Mark a term: Features → Terms. Pen buttons and gestures: Features → Pen & touch.'),
       h('div.callout', h('b.h', 'Ctrl+W'), 'Browsers close the tab on Ctrl+W before a page can see it. In ', h('b', 'Focus mode'), ' (Ctrl+. or ⤢ on a note) the app goes fullscreen and asks the browser to lock the W key, and then Ctrl+W marks a term. Outside Focus mode, ', keyLabel(s.termKey), ' does the same. While you are typing, closing the tab asks first.'),
+      SHORT.settingsUI(),
       cmds);
   },
   templatesView(s) {
