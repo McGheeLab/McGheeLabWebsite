@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (183 changes — ready to push)
+## Pending (184 changes — ready to push)
+
+- **Compendiums (V4.85):** a new tab after the Atlas. It is a gallery of your Materials, Data and registered Protocols, each with a page of its own. The Atlas keeps only its map.
 
 - **Portfolio references (V4.84):** each theme in the Portfolio (and Project-wide) has a References section: every paper cited in its notes, numbered in citation order.
 

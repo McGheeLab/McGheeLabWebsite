@@ -119,7 +119,7 @@ const ADATA = {
     const q = h('input.inp.ad-q', { type: 'search', placeholder: 'Search the files and folders…', value: st.q, 'aria-label': 'Search the master tree', on: { input: debounce(e => { st.q = e.target.value; ADATA.paint(); }, 160) } });
     const sum = S.comps ? [plural(S.dirs, 'folder'), plural(S.files, 'file'), S.bytes ? DATA.fmtSize(S.bytes) : null].filter(Boolean).join(' · ') + ' — in ' + plural(S.notes, 'note') + ' of ' + plural(S.projects, 'project') : 'Nothing logged yet';
     ADATA.host = h('div.ad-host');
-    const page = h('div.page.ad-page', h('div.eyebrow', 'Atlas'), h('h1.title', 'Data'),
+    const page = h('div.page.ad-page', h('div.eyebrow', COMP.on() ? 'Compendiums' : 'Atlas'), h('h1.title', 'Data'),
       h('p.stand', 'Every folder and file logged in your notes, in one master tree — by project and note, or merged into one. Open goes to the component it was logged on; nothing is copied or moved.'),
       h('div.ad-sum', sum), h('div.row.ad-bar', seg, q), ADATA.host);
     ADATA.host.append(ADATA.tree()); return page;   // drawn now (the page is not in the document yet); paint() redraws it later
@@ -128,7 +128,7 @@ const ADATA = {
   preview() {
     const row = (d, kids, cls) => h('div.pv-ad-r' + (cls ? '.' + cls : ''), { style: { '--d': d } }, ...kids);
     const lab = k => h('span.nk', { 'data-sk': k }, NOTEKIND.LABEL[k]);
-    return h('div.pv-ad', ATHUB.pv('data'),
+    return h('div.pv-ad', COMP.pv('data'),
       h('div.pv-ad-t', row(0, [h('i.pv-ad-dot'), h('b', 'Cell mechanics'), h('span', '2 notes')], 'p'),
         row(1, [lab('exp'), h('b', 'Run 3 · 30 kPa'), h('span', '2 folders · 41 files'), h('em', 'Open ↗')]),
         row(2, [h('span.pv-ad-f', '▸'), h('span', 'raw'), h('span', '36 files · 3.1 GB')]),
@@ -139,5 +139,5 @@ const ADATA = {
 {
   // the data tree draws the master tree: rows dressed after each draw (a fold draws it again)
   const el0 = DTREE.el; DTREE.el = function (b, o) { const r = el0.apply(this, arguments); try { if (o && o.decorate) o.decorate(r); } catch (e) { console.warn('[atlas data]', e); } return r; };
-  ATHUB.add({ key: 'data', label: 'Data', order: 20, icon: DTREE.svg('tree', 14), title: 'Every data tree in your notes, in one master tree', on: ADATA.on, count: () => { try { return ADATA.stats().notes; } catch (e) { return null; } }, render: () => ADATA.render() });
+  COMP.add({ key: 'data', label: 'Data', order: 20, desc: 'Every folder and file logged in your notes, in one master tree — by project and note, or merged.', peek: () => { try { const S = ADATA.stats(); return S.comps ? [plural(S.files, 'file') + ' in ' + plural(S.dirs, 'folder'), plural(S.notes, 'note') + ' of ' + plural(S.projects, 'project')] : []; } catch (e) { return []; } }, icon: DTREE.svg('tree', 14), title: 'Every data tree in your notes, in one master tree', on: ADATA.on, count: () => { try { return ADATA.stats().notes; } catch (e) { return null; } }, render: () => ADATA.render() });
 }
