@@ -4,6 +4,37 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.47] — 2026-11-19 — Scientia: Freewrite — Convert can be undone; Convert shows the note as it will look, in the note itself; Apply can be taken back
+
+Gabe (19 Nov 2026): "Also, for the freewrite, convert should be reversible. Convert can also be used to see a preview of how the note will look."
+
+App only.
+
+### Added
+- **`FREEW.plain()` — Undo convert:**
+  - the Convert button toggles once converted (`st.cv`, the label and `.on`); colours and previews off;
+  - `fw.over` / `fw.lover` kept, so the next Convert restores them;
+  - `show(force)`: Ctrl+Enter converts only.
+- **`FREEW.ghost(on)` / `ghostPaint()` / `ghostOff()`:**
+  - the components Apply would make, drawn in the note's canvas (`.fw-ghosts` in `pane.paper.world`): `.fw-gb` outlines in the kind's colour, marked Preview, at `FREEW.room` + `FREEW.layout` (snapped like Apply), with dashed links;
+  - Preview in the note / Hide in the note on "The note it will make";
+  - redrawn after `App.refresh`; removed on Full page, Undo convert, Apply and Close.
+- **`FREEW.takeBack(id)` — Take back:**
+  - removes the components the freewrite made (`fwFrom`) and their links (`EDIT.deleteBlocks`); associated ones stay;
+  - the freewrite returns to `draft`, unfolded;
+  - `pickModal` first when one changed since Apply;
+  - on the card (`.fw-tbk`, in the header while folded), its ⋯ menu, and its page (`st.tb`).
+
+### Changed
+- **The toast after Apply:** "Take back on the freewrite (or Ctrl+Z) takes them out".
+- **Settings → Freewrite:** the description.
+
+### Tests
+| Test | Result |
+|---|---|
+| `fw47_t`, real clicks: Convert → Undo convert (no colours, no preview, the choice kept) → Convert (the choice back); Ctrl+Enter; Preview in the note (beside; one box per component, links; inside the canvas, in view, clear of the note's boxes, marked Preview; after a redraw; a sentence more adds a box; Hide); Apply lands where the preview showed; Take back on the folded card's header (components, links and boxes gone; draft, unfolded); changed since → asked (Keep them, then Take back from the page); the words — lab · without the lab layer | 21/21 · 21/21 |
+| `fw_t33` · `fw_t34`, lab · without the lab layer | 69/69 · 24/24 · 69/69 · 24/24 |
+
 ## [V4.46] — 2026-11-19 — Scientia: the gliding tab pill covers the whole tab — its name and its count — every time
 
 Gabe (19 Nov 2026): "Add the gliding tab pill and make sure it covers the entire tab name everytime."
