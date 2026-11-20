@@ -121,10 +121,12 @@ const CHORES = {
 
 /* ---------------- one old claim or question, every day ---------------- */
 const RESURF = {
+  /** The kinds that come back: both, or only claims, or only questions (Settings → Resurfaced claims). */
+  kinds() { const k = FEAT.tune('resurface', 'kinds'); return k === 'claim' ? ['claim'] : k === 'question' ? ['question'] : ['claim', 'question']; },
   pick(date = localDate(new Date()), skip) {
     const s = settings(); if (!skip && s.resurface && s.resurface.date === date && M.item(s.resurface.id)) return M.item(s.resurface.id);
-    const seen = s.resurfaced || {}, cut = Date.now() - 14 * 864e5;
-    const pool = DB.where('items', i => (i.kind === 'claim' || i.kind === 'question') && !i.correctedBy && IX.status(i) !== 'closed' && i.stance !== 'abandoned' && +new Date(i.created) < cut && i.id !== (skip || ''));
+    const seen = s.resurfaced || {}, cut = Date.now() - (+FEAT.tune('resurface', 'after') || 14) * 864e5, kinds = RESURF.kinds();   // 20 Nov (easy tunes): how old, and which kinds, are Settings
+    const pool = DB.where('items', i => kinds.includes(i.kind) && !i.correctedBy && IX.status(i) !== 'closed' && i.stance !== 'abandoned' && +new Date(i.created) < cut && i.id !== (skip || ''));
     if (!pool.length) return null;
     const hsh = x => { let v = 0; for (const c of x) v = (v * 31 + c.charCodeAt(0)) >>> 0; return v; };
     pool.sort((a, b) => (seen[a.id] || '').localeCompare(seen[b.id] || '') || hsh(date + a.id) - hsh(date + b.id));

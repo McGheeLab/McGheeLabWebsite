@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (192 changes — ready to push)
+## Pending (193 changes — ready to push)
+
+- **Settings (V4.94):** 20 new settings for things that were fixed — how fast hover cards appear, zoom speed and the grid, reminder defaults and snooze length, the Today page's lists and heatmap, focus length, how long messages stay, and more.
 
 - **Quick cast (V4.93):** two new buttons. Float makes the selected component a float (or shows the floats waiting). Photo takes a picture with your camera and puts it in the note as an image panel. Settings → Pills shows each pill opened out; click one to turn its row into a column.
 
