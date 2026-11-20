@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (152 changes — ready to push)
+## Pending (153 changes — ready to push)
+
+- **Freewrite labels and links (V4.54):** click a component's label to change its kind or structure; drag one component onto another to link them.
 
 - **Freewrite: one component, a title, a structure (V4.53):** sentences you make one component no longer appear twice; click a word (or select words) in a component to make them its title or a structure inside it.
 

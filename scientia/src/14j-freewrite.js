@@ -67,6 +67,15 @@
                                    ([{ t: words, s: structure }]): from a click on a word (the chip's Title / Structure) or a
                                    selection inside one component (the selection's chip); kept when its kind changes; Apply
                                    gives the component its label and the structures their items and marks.
+   V4.54 — Gabe: "Dragging a component to another allows you to create a component link between them. The label on each
+   freewrite sentence is clickable, bringing a clean popup that gives you quick modification possibilities for both kind and
+   structure of the component (similar to highlight in PDFs)."
+     tags() / quick(key)           the labels over the words are buttons (.fw-tags, above the text box): a click → a popup of
+                                   chips, Kind and Structure (a letter picks a structure, as on a PDF), its title, its links,
+                                   More ▾ (the whole menu). A link's label → the link's menu.
+     grab() / linkMenu() / addLink a label, or a box in the preview, dragged onto another component (its words, label or box) →
+                                   which relation → fw.links [{ a, b, rel }] (by the parts' words, like fw.over); convert adds
+                                   them as links of their own (own: true, no words of their own); Apply makes them wires.
    ========================================================================== */
 const FREEW = {
   st: null, au: null, dict: null, wait: null,
@@ -263,6 +272,8 @@ const FREEW = {
     parts.forEach(p => { const v = over[p.key]; if (!v) return; if (v.none) p.none = true; else { if (v.as) p.as = v.as; if ('kind' in v) p.kind = v.kind || null; if ('struct' in v) p.struct = v.struct || null; if (v.as === 'bridge' && !p.cands) p.cands = FREEW.cands(p.text, o.docId);
       if (v.title) p.title = v.title; if (Array.isArray(v.marks) && v.marks.length) p.marks = v.marks.slice(); }   // V4.53: its title, structures on words in it
       if (v.as || 'kind' in v || 'struct' in v || v.none) p.changed = true; });
+    (o.links || []).forEach(u => { if (!u || !u.a || !u.b || u.a === u.b || !u.rel || lk.has(u.a + '>' + u.b) || lk.has(u.b + '>' + u.a)) return;   // V4.54: links you drew
+      const l = { id: 'l' + links.length, key: u.a + '>' + u.b, a: u.a, b: u.b, rel: u.rel, back: false, span: null, own: true }; links.push(l); lk.set(l.key, l); });
     links.forEach(l => { const v = lover[l.key]; if (v) { if (v.none) l.none = true; if (v.rel) l.rel = v.rel; if (v.flip) { const t = l.a; l.a = l.b; l.b = t; l.back = !l.back; } l.changed = true; }
       const A = byKey.get(l.a), B = byKey.get(l.b); if (!A || !B || A.none || B.none) l.off = true; });
     // V4.37 — the sentences that stay in the component before them: its words grow; each stretch keeps its own words (a click can take it out)
@@ -330,13 +341,18 @@ const FREEW = {
     const W = Math.max(160, o.width || 320), s = Math.min(.5, W / Math.max(1, L.w)), q = v => Math.round(v * s);
     const host = h('div.fw-mini', { style: { height: q(L.h) + 8 + 'px', width: Math.min(W, q(L.w) + 2) + 'px' } });
     let svg = ''; L.E.forEach(e => { const A = L.pos[e.a], B = L.pos[e.b]; if (!A || !B) return; const col = WIRECOL[e.rel] || '#8a8f98', R = REL[e.rel] || { label: e.rel };
+      const ca = { x: A.x + A.w / 2, y: A.y + A.h / 2 }, cb = { x: B.x + B.w / 2, y: B.y + B.h / 2 }, under = Object.keys(L.pos).some(k => { if (k === e.a || k === e.b) return false; const Q = L.pos[k]; for (let t = .1; t < .95; t += .1) { const x = ca.x + (cb.x - ca.x) * t, y = ca.y + (cb.y - ca.y) * t; if (x > Q.x && x < Q.x + Q.w && y > Q.y && y < Q.y + Q.h) return true; } return false; });
+      if (under) {   // V4.54: a line that would run under another box goes round it, on the right
+        const X = q(Math.max(A.x + A.w, B.x + B.w)) + 24, x1 = q(A.x + A.w), y1 = q(A.y + A.h / 2), x2 = q(B.x + B.w), y2 = q(B.y + B.h / 2), ah = d => (x2 + 7 * Math.cos(d)).toFixed(1) + ',' + (y2 + 7 * Math.sin(d)).toFixed(1);
+        svg += `<path d="M${x1},${y1} C${X},${y1} ${X},${y2} ${x2},${y2}" fill="none" stroke="${col}" stroke-width="1.6" class="fw-mround"/>` + ((REL[e.rel] || {}).dir === false ? '' : `<polygon points="${x2},${y2} ${ah(-.45)} ${ah(.45)}" fill="${col}"/>`) +
+          `<text x="${X - 2}" y="${((y1 + y2) / 2 + 3).toFixed(1)}" fill="${col}" class="fw-ml">${esc(R.label || e.rel)}</text>`; return; }
       let x1, y1, x2, y2; if (B.y >= A.y + A.h - 1) { x1 = q(A.x + A.w / 2); y1 = q(A.y + A.h); x2 = q(B.x + B.w / 2); y2 = q(B.y); } else if (A.y >= B.y + B.h - 1) { x1 = q(A.x + A.w / 2); y1 = q(A.y); x2 = q(B.x + B.w / 2); y2 = q(B.y + B.h); } else { const lr = B.x > A.x; x1 = q(lr ? A.x + A.w : A.x); y1 = q(A.y + A.h / 2); x2 = q(lr ? B.x : B.x + B.w); y2 = q(B.y + B.h / 2); }
       const an = Math.atan2(y2 - y1, x2 - x1), ah = (d, k) => (x2 - 7 * Math.cos(an + d)).toFixed(1) + ',' + (y2 - 7 * Math.sin(an + d)).toFixed(1);
       svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${col}" stroke-width="1.6"/>` + ((REL[e.rel] || {}).dir === false ? '' : `<polygon points="${x2},${y2} ${ah(.45)} ${ah(-.45)}" fill="${col}"/>`) +
         `<text x="${((x1 + x2) / 2 + 4).toFixed(1)}" y="${((y1 + y2) / 2 + 3).toFixed(1)}" fill="${col}" class="fw-ml">${esc(R.label || e.rel)}</text>`; });
     host.append(h('div.fw-msvg', { html: `<svg width="${q(L.w) + 2}" height="${q(L.h) + 8}" aria-hidden="true">${svg}</svg>` }));
     P.forEach(p => { const at = L.pos[p.key]; if (!at) return; const lk = FREEW.look(p), ht = q(at.h), lines = Math.max(1, Math.floor((ht - 16 - (p.title ? 18 : 0)) / 11));   // V4.53: a title takes a line and a half
-      host.append(h('button.fw-mb' + (lk.cls ? '.' + lk.cls : '') + (o.sel && o.sel.t === 'p' && o.sel.k === p.key ? '.on' : ''), { type: 'button', 'data-k': p.key, title: lk.tag + ' — ' + snippet(p.text, 120) + (o.click ? ' · click to change' : ''), style: { left: q(at.x) + 'px', top: q(at.y) + 'px', width: q(at.w) + 'px', height: ht + 'px', '--fc': lk.col }, on: o.click ? { click: e => o.click(p, e) } : {} },
+      host.append(h('button.fw-mb' + (lk.cls ? '.' + lk.cls : '') + (o.sel && o.sel.t === 'p' && o.sel.k === p.key ? '.on' : ''), { type: 'button', 'data-k': p.key, title: lk.tag + ' — ' + snippet(p.text, 120) + (o.click ? ' · click to change' : ''), style: { left: q(at.x) + 'px', top: q(at.y) + 'px', width: q(at.w) + 'px', height: ht + 'px', '--fc': lk.col }, on: o.click ? Object.assign({ click: e => o.click(p, e) }, o.grab ? { pointerdown: e => o.grab(e, p) } : {}) : {} },
         h('span.fw-mbt', lk.tag), p.title ? h('b.fw-mbh', p.title) : null, h('span.fw-mbx', { style: { '-webkit-line-clamp': String(lines) } }, p.as === 'slot' ? '“' + p.text + '” — ＋ add the result' : p.text))); });
     return host;
   },
@@ -381,7 +397,8 @@ const FREEW = {
     st.ta.addEventListener('scroll', () => { st.ta.scrollTop = 0; });
     st.key = e => { if (!FREEW.st || e.key !== 'Escape' || e.defaultPrevented) return; if ($('.pop') || $('.ovl') || $('.slash-menu')) return; if ($('.fw-chip')) { FREEW.chipOff(); return; } e.preventDefault(); FREEW.close(); };
     document.addEventListener('keydown', st.key);
-    st.rs = () => FREEW.place(); addEventListener('resize', st.rs);
+    st.rs = () => { FREEW.place(); FREEW.tags(); }; addEventListener('resize', st.rs);
+    if (window.ResizeObserver) { st.ro = new ResizeObserver(() => FREEW.tags()); st.ro.observe(st.page); }   // V4.54: the labels follow the words
     FREEW.paintBeside(); FREEW.paint(); FREEW.paintVoice();
     setTimeout(() => { if (FREEW.st !== st) return; st.ta.focus(); const n = st.ta.value.length; st.ta.setSelectionRange(n, n); }, 30);
     return st;
@@ -406,7 +423,7 @@ const FREEW = {
   /** The words read now (with what you changed by clicking), or null while there are no colours yet. */
   conv() {
     const st = FREEW.st; if (!st) return null; if (!st.shown && FREEW.opt('colour', 'convert') !== 'live') return null;
-    const fw = FREEW.fw(); return FREEW.convert(st.ta.value, { over: fw.over, lover: fw.lover, assoc: fw.assoc, plain: FREEW.opt('plain', 'run'), docId: st.docId });
+    const fw = FREEW.fw(); return FREEW.convert(st.ta.value, { over: fw.over, lover: fw.lover, links: fw.links, assoc: fw.assoc, plain: FREEW.opt('plain', 'run'), docId: st.docId });
   },
   paint() {
     const st = FREEW.st; if (!st) return; const text = st.ta.value, conv = st.conv = FREEW.conv();
@@ -417,7 +434,7 @@ const FREEW = {
       st.cv.title = back ? 'Undo Convert — back to plain words: the colours and the preview go; what you chose is kept for the next Convert' : 'Read the words with the freewrite rules: colours, and the note it will make (Ctrl+Enter)'; }
     if (st.tb) st.tb.hidden = FREEW.fw().state !== 'applied';
     cancelAnimationFrame(st._gr); st._gr = requestAnimationFrame(() => { if (FREEW.st === st) FREEW.ghostPaint(); });
-    requestAnimationFrame(() => { if (FREEW.st !== st) return; st.ta.style.height = Math.max(st.back.offsetHeight + 4, Math.round(innerHeight * .55)) + 'px'; });
+    requestAnimationFrame(() => { if (FREEW.st !== st) return; st.ta.style.height = Math.max(st.back.offsetHeight + 4, Math.round(innerHeight * .55)) + 'px'; FREEW.tags(); });
     FREEW.paintSide(); FREEW.paintFoot();
   },
   paintSide() {
@@ -429,8 +446,8 @@ const FREEW = {
     const gon = st.beside && st.ghost !== false;   // V4.47: the preview in the note itself
     st.side.replaceChildren(h('div.fw-sh', h('b', 'The note it will make'), h('span', plural(P.length, 'component') + ' · ' + plural(Ls.length, 'link')), h('span.spacer'),
         h('button.btn.xs.fw-gbtn' + (gon ? '.on' : ''), { type: 'button', 'aria-pressed': String(gon), title: gon ? 'Hide the preview in the note' : 'See the note as it will look — its new components drawn in it, outlined, where Apply puts them (the page goes beside the note)', on: { click: () => FREEW.ghost(!gon) } }, FREEW.ic('eye', 14), gon ? 'Hide in the note' : 'Preview in the note')),
-      FREEW.mini(conv, { width: w, sel: st.sel, click: (p, e) => FREEW.pick({ t: 'p', k: p.key }, e.currentTarget) }),
-      h('p.fw-hint', 'Click coloured words, or a box here, to change what it becomes — its kind, its link, or nothing. ' + (gon ? 'The outlined boxes in the note show where Apply puts them.' : 'Apply puts it in the note under the freewrite.') + ' Undo convert takes the colours off; what you chose is kept.'));
+      FREEW.mini(conv, { width: w, sel: st.sel, click: (p, e) => { if (!FREEW.dragged()) FREEW.pick({ t: 'p', k: p.key }, e.currentTarget); }, grab: (e, p) => FREEW.grab(e, p.key) }),
+      h('p.fw-hint', 'Click coloured words, a label or a box here to change what it becomes — its kind, its structure, or nothing; drag a label or a box onto another to link them. ' + (gon ? 'The outlined boxes in the note show where Apply puts them.' : 'Apply puts it in the note under the freewrite.') + ' Undo convert takes the colours off; what you chose is kept.'));
   },
   paintFoot() {
     const st = FREEW.st; if (!st) return; const t = st.ta.value, n = (t.match(/\S+/g) || []).length, fw = FREEW.fw();
@@ -546,8 +563,8 @@ const FREEW = {
       return ctxMenu(r.left, r.bottom + 6, [{ head: '“' + snippet(A ? A.text : '', 26) + '” → “' + snippet(B ? B.text : '', 26) + '”' },
         ...rels.map(x => ({ label: (l.rel === x ? '✓ ' : '') + (REL[x].label || x), sub: REL[x].verb && REL[x].verb !== REL[x].label ? REL[x].verb : null, run: () => set(Object.assign({}, FREEW.fw().lover && FREEW.fw().lover[l.key], { rel: x, none: false })) })),
         'sep', { label: 'Turn it round', sub: 'The arrow the other way', run: () => { const cur = (FREEW.fw().lover || {})[l.key] || {}; set(Object.assign({}, cur, { flip: !cur.flip })); } },
-        { label: l.none ? 'Link them again' : 'No link', run: () => set(Object.assign({}, (FREEW.fw().lover || {})[l.key], { none: !l.none })) },
-        l.changed ? { label: 'As the rule read it', run: () => set(null) } : null]); }
+        l.own ? { label: 'Remove this link', sub: 'You drew it', danger: true, run: () => FREEW.unlink(l) } : { label: l.none ? 'Link them again' : 'No link', run: () => set(Object.assign({}, (FREEW.fw().lover || {})[l.key], { none: !l.none })) },
+        l.changed && !l.own ? { label: 'As the rule read it', run: () => set(null) } : null]); }
     let p = st.conv.parts.find(x => x.key === sel.k), J = null;
     if (!p) { J = (st.conv.joins || []).find(x => x.key === sel.k); if (!J) return; p = { key: J.key, text: J.text, as: 'joined', kind: null, struct: null, changed: false }; }   // V4.37
     const host = J ? st.conv.parts.find(x => x.key === J.host) : p.split ? st.conv.parts.find(x => x.key === p.split) : null, hl = host ? FREEW.look(host).tag : '';
@@ -568,6 +585,84 @@ const FREEW = {
       p.changed && !p.split ? { label: 'As the rules read it', run: () => set(null) } : null]);
     FREEW.flash(J ? J.host : p.key);
   },
+  /** V4.54: the labels over the words, as buttons above the text box (the copy behind the words keeps them hidden). */
+  tags() {
+    const st = FREEW.st; if (!st) return; const conv = st.conv; if (!st.tg) { st.tg = h('div.fw-tags'); st.page.append(st.tg); }
+    st.page.classList.toggle('fw-tg', !!conv); if (!conv) { st.tg.replaceChildren(); return; }
+    const pr = st.page.getBoundingClientRect(), own = {}, seen = new Set(), out = [];
+    conv.links.forEach(l => { if (l.own && !l.none && !l.off) { own[l.a] = (own[l.a] || 0) + 1; own[l.b] = (own[l.b] || 0) + 1; } });
+    st.back.querySelectorAll('.fw-s[data-t], .fw-l[data-t]').forEach(el => { const r = el.getClientRects()[0]; if (!r) return; const lnk = el.classList.contains('fw-l'), k = el.dataset.k, n = !lnk && !seen.has(k) ? own[k] || 0 : 0; if (!lnk) seen.add(k);
+      const b = h('button.fw-tag' + (lnk ? '.fw-tagl' : '') + (el.classList.contains('on') ? '.on' : ''), Object.assign({ type: 'button', title: lnk ? 'Change this link' : 'Its kind and its structure — or drag it onto another component to link them', style: { left: Math.round(r.left - pr.left) + 'px', top: Math.round(r.top - pr.top) + 'px', '--fc': el.style.getPropertyValue('--fc') },
+        on: { mousedown: e => e.preventDefault(), pointerdown: e => { if (!lnk) FREEW.grab(e, k); }, click: e => { e.stopPropagation(); if (FREEW.dragged()) return; if (lnk) FREEW.pick({ t: 'l', k: el.dataset.l }, e.currentTarget); else FREEW.quick(k, e.currentTarget); } } }, lnk ? { 'data-l': el.dataset.l } : { 'data-k': k }),
+        el.dataset.t, n ? h('i.fw-tln', '· ' + plural(n, 'link')) : null);
+      out.push(b); });
+    st.tg.replaceChildren(...out);
+  },
+  /** V4.54: a label clicked — a clean popup, as on a PDF's highlight: its kind, its structure (a letter picks one), its title, its links. */
+  quick(key, anchor) {
+    const st = FREEW.st; if (!st || !st.conv || !st.conv.parts.some(x => x.key === key)) return; const r = anchor.getBoundingClientRect(); let el = null;
+    st.sel = { t: 'p', k: key }; FREEW.chipOff(); FREEW.paint();
+    const P = () => FREEW.st && FREEW.st.conv && FREEW.st.conv.parts.find(x => x.key === key && !x.none);
+    const keep = () => { const c = (FREEW.fw().over || {})[key] || {}, o = {}; if (c.title) o.title = c.title; if (c.marks) o.marks = c.marks; return o; };
+    const set = v => { FREEW.setOver('over', key, Object.assign(keep(), v)); draw(); };
+    const K = (typeof CKINDS !== 'undefined' ? CKINDS.all() : []).filter(k => !k.act && k.id !== 'report' && k.id !== 'iteration'), S = KINDS.filter(k => k.id !== 'reminder');
+    const kp = (label, col, on, run, kb, id) => h('button.kpick' + (on ? '.on' : ''), { type: 'button', 'data-id': id || '', style: { '--kc': col }, on: { mousedown: e => e.preventDefault(), click: run } }, label, kb ? h('kbd', kb) : null);
+    const as = p => p.as === 'task' || p.as === 'slot' || p.as === 'bridge' ? 'component' : p.as || 'component';
+    const struct = (p, id) => set({ as: as(p), kind: p.kind || null, struct: p.struct === id ? null : id });
+    const draw = () => { const p = P(); if (!p || !el || !el.isConnected) { if (el && el.isConnected) closePop(); return; } const lk = FREEW.look(p), sc = k => ((settings().kinds || {})[k.id] || k).color;
+      const Ls = st.conv.links.filter(l => !l.none && !l.off && (l.a === key || l.b === key));
+      el.replaceChildren(
+        h('h5', h('span.fw-qt', { style: { '--fc': lk.col } }, lk.tag), h('span.serif', '“' + snippet(p.text, 40) + '”')),
+        h('div.fw-qh', 'Kind'), h('div.rd-kinds.fw-qkind', kp('None', 'var(--ink-3)', !p.kind && as(p) === p.as, () => set({ as: 'component', kind: null, struct: p.struct || null }), null, 'none'),
+          ...K.map(k => kp(k.label, k.color, p.kind === k.id, () => set({ as: 'component', kind: p.kind === k.id ? null : k.id, struct: p.struct || null }), null, k.id))),
+        h('div.fw-qh', 'Structure'), h('div.rd-kinds.fw-qstruct', kp('None', 'var(--ink-3)', !p.struct, () => set({ as: as(p), kind: p.kind || null, struct: null }), null, 'none'),
+          ...S.map(k => kp(k.label, sc(k), p.struct === k.id, () => struct(p, k.id), k.key, k.id))),
+        p.title ? h('div.fw-qline', h('span.fw-qh', 'Title'), h('b', '“' + snippet(p.title, 36) + '”'), h('span.spacer'), h('button.btn.xs.ghost', { type: 'button', on: { mousedown: e => e.preventDefault(), click: () => { FREEW.titleOf(key, p.title); draw(); } } }, 'Take off')) : null,
+        Ls.length ? h('div.fw-qh', 'Links') : null,
+        Ls.length ? h('div.fw-qlinks', Ls.map(l => { const o = l.a === key ? l.b : l.a, O = st.conv.parts.find(x => x.key === o), R = REL[l.rel] || { label: l.rel };
+          return h('button.fw-qlink', { type: 'button', 'data-l': l.key, style: { '--fc': WIRECOL[l.rel] || '#8a8f98' }, on: { mousedown: e => e.preventDefault(), click: e => { const rr = e.currentTarget.getBoundingClientRect(); closePop(); off(); FREEW.pick({ t: 'l', k: l.key }, { getBoundingClientRect: () => rr }); } } },
+            h('b', (l.a === key ? '→ ' : '← ') + (R.label || l.rel)), h('span.serif', '“' + snippet(O ? O.text : '', 30) + '”')); })) : null,
+        h('div.fw-qfoot', h('span', 'Drag its label onto another component to link them'), h('span.spacer'),
+          h('button.btn.xs.fw-qmore', { type: 'button', on: { mousedown: e => e.preventDefault(), click: e => { const rr = e.currentTarget.getBoundingClientRect(); closePop(); off(); FREEW.pick({ t: 'p', k: key }, { getBoundingClientRect: () => rr }); } } }, 'More ▾'))); };
+    const kd = e => { if (!el || !el.isConnected) return off(); if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closePop(); off(); return; }
+      const k = S.find(z => z.key === (e.key || '').toLowerCase()), p = P(); if (k && p) { e.preventDefault(); e.stopPropagation(); struct(p, k.id); return; }
+      if (!/^(Shift|Control|Alt|Meta|CapsLock)$/.test(e.key)) { closePop(); off(); } };   // any other key: the popup goes, the key goes to the words
+    const off = () => document.removeEventListener('keydown', kd, true);
+    el = popover(r.left, r.bottom + 6, [], { cls: 'pop.fw-qk', onClose: off }); draw();
+    setTimeout(() => document.addEventListener('keydown', kd, true), 0); FREEW.flash(key);
+  },
+  /** V4.54: a label or a box dragged onto another component → which relation. A move under 6 px is a click. */
+  grab(e, key) {
+    const st = FREEW.st; if (!st || e.button !== 0) return; e.preventDefault();
+    const src = e.currentTarget.getBoundingClientRect(), x0 = e.clientX, y0 = e.clientY, sx = src.left + src.width / 2, sy = src.top + src.height / 2; let on = false, tgt = null, wire = null;
+    const lit = k => { $$('.fw-tgt').forEach(x => x.classList.remove('fw-tgt')); if (k) { const q = CSS.escape(k); $$(`.fw-back .fw-s[data-k="${q}"], .fw-tag[data-k="${q}"], .fw-mb[data-k="${q}"]`).forEach(x => x.classList.add('fw-tgt')); } };
+    const mv = ev => { const dx = ev.clientX - x0, dy = ev.clientY - y0;
+      if (!on) { if (dx * dx + dy * dy < 36) return; on = true; closePop(); FREEW.chipOff(); document.body.classList.add('fw-linking'); wire = h('div.fw-wire', { 'aria-hidden': 'true', html: `<svg width="100%" height="100%"><line x1="${sx}" y1="${sy}" x2="${sx}" y2="${sy}"/><circle r="4" cx="${sx}" cy="${sy}"/></svg>` }); document.body.append(wire); }
+      const ln = wire.querySelector('line'), c = wire.querySelector('circle'); ln.setAttribute('x2', ev.clientX); ln.setAttribute('y2', ev.clientY); c.setAttribute('cx', ev.clientX); c.setAttribute('cy', ev.clientY);
+      const k = FREEW.keyAt(ev.clientX, ev.clientY); tgt = k && k !== key ? k : null; lit(tgt); wire.classList.toggle('ok', !!tgt); };
+    const end = ev => { removeEventListener('pointermove', mv); removeEventListener('pointerup', end); removeEventListener('pointercancel', end); if (!on) return;
+      FREEW._dragAt = Date.now(); if (wire) wire.remove(); document.body.classList.remove('fw-linking'); lit(null); if (tgt && ev.type === 'pointerup') FREEW.linkMenu(key, tgt, ev.clientX, ev.clientY); };
+    addEventListener('pointermove', mv); addEventListener('pointerup', end); addEventListener('pointercancel', end);
+  },
+  dragged() { return Date.now() - (FREEW._dragAt || 0) < 400; },
+  /** The component under a point: its label, its box in the preview, or its words. */
+  keyAt(x, y) { const st = FREEW.st; if (!st) return null; const el = document.elementFromPoint(x, y), t = el && el.closest && el.closest('.fw-tag[data-k], .fw-mb[data-k]'); if (t) return t.dataset.k;
+    for (const s of st.back.querySelectorAll('.fw-s[data-k]')) for (const r of s.getClientRects()) if (x >= r.left && x <= r.right && y >= r.top - 2 && y <= r.bottom + 2) return s.dataset.k;
+    return null; },
+  linkMenu(a, b, x, y) {
+    const st = FREEW.st; if (!st || !st.conv) return; const c = st.conv, A = c.parts.find(p => p.key === a), B = c.parts.find(p => p.key === b); if (!A || !B) return;
+    const ex = c.links.find(l => !l.off && ((l.a === a && l.b === b) || (l.a === b && l.b === a)));
+    if (ex) { FREEW.pick({ t: 'l', k: ex.key }, { getBoundingClientRect: () => ({ left: x, bottom: y, width: 1 }) }); toast('They are linked already — change the link here', 2600); return; }
+    ctxMenu(x, y + 6, [{ head: '“' + snippet(A.text, 26) + '” → “' + snippet(B.text, 26) + '”' },
+      ...FREEW.RELS.filter(r => REL[r]).map(r => ({ label: REL[r].label || r, sub: REL[r].verb && REL[r].verb !== REL[r].label ? REL[r].verb : null, run: () => FREEW.addLink(a, b, r) }))]);
+  },
+  addLink(a, b, rel) {
+    const L = (FREEW.fw().links || []).filter(u => !((u.a === a && u.b === b) || (u.a === b && u.b === a))); L.push({ a, b, rel });
+    const lo = Object.assign({}, FREEW.fw().lover || {}); delete lo[a + '>' + b]; delete lo[b + '>' + a];
+    FREEW.setFw({ links: L, lover: lo }); FREEW.paint(); FREEW.flash(b); toast('Linked: ' + ((REL[rel] || {}).label || rel) + ' — Apply makes it a link in the note', 2800);
+  },
+  unlink(l) { FREEW.setFw({ links: (FREEW.fw().links || []).filter(u => !((u.a === l.a && u.b === l.b) || (u.a === l.b && u.b === l.a))) }); FREEW.setOver('lover', l.key, null); toast('No link now', 2000); },
   setOver(which, key, v) { const cur = Object.assign({}, FREEW.fw()[which] || {}); if (v == null) delete cur[key]; else cur[key] = v; FREEW.setFw({ [which]: cur }); FREEW.chipOff(); FREEW.paint(); },
   /** The chosen part's box in the preview, brought into view and lit. */
   flash(key) { const st = FREEW.st; if (!st) return; const b = st.side.querySelector(`.fw-mb[data-k="${CSS.escape(key)}"]`); if (b) { b.scrollIntoView({ block: 'nearest' }); b.classList.add('lit'); setTimeout(() => b.classList.remove('lit'), 1200); } },
@@ -707,7 +802,7 @@ const FREEW = {
   close(quiet) {
     const st = FREEW.st; if (!st) return; FREEW.chipOff(); FREEW.ghostOff(); FREEW.listen(false); FREEW.stopPlay(); if (FREEW.mine()) REC.stop();
     FREEW.save(); clearInterval(FREEW._t); FREEW._t = null;
-    document.removeEventListener('keydown', st.key); removeEventListener('resize', st.rs);
+    document.removeEventListener('keydown', st.key); removeEventListener('resize', st.rs); if (st.ro) st.ro.disconnect(); closePop();
     const wasBeside = st.beside; st.el.remove(); FREEW.st = null;
     const bd = document.body; bd.classList.remove('fw-open', 'fw-beside', 'fw-left', 'fw-right');
     if (wasBeside) requestAnimationFrame(() => { try { App.panes().forEach(p => p.paper && p.paper.apply()); } catch (e) { } dispatchEvent(new Event('resize')); });
@@ -812,7 +907,7 @@ const FREEW = {
   /* ---------------- the freewrite's card in its note ---------------- */
   card(b, d, pane, ro) {
     const fw = b.fw || {}, text = (b.body && b.body.text) || '', n = (text.match(/\S+/g) || []).length, made = Object.values(fw.made || {}).filter(id => { const x = M.block(id); return x && x.status === 'live'; }).length;
-    const conv = fw.shown ? FREEW.convert(text, { over: fw.over, lover: fw.lover, assoc: fw.assoc, plain: FREEW.opt('plain', 'run'), docId: b.docId }) : null;
+    const conv = fw.shown ? FREEW.convert(text, { over: fw.over, lover: fw.lover, links: fw.links, assoc: fw.assoc, plain: FREEW.opt('plain', 'run'), docId: b.docId }) : null;
     const go = () => FREEW.open(M.doc(b.docId), { block: b.id, pane });
     const r = b.rec || {}, has = r.state && r.state !== 'new' && r.state !== 'recording';
     const tx = h('div.fwc-tx' + (text ? '' : '.empty'), { title: ro ? '' : 'Double-click to open it', on: { dblclick: e => { if (ro) return; e.stopPropagation(); go(); } } }, text ? FREEW.spans(text, conv) : 'Nothing written yet.');
