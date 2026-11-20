@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.51] — 2026-11-19 — Scientia: the tab pill centred on the tab's name
+
+Gabe (19 Nov 2026): "The tab pill is not centered on the tabs."
+
+App only.
+
+### Bug Fixes
+- **The pill was off-centre** by about 12 px: the tab's count `.tc` took the timer card's `.tc` padding (`20-canvas.css`), 24 px of empty room after every name. `.tab .tc{padding:0}`.
+- **`LOOK.tabPill()`** sets the pill's top and height from the tab, so it is centred both ways. Look off: the inline sizes are let go.
+
+### Tests
+| Test | Result |
+|---|---|
+| `pill51_t`: every tab clicked, the pill is the tab with its name centred (≤ 1 px across, ≤ 1.5 px down); part-way through the glide; a count; the text growing; a narrow window; look off gives the 2 px underline — lab · without the lab layer (on V4.47: 8/12, about 12 px off) | 12/12 · 12/12 |
+| `lk43_t` · `hn50_t`, lab | 10/10 · 18/18 |
+
 ## [V4.50] — 2026-11-19 — Scientia: Hot notes — your starred notes and the most visited, one click away at the right of Settings
 
 Gabe (19 Nov 2026): "Then, on the right of Settings, add Hot Notes, which allows you to quicklly open notes that you set as favorites. It starts off by showing most visited (i.e., higher traffic), and the option to add a favorite via those suggested, or a + button. Simply deselecting the golden star when you hover on them removes them from the hot notes. The label of the note (experiment v. note v. lit review v. synthesis appears to its left with the color code. along with the banner of the project appearing lightly underneath it."
