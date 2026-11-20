@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.65] — 2026-11-20 — Scientia: Calendar — event types of your own (＋ Type, Manage types); drag down an empty stretch to create (15-minute steps); link a note from the recent ones or pick it in the Portfolio; Barrier → Custom… clicks where it moves to
+
+Gabe, 20 Nov: "Calendar should give you the option to add kinds (rewrite as event type) to the calendar. There should be a drag option precise within 15 minute increments. Link to a note should be a click and popup of the recent notes, with an option to go in Portfolio and click on a note. Barrier should have a Custom button to allow you to click on the calendar of when it is going to be pushed back."
+
+App only.
+
+### Added
+- **Event types of your own** (`CAL.addType`, `settings().calTypes`, `CAL.typeChips`, `CAL.manageTypes`): ＋ Type with a colour; rename, recolour, remove.
+- **Drag to create** (`CAL.dragNew`): an outline with the time and the length in 15-minute steps; the window opens with that time.
+- **Link a note…** (`CAL.notePick`): the recent notes, a search, and Pick in the Portfolio… (`CAL.pickInPortfolio`, `pickDone`, `pickBack`). It links the note opened there and brings back the window as you left it.
+- **Barrier → Custom…** (`CAL.pushStart`, `pushHover`, `pushClick`): click where it moves to; earlier refused; dependents carried.
+
+### Changed
+- **"Kind" reads "Event type".**
+- **Windows stay on the screen** when they grow (`CAL.keepIn`); the card's height is measured after its width.
+
+### Tests
+| Test | Result |
+|---|---|
+| `cal65_t`, lab build · without the lab layer:<br>- "Event type"; ＋ Type → Seminar in plum, chosen, in the legend; Manage types: rename, remove → Other;<br>- a drag 10:00–11:30 with its outline → the window with that time;<br>- Link a note… → recent notes → one click;<br>- Pick in the Portfolio… → the bar → a note → back, the window as left, with the note → made with it; from an event's card; Cancel;<br>- Barrier → Custom…: earlier refused (red), a later click → +2 h 30 and the dependent as much; Esc | 23/23 · 23/23 |
+| `cal57_t` · `cal58_t` · `cal59_t` · `cal60_t` · `cal64_t` | 40/40 · 24/24 · 21/21 · 21/21 · 21/21 |
+
+
 ## [V4.64] — 2026-11-20 — Scientia: Calendar — focus hours and focus sessions: full screen, your activity counted double, leaving asks first with 5 minutes to come back
 
 Gabe, 20 Nov: "Each day, you can allocate focus hours, Activating focus mode on the lab notebook, etc... The focus mode puts the notebook automatically in full screen and trying to close that maximized view asks you a confirmation with a warning sign, saying that you will disturb your focus time, invalidating that focus session. You then have a 5 minute timer to get back into focus mode with no penalty. As an incentive, any activity during focus mode is doubled. Make sure that it is explicitly mentioned in settings and before starting it." And later: "You didn't build the focus feature I asked you to include in the calendar."

@@ -348,3 +348,31 @@ body.cal-focusing .cal-fbtn{outline:2px solid #C9971F;outline-offset:2px}
 .cal-fcap.away .cal-btn:not(.pri){background:var(--surface-2);color:var(--ink)}
 @media (prefers-reduced-motion:reduce){.cal-ec.focus,.cal-fcap,.cal-fdot{animation:none}}
 .cal-dh{white-space:nowrap;overflow:hidden;gap:6px} .cal-dh .dfo,.cal-dh .dl{white-space:nowrap;flex:none} .cal-dh .dfo{margin-left:auto} .cal-dh .dfo + .dl{margin-left:0}
+
+/* V4.65 — event types of your own; the note picker; Pick in the Portfolio; Barrier → Custom…; drag to create */
+.cw-r,.bub-r{grid-template-columns:76px minmax(0,1fr)}
+.cw-c.cw-add{color:var(--teal);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--teal) 40%,transparent)}
+.cw-tform{flex-basis:100%;display:flex;flex-direction:column;gap:7px;margin-top:4px;padding:9px;border-radius:10px;background:var(--surface);box-shadow:inset 0 0 0 1px var(--lk-ring)}
+.cw-tform[hidden]{display:none}
+.cw-tfr{display:flex;gap:6px;flex-wrap:wrap}
+.cw-sw{display:flex;gap:5px;flex-wrap:wrap}
+.cw-swc{width:20px;height:20px;padding:0;border:0;border-radius:6px;cursor:pointer;box-shadow:inset 0 0 0 1px rgba(0,0,0,.12)}
+.cw-swc.on{box-shadow:0 0 0 2px var(--lk-rail),0 0 0 4px var(--ink)}
+.cal-tlist{display:flex;flex-direction:column;gap:8px;min-width:420px}
+.cal-trow{display:flex;align-items:center;gap:10px}
+.cal-trow > i{width:12px;height:12px;border-radius:4px;flex:none}
+.cal-trow b{font:600 13px var(--f-d)} .cal-trow .cal-tb{font:500 10.5px var(--f-m);color:var(--ink-3)}
+.cal-trow .cw-in{flex:1;min-width:120px}
+.cw-link{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px;border:0;border-radius:8px;background:var(--surface);color:var(--ink-2);font:600 12px/1 var(--f-d);box-shadow:inset 0 0 0 1px var(--lk-ring);cursor:pointer}
+.cw-link:hover{color:var(--ink);box-shadow:inset 0 0 0 1px var(--lk-ring-2)}
+.cw-npop{display:flex;flex-direction:column;gap:6px;padding:8px;border-radius:10px;background:var(--surface);box-shadow:inset 0 0 0 1px var(--lk-ring)}
+.cw-nh{padding:2px 4px 0;font:600 9.5px/1 var(--f-m);letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
+.cw-nl{max-height:220px;overflow:auto}
+.cw-pf{align-self:flex-start;height:28px;padding:0 10px;border:0;border-radius:8px;background:transparent;color:var(--teal);font:600 12px/1 var(--f-d);cursor:pointer}
+.cw-pf:hover{background:color-mix(in srgb,var(--teal) 10%,transparent)}
+.cal-pick{position:fixed;left:50%;top:10px;transform:translateX(-50%);z-index:900;display:flex;align-items:center;gap:10px;height:40px;padding:0 6px 0 14px;border-radius:999px;background:var(--teal);color:var(--lk-card);font:600 13px/1 var(--f-d);box-shadow:0 10px 30px -12px rgba(0,0,0,.5)}
+.cal-pick .cal-btn{height:28px;background:rgba(255,255,255,.18);color:inherit;box-shadow:none}
+.cw-d.cw-cust{color:var(--teal);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--teal) 40%,transparent)}
+.cal-ghost.cal-push{border-color:#C9971F;background:color-mix(in srgb,#C9971F 12%,transparent);color:#8F5600}
+.cal-ghost.cal-push.bad{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 8%,transparent);color:var(--bad)}
+.cal-ghost.cal-new{z-index:9}
