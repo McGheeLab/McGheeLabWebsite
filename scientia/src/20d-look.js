@@ -137,8 +137,12 @@ const LOOK = {
   const fl = RLIB.fill; RLIB.fill = function (p) { const r = fl.apply(this, arguments); try { LOOK.dressLib(p); } catch (e) { console.warn('[look]', e); } return r; };
   const gr = RLIB.grip; RLIB.grip = function (ov) { const r = gr.apply(this, arguments); try { const g = $(':scope > .mx-row > .rs-grip', ov); if (g) LOOK.grip(g); } catch (e) { console.warn('[look]', e); } return r; };
   const pt = RLIB.paint; RLIB.paint = function () { const r = pt.apply(this, arguments); try { $$('.rs-grip').forEach(LOOK.grip); } catch (e) { } return r; };
-  // a new page fades in and rises, only when the route changes
-  let navT = 0;
-  addEventListener('hashchange', () => { const v = document.getElementById('view'); if (!v) return; v.classList.add('lk-nav'); clearTimeout(navT); navT = setTimeout(() => v.classList.remove('lk-nav'), 450); });
+  // a new page fades in and rises, only when the route changes. V4.43: the class goes on after the view is drawn — App.refresh sets
+  // #view's className, which wiped it when it was added before (so the rise never played); a redraw within the rise ends it
+  let navT = 0, navNext = false;
+  addEventListener('hashchange', () => { navNext = true; });
+  const rf = App.refresh; App.refresh = function () { const r = rf.apply(this, arguments);
+    if (navNext) { navNext = false; const v = document.getElementById('view'); if (v) { v.classList.add('lk-nav'); clearTimeout(navT); navT = setTimeout(() => v.classList.remove('lk-nav'), 450); } }
+    return r; };
   try { LOOK.paint(); } catch (e) { }
 }

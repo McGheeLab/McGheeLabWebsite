@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (141 changes — ready to push)
+## Pending (142 changes — ready to push)
+
+- **The Portfolio as it was (V4.43):** the new look leaves the Portfolio exactly as it was. Going to a note, its page now gently rises in.
 
 - **A new look and motion (V4.42):** the notebook has warmer surfaces, rounded cards and menus, a pill that glides between tabs, and dialogs that rise and toasts that spring up. A reader's side panels glide open and shut. Folded, the highlights panel becomes a small capsule of its colours with counts, and the mini library a capsule of the project's shelves. The mini library shows papers as spines on a shelf or as a list. Settings → Look and motion sets how much things move (Full, Calm, Still), or turns the new look off.
 
