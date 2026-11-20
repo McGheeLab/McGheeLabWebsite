@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.54] — 2026-11-19 — Scientia: Freewrite — a component's label opens a clean popup of its kind and structure; drag one component onto another to link them
+
+Gabe, 19 Nov: "Dragging a component to another allows you to create a component link between them. The label on each freewrite sentence is clickable, bringing a clean popup that gives you quick modification possibilities for both kind and structure of the component (similar to highlight in PDFs)."
+
+App only.
+
+### Added
+- **A label clicked:** Kind and Structure chips (a letter picks a structure, as on a PDF), its title, its links, More ▾. A link's label opens the link's menu.
+- **A label or a preview box dragged onto another component:** which relation → a link of your own (`fw.links`). Apply makes it a link in the note.
+
+### Changed
+- **The labels are buttons above the text box** (they were drawn behind it).
+- **In the preview, a line that would run under a box goes round it.**
+
+### Tests
+| Test | Result |
+|---|---|
+| `fw54_t` (real clicks, keys and drags: the labels in place; the popup, a kind, a structure's letter, Esc, More; a label onto words → Explains; a box onto a box → Contradicts; the line round the box; onto a linked pair; a 3 px move is a click; a drop on nothing; Remove this link; a link's label; Apply) · lab · without the lab layer | 24/24 · 24/24 |
+| `fw53_t` · `fw_t33` · `fw_t34` · `fw47_t` | 13/13 · 69/69 · 24/24 · 21/21 |
+
 ## [V4.53] — 2026-11-19 — Scientia: Freewrite — words made one component leave the components they reached over (no repeats); a word or words inside a component become its title or a structure
 
 Gabe, 19 Nov: "When you highlight multiple sentences and transform them into a component, their old identity is removed from the conversion, so that there are no repeats of the same content. When clicking on a word, or after highlighting some words within the same component, it allows you to make it a component title for the component it resides in or make it a structure."
