@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.93] — 2026-11-20 — Scientia: the ＋ Quick cast gets Float and Photo (the camera, into the note as a 1×1 image panel); Settings → Pills shows each pill's row or column, and a click turns it
+
+Gabe, 20 Nov: "Add float button in quick cast pill. Live preview of pills should show their extended look as well, and clicking on it sets it horizontal/vertical and vice versa." Then: "Include a capture image in quick cast that routes to the device's camera to take a picture, and logs it into the note you were in as a 1x1 image panel."
+
+The app, and the lab layer's pills (section 11 of `lab-mode.js`, on Gabe's request; Alex reviews).
+
+### Added
+- **Float in the Quick cast** (§11): the selected components become floats; with none selected, the floats waiting come up over the note.
+- **Photo in the Quick cast** (§11) and `/photo` (`14fh-camera.js`, `CAMERA.take` / `log` / `fallback`):
+  - the camera, live; Take, Retake, Use it;
+  - a 1×1 image panel "Photo · hh:mm" in the note you were in;
+  - the device's camera or a file when the browser cannot reach one.
+- **Settings → Photo from the camera** (`camera`): *Start with*, *Keep the photo at most*, and a preview.
+- **Settings → Pills:** each pill's extended look (`PILLCANVAS.strip`, from `LAB.pillPreview`); a click turns its row into a column and back (`labPills.orient`).
+
+### Tests
+| Test | Result |
+|---|---|
+| `v93_t`, lab and plain builds (real clicks):<br>- the Quick cast: Pull in, Flag, then Float for the selected component; a click makes it a float;<br>- with none selected, "Floats — the 1 waiting…" brings up the floats;<br>- Photo after Float: the camera (a canvas stream standing in), the back one first, ⇄ with two; Take; Use it → a 1×1 image panel "Photo · hh:mm" with the picture in this note, the camera stopped;<br>- no camera reachable: the device's camera / a file;<br>- the canvas: the hand a column, the Quick cast a row either side with its icons, tools a row, zoom a column; a click on the hand → a row, kept; a click on its strip → a column again; a drag still places | 17/17 · 17/17 |
+| `fe_t1` (pills, V4.20) | 20/25 — the same two failures on the V4.89 build before this change |
+
+
 ## [V4.92] — 2026-11-20 — Scientia: Hot notes — your starred notes as small tabs in the tab row, right after the button (as many as fit, the rest behind +n)
 
 Gabe, 20 Nov: "Hot notes appear in the tab next to it."
