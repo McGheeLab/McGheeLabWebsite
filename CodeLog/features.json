@@ -26,6 +26,28 @@
  ],
  "features": [
   {
+   "id": "scientia.hotnotes",
+   "name": "Scientia hot notes (starred notes, most visited)",
+   "side": "scientia",
+   "summary": "V4.50 (Gabe: \"on the right of Settings, add Hot Notes, which allows you to quickly open notes that you set as favorites. It starts off by showing most visited\"): a button at the right of the tab row opens a panel of the notes you starred (settings().hotNotes, synced) and the ones you open most on this device (_ls hotVisits) — each row with its kind's coloured label and its theme's or project's banner lightly underneath; a golden star on hover takes one out, an empty star adds one, + finds any note. Settings → Hot notes (FEAT 'hotnotes').",
+   "keywords": [
+    "hot notes",
+    "favorites",
+    "favourites",
+    "starred",
+    "most visited",
+    "quick open"
+   ],
+   "paths": [
+    "scientia/src/20e-hotnotes.js",
+    "scientia/src/38-hotnotes.css"
+   ],
+   "extends": "scientia.core",
+   "related": [
+    "scientia.settings"
+   ]
+  },
+  {
    "id": "rm.shell",
    "name": "RM shell & navigation",
    "side": "rm",

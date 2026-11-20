@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.50] — 2026-11-19 — Scientia: Hot notes — your starred notes and the most visited, one click away at the right of Settings
+
+Gabe (19 Nov 2026): "Then, on the right of Settings, add Hot Notes, which allows you to quicklly open notes that you set as favorites. It starts off by showing most visited (i.e., higher traffic), and the option to add a favorite via those suggested, or a + button. Simply deselecting the golden star when you hover on them removes them from the hot notes. The label of the note (experiment v. note v. lit review v. synthesis appears to its left with the color code. along with the banner of the project appearing lightly underneath it."
+
+App only.
+
+### Added
+- **`HOT` (`20e-hotnotes.js`) and `38-hotnotes.css`:**
+  - the button at the right of the tab row (`mount`, after `App.renderTabs`);
+  - the panel (`open`, `close`, `place`, `paint`, `paintFound`);
+  - rows (`rowEl`, `row`: `NOTEKIND` label, title, project › theme, the banner underneath via `banner(d)`, the star);
+  - hot notes in `settings().hotNotes` (`favs`, `isFav`, `toggle`), synced;
+  - visits in `_ls 'hotVisits'` (`visit`, `visits`, `top`), with "Edited last" when there are none;
+  - + search.
+- **Settings:** `hotnotes` (Tabs & overview), with tune `suggest` (3 / 5 / 8) and `preview`.
+- **`features.json`:** `scientia.hotnotes`.
+
+### Tests
+| Test | Result |
+|---|---|
+| `hn50_t`, real hover and clicks: the button after Settings; Most visited first, in visit order; kinds and banners; the panel under the button; a star adds (settings, the count); the golden star hidden, shown on hover, removing; + search; a row opens its note; Esc / outside; the tune (3); the switch; the preview — lab · without the lab layer | 18/18 · 18/18 |
+| `lk43_t` (the Portfolio unchanged) · `ad49_t` (V4.49), lab | 10/10 · 20/20 |
+
 ## [V4.49] — 2026-11-19 — Scientia: the Atlas's Data — every data tree in the notebook in one master tree (by project, or one merged tree)
 
 Gabe (19 Nov 2026): "… and create data tab in Atlas, which organizes all trees recorded there for a master tree."
