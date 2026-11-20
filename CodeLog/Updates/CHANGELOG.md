@@ -4,6 +4,43 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.57] — 2026-11-20 — Scientia: the Calendar tab, as the day planner — one scroll with 12 hours to the height, the banner frozen, a click on a free spot to add, Colour by with the legend singling cards out
+
+Gabe, 20 Nov: "Add a Calendar tab right before Tasks. The calendar should look modern and refined. […] This calendar has all core features of a good calendar with quality of life features and contains extra adaptation for this lab notebook. For example, a calendar event for an experiment can be linked to a note, opening it when clicking on it on the calendar."
+
+Then, on the design canvas: "The calendar should be one piece where you can scroll through, the halves was just for you to reference the ratio for the calendar. […] I like the Day Planner look the best. […] The calendar banner should freeze so that when you scroll, you can see it. Clicking on a free spot brings up a create event window that is simple to fill out, including time to add. You can click on the sorting types to single out the cards just for that sort."
+
+App only.
+
+### Added
+- **The Calendar tab** (`23e-calendar.js`, `39-calendar.css`, `VIEWS.calendar`), right before Tasks.
+  - Week and Day: each day is one column from 0:00 to 24:00. 12 hours fill the visible height (`CAL.fit`, `--hpx`), and it opens with now a third of the way down.
+  - The banner is sticky: the day names with their planned hours, and the all-day row.
+- **The store `events`** (DB_VERSION 12, in `DB.SNAP`): `{title, day, start, end, allDay, kind, tags, projectId, docId, repeat, skip, notes}`.
+  - Timed reminders with an end show as cards. Reminders without an end, all-day ones and dated tasks go in the all-day row (a task's check ticks it).
+- **The create window** (`CAL.create`), from a click on a free spot or an empty stretch:
+  - at that time, snapped to 15 minutes, an hour long, with a dashed draft;
+  - fields: title, day, All day, start and end, 30 min · 1 h · 2 h, the sort type that Colour by is set to, a note;
+  - Enter adds it; Esc or a click outside cancels.
+  - The free time between cards is drawn dashed.
+- **Cards:**
+  - drag to another time or day (a dashed outline shows where; one of a repeat leaves the series);
+  - drag the bottom edge for the length;
+  - rest about a second and it opens in place (`CAL.bub`: title, time and length ±15, kind, tags, project, note, repeat, Duplicate, Delete);
+  - a click opens the note, or makes a meeting note, an experiment at its first stage, or a quick note, and links it;
+  - overlaps sit side by side, marked.
+- **Colour by** Project · Kind · Tag · Note type · Load:
+  - the legend counts what is shown; a click singles out a value's cards (Ctrl/Shift adds one; "Showing: … · Clear");
+  - a card's tag shows only that tag.
+- **Keys:** ← → T D W N.
+- **Settings → Calendar** (`calendar`): the switch, hours to the height (10 · 12 · 16), the week's first day, free time drawn dashed, and the preview.
+
+### Tests
+| Test | Result |
+|---|---|
+| `cal57_t`, lab build · without the lab layer. Real clicks, drags and keys:<br>- the tab before Tasks;<br>- 7 columns, 24 h tall, 12 h visible, now a third down; the banner stays put;<br>- a free spot → the window at 14:00–15:00 with the title ready; 2 h, Experiment, Enter;<br>- Esc; a click outside;<br>- a drag to the next day an hour later, with its outline; the bottom edge +30;<br>- a quick pass vs resting a second; +15; a tag;<br>- the all-day row and the task's check; overlaps;<br>- the legend, singling out, Ctrl-click, Clear; Load; a tag on a card;<br>- → and a weekly repeat; one moved leaves the series; D and W;<br>- a click opens the note, or makes an experiment and links it;<br>- Ctrl+Z; the preview's settings; the switch | 40/40 · 40/40 |
+
+
 ## [V4.56] — 2026-11-19 — Scientia: Freewrite — placeholders in the words, from a bar of its own or a slash: /result makes an empty Result bubble, /html in it says it will be an HTML file
 
 Gabe, 19 Nov: "Additionally, you can add placeholder kinds in the freewrite via a text editor bar just for it, and shortcuts such as /kind or /structure, and the accompanying format of it (e.g., /result creates a placeholder empty result bubble, and within that bubble, you can type /html, which indicates that in this freewrite location, the user wants the result to be an HTML file. Any /kind or /structure creates a new component into the freewrite. Dragging it to another component (same behavior as described earlier) links it to it."
