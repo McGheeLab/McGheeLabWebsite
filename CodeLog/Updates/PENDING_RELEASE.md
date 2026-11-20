@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (145 changes — ready to push)
+## Pending (146 changes — ready to push)
+
+- **Freewrite, reversible (V4.47):** Convert can be undone (Undo convert), and your choices are kept for the next Convert. Beside the note, Preview in the note draws the new components in the note itself, outlined, where Apply will put them. After Apply, Take back on the freewrite takes them out of the note again.
 
 - **The tab pill (V4.46):** the pill that glides under the tab you are on now covers the whole tab, its name and any count, and stays right when the window or the text changes size.
 
