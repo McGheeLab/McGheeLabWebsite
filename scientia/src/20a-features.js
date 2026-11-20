@@ -571,6 +571,15 @@ const PV = {
   const rdRedraw = () => { try { if (RDOCK.wrap) { RDOCK.layout(); RDOCK.tabsRow(); } } catch (e) { } };
   const rdRebuild = () => { try { if (RDOCK.wrap) RDOCK.remount(); } catch (e) { } };
   const rdPage = () => h('div.pv-page', h('div.pv-pl'), h('div.pv-pl.s'), h('div.pv-pl'), h('div.pv-pl.s'));
+  D({ id: 'selpop', group: 'reading', label: 'Selection popup', isNew: true, presets: { simple: true, standard: true }, desc: 'The small menu that opens when you select words in a PDF or an HTML page (a structure, a colour, Quote, Connect to…, Make it…) — in a note’s page card, beside the note, maximised, in a popup window and for a captured web page. Since V4.99 an HTML page’s menu goes the way a PDF’s does: a click outside the highlight closes it (a click in the page, on the same words, or anywhere else in the app — and so does the highlight being cleared), and so does Esc; the highlight itself stays. Off: an HTML page’s menu stays until you use it or press Esc, as before; a PDF’s still closes on a click outside.',
+    tune: [T('away', 'A click outside the highlight closes the menu', 'switch', { isNew: true, def: true, d: 'In an HTML page, a click anywhere in it or outside it — or the highlight being cleared — like on a PDF. Off: the menu stays until you use it or press Esc.' }),
+      T('esc', 'Esc closes the menu', 'switch', { isNew: true, def: true, d: 'The highlight stays; only the menu goes.' })],
+    preview: () => { const on = FEAT.on('selpop'), a = on && FEAT.tune('selpop', 'away') !== false, e = on && FEAT.tune('selpop', 'esc') !== false;
+      const how = [a ? 'a click outside the highlight' : null, e ? 'Esc' : null].filter(Boolean);
+      return [h('div.pv-sp', h('div.pv-spp', h('span.pv-spl', 'Gel notes · HTML page'), h('div.pv-spx', 'the 30 kPa gels ', h('mark.pv-ttm', 'held their edge'), ' across every field'),
+        h('div.pv-spm', h('b', '“held their edge” is…'), h('span', 'Claim'), h('span', 'Evidence'), h('span', 'Quote'))),
+        h('span.pv-ttk', how.length ? 'Closes on ' + how.join(', ') : 'Stays until you use it')),
+        PV.cap(how.length ? 'The menu closes on ' + how.join(' and ') + ', as a PDF’s does.' : 'An HTML page’s menu stays until you choose from it.')]; } });
   D({ id: 'rtabs', group: 'reading', label: 'Reading tabs', desc: 'Several papers and pages open at once beside the note, as tabs, with + to open another — the PDFs and HTML pages of any note, and the papers of the Library. Clicking a tab takes the note to where that paper is embedded. Kept on this device, from note to note. Off: one paper at a time, belonging to its note.',
     changed: v => { try { if (!RDOCK.wrap) return; const S = RDOCK.S_, id = S.show[S.act] || S.show.find(Boolean); if (!v) { RDOCK.close(true); if (id && M.block(id)) RDOCK.open(M.block(id)); } else rdRedraw(); } catch (e) { } },
     tune: [T('follow', 'Clicking a tab takes the note to where the paper is', 'switch', { isNew: true, def: true, d: 'The note goes to the component that embeds it, lit. Off: the note stays where it is.' }),

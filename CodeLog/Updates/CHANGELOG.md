@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.99] — 2026-11-20 — Scientia: fix — an HTML page's selection popup now closes on a click outside, on Esc, or when the highlight goes, as a PDF's does
+
+Gabe, 20 Nov: "Clicking out of a highlight in HTML removes the popup, just like in PDF."
+
+App only.
+
+### Bug Fixes
+- **Cause:** a PDF's popup closes through the document's `mousedown`, but a click inside an HTML page's frame never reaches the app's document.
+- **Fix:** `popAway(target)` (`08-ui.js`) is the one rule for "a click outside closes it". The page's reporter (`13zw-quote.js`) now posts `away` on a pointerdown and when the highlight goes, and always posts Esc; the app answers with `popAway`.
+  - This covers every HTML page: the page card in a note, beside the note, maximised, the popup window, and captured web pages. The menu's own buttons still work.
+
+### Added
+- **Settings → Reading → Selection popup** (`selpop`): *Click outside closes it* and *Esc closes it*, with a live preview. PDFs are unchanged.
+
+### Tests
+| Test | Result |
+|---|---|
+| `htmlpop_t` (in the four places: select → popup; closed by a click elsewhere, a click on the words, Esc, the highlight cleared, a click outside the page; Quote still works; the switches; a PDF control; the Settings page), lab and plain builds (the helper's), and again on this branch (lab) | 38/38 · 38/38 · 38/38 |
+| `rep_t` on this branch; the helper's `rh_t` 15/15, `ris_t` 41/41, `rt41_t` 23/23, `mrv_t` 28/28 | 19/19 · pass |
+
+
 ## [V4.98] — 2026-11-20 — Scientia: component titles — highlight words and click the title to make them the title; a click with nothing highlighted puts the caret in it; editable at any time
 
 Gabe, 20 Nov: "Highlighting a set of words and clicking title should make that the title of the component. Clicking on title with no highlight lets you type the title. The title is editable at any time."
