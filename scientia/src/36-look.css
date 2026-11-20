@@ -287,3 +287,14 @@ body.lk-still:not(.f-off-look) :is(.pop,.modal,.toast,.ovl,.lk-rail,.rs-grip.lk-
 .pv-szf{display:grid;place-items:center;width:180px;height:96px;border-radius:9px;background:var(--surface);box-shadow:inset 0 0 0 1px var(--rule)}
 .pv-szf i{display:grid;place-items:center;min-width:30px;border-radius:5px;background:var(--lk-card,var(--surface-2));box-shadow:inset 0 0 0 1.5px var(--teal);font:normal 600 9px var(--f-d);overflow:hidden;white-space:nowrap}
 .pv-szk{font:600 10px var(--f-m);padding:2px 7px;border-radius:5px;box-shadow:inset 0 0 0 1px var(--rule);color:var(--ink-2)}
+/* V4.98 — component titles: a click types or takes the highlighted words; the toast's Undo; the preview */
+body:not(.f-off-comptitle) .box > .bh .blab:not(:focus){cursor:text}
+.toast .t-toast{display:inline-flex;align-items:center;gap:10px;pointer-events:auto}
+.toast .t-undo{pointer-events:auto;color:inherit;background:transparent;border:0;box-shadow:inset 0 0 0 1px currentColor;border-radius:999px;padding:1px 9px;font:600 11px var(--f-m);cursor:pointer;opacity:.85}
+.toast .t-undo:hover{opacity:1}
+.pv-tt{display:flex;flex-direction:column;align-items:stretch;gap:6px}
+.pv-tt{min-width:0;max-width:100%}.pv-tt > *{min-width:0}.pv-tt .pvb{width:auto;max-width:100%;box-sizing:border-box}.pv-tt .pvb-tx{overflow-wrap:anywhere}
+.pv-ttl{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;max-width:62%;color:var(--ink-4)}
+.pv-ttl.on{color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--teal);border-radius:3px;padding:0 3px}
+.pv-ttm{background:color-mix(in srgb,var(--teal) 28%,transparent);color:inherit;border-radius:2px}
+.pv-ttk{align-self:flex-start;font:600 10px var(--f-m);padding:2px 7px;border-radius:5px;box-shadow:inset 0 0 0 1px var(--rule);color:var(--ink-2)}

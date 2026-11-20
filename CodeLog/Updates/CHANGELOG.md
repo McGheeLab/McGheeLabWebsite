@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.98] — 2026-11-20 — Scientia: component titles — highlight words and click the title to make them the title; a click with nothing highlighted puts the caret in it; editable at any time
+
+Gabe, 20 Nov: "Highlighting a set of words and clicking title should make that the title of the component. Clicking on title with no highlight lets you type the title. The title is editable at any time."
+
+App only.
+
+### Added
+- **`TITLE`** (`12f-title.js`):
+  - **Highlight, then click the title:** the words become the title, trimmed to one line, citation marks dropped, cut at a word at 40 / 80 / 140 letters. One undo, with a toast "Title: …" and its Undo.
+  - **A click with nothing highlighted** puts the caret where you pointed. Enter goes on into the text; Esc puts the old title back; a click outside ends it.
+  - **Any time:** unselected or folded components too; never in time travel or on a component someone else holds.
+  - A drag from the title still moves the box. An HTML page's highlight works through its frame's report.
+- **Settings → Canvas & notes → Component titles** (`comptitle`): *Highlighted words are taken from* (that component / anywhere in the note) and *Longest title*, with a live preview. Off: the old behaviour (double-click to type). The shortcuts list has the row.
+
+### Tests
+| Test | Result |
+|---|---|
+| `comptitle_t` (the caret where clicked, Enter, Esc, a click outside; a real highlight and a click, the toast and its Undo, App.undo; both scopes, the cut, a drag, a folded component, an HTML page, time travel; off; the Settings page), lab and plain builds (the helper's), and again on this branch (lab) | 29/29 · 29/29 · 29/29 |
+| On this branch: `sz89_t`, `opencomp_t`, `v97_t`; the helper's `sk_t` 26/26, `fw61_t` 20/20, `rep_t` 19/19, `tidy_t` 23/23, `pill51_t` 12/12 | 11/11 · 17/17 · 12/12 · pass |
+
+
 ## [V4.97] — 2026-11-20 — Scientia: experiments — the run number beside the title (the Portfolio, the note's header and first box), never in it; titles ending in "Run N" lose it once
 
 Gabe, 20 Nov: "Each experiment should not have Run x in their note title, but rather have it as information next to their placement in Portfolio. The run number also appears when you are in the note canvas."

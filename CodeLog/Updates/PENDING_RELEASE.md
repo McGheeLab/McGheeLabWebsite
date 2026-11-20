@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (196 changes — ready to push)
+## Pending (197 changes — ready to push)
+
+- **Component titles (V4.98):** highlight some words and click a component's title to make them its title. Click the title with nothing highlighted to type one.
 
 - **Experiments (V4.97):** a run's number is no longer part of its title. It shows as "Run 3" beside the name, in the Portfolio and in the note.
 
