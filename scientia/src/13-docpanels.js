@@ -131,8 +131,7 @@ Object.assign(DocView, {
   /** V3.981 — embedding became a bridge (13zzu). */
   embedElsewhere(b) { return BRIDGE.to(b); },
   moveDoc(d) {
-    const m = modal({ title: 'Move note to theme', actions: [{ label: 'Cancel' }], body: optionPicker({ placeholder: 'Theme…', items: q => DB.where('themes', t => t.projectId === d.projectId && t.status === 'active' && (!q || t.name.toLowerCase().includes(q))),
-      render: t => h('div', t.name), onPick: t => { m.close(); d.themeId = t.id; M.touchDoc(d); changed(); } }) });
+    MPANEL.pick({ title: 'Move note to theme', notes: false, places: MPANEL.projectRows({ projectId: d.projectId, sub: ['', 'a theme of this project'], here: d }) }).then(t => { if (!t || !t.themeId) return; d.themeId = t.themeId; M.touchDoc(d); changed(); });   // 13zzzd: the move panel
   },
   pullMenu(d, mode = 'barrier', at) {
     const sel = this.sel && M.block(this.sel), after = sel && sel.docId === d.id ? sel.id : d.blockIds[d.blockIds.length - 1];

@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (170 changes — ready to push)
+## Pending (171 changes — ready to push)
+
+- **One move panel (V4.72):** Move to, Bridge to, Flag for synthesis and Project & theme… all open the same panel. Search for a note, or switch to the Portfolio and click one.
 
 - **Captures on Today (V4.71):** your quick captures wait on the Today tab. Each has a *Move to…* button that moves it into a note, or into a new note in a project or theme.
 

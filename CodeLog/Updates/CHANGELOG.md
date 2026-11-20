@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.72] — 2026-11-20 — Scientia: one move panel for Move to, Bridge to, Flag for synthesis, Project & theme… — a search bar with results, or a click on a note in the Portfolio
+
+Gabe, 20 Nov: "Move panels (bridge to, flag for synthesis, etc.. show up as a search bar with results or a Portfolio view to click on a note in the Portfolio."
+
+App only.
+
+### Added
+- **`MPANEL`** (`13zzzd-movepanel.js`, `42-movepanel.css`; `MPANEL.pick` / `note`):
+  - **Search:** the notes touched last first, each with its kind's colour, title, project › theme and when it was touched; typing narrows by title, project, theme or kind; ↑ ↓, Enter, Esc.
+  - **Portfolio:** the real Portfolio with a bar ("click a note in the Portfolio", Search instead, Cancel); a note that is not one of the choices is refused.
+- **`PFPICK`**: the calendar's Pick in the Portfolio (V4.65), generalised; the calendar now uses it (`CAL.pickBanner` and its listeners are gone; the bar keeps the id `cal-pick`).
+- **Settings → Canvas & notes → The move panel** (`movepanel`): the switch (off: the plain list) and *The panel opens in* Search or The Portfolio, with a live preview.
+
+### Changed
+- The panel replaces the pickers of Move to another note (`MOVE.dialog`), Bridge to… (`BRIDGE.pickNote`: selection, pieces, Bulk, Freewrite), a region's Bridge, Flag for synthesis (`SYNTH.choose`: Synthesis notes only), Project & theme… (`GENERAL.move`), Move note to theme, and the Today capture's Move to… (V4.71).
+
+### Tests
+| Test | Result |
+|---|---|
+| `movepanel_t`, lab and plain builds (the helper's), and again on this branch (lab):<br>- a real right-click → Bridge to another note…, narrowing by title and by kind, the caption;<br>- the Portfolio view with a real click on a note, Search instead, Cancel;<br>- Flag for synthesis (a non-Synthesis note refused), `MOVE.dialog`, Project & theme…, Move note to theme;<br>- the Settings preview, the default view, a capture moved by a Portfolio click, the switch off | 33/33 · 33/33 · 33/33 |
+| On this branch: `cal65_t` (the calendar's note picker), `cal70_t`, `todaycaps_t` | 23/23 · 22/22 · 21/21 |
+
+
 ## [V4.71] — 2026-11-20 — Scientia: Today — the day’s captures wait on the Today tab, each with a Move to… footer that moves it into a note, or into a new note in a project or theme
 
 Gabe, 20 Nov: "Captures show up in the Today tab for the user to come back during the day and potentially move them to projects. Additionally, each capture entry has a move to button footer right below them to bring up a move panel."

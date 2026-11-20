@@ -370,8 +370,6 @@ body.cal-focusing .cal-fbtn{outline:2px solid #C9971F;outline-offset:2px}
 .cw-nl{max-height:220px;overflow:auto}
 .cw-pf{align-self:flex-start;height:28px;padding:0 10px;border:0;border-radius:8px;background:transparent;color:var(--teal);font:600 12px/1 var(--f-d);cursor:pointer}
 .cw-pf:hover{background:color-mix(in srgb,var(--teal) 10%,transparent)}
-.cal-pick{position:fixed;left:50%;top:10px;transform:translateX(-50%);z-index:900;display:flex;align-items:center;gap:10px;height:40px;padding:0 6px 0 14px;border-radius:999px;background:var(--teal);color:var(--lk-card);font:600 13px/1 var(--f-d);box-shadow:0 10px 30px -12px rgba(0,0,0,.5)}
-.cal-pick .cal-btn{height:28px;background:rgba(255,255,255,.18);color:inherit;box-shadow:none}
 .cw-d.cw-cust{color:var(--teal);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--teal) 40%,transparent)}
 .cal-ghost.cal-push{border-color:#C9971F;background:color-mix(in srgb,#C9971F 12%,transparent);color:#8F5600}
 .cal-ghost.cal-push.bad{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 8%,transparent);color:var(--bad)}

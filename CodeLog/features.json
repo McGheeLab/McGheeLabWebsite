@@ -70,6 +70,31 @@
    ]
   },
   {
+   "id": "scientia.move-panel",
+   "name": "Scientia move panel (search or Portfolio, for every send-to-a-note action)",
+   "side": "scientia",
+   "summary": "WIP (Gabe, 20 Nov: \"Move panels (bridge to, flag for synthesis, etc.. show up as a search bar with results or a Portfolio view to click on a note in the Portfolio\"): one panel behind Move to another note, Bridge to…, Flag for synthesis, Project & theme…, Move note to theme and a Today capture's Move to… — a search with results (recent first, kind label, project › theme) or a click on a note in the Portfolio (the calendar's Pick in the Portfolio, generalised as PFPICK). Settings → The move panel (FEAT 'movepanel').",
+   "keywords": [
+    "move panel",
+    "move to",
+    "bridge to",
+    "flag for synthesis",
+    "send to note",
+    "pick in the portfolio"
+   ],
+   "paths": [
+    "scientia/src/13zzzd-movepanel.js",
+    "scientia/src/42-movepanel.css"
+   ],
+   "extends": "scientia.core",
+   "related": [
+    "scientia.calendar",
+    "scientia.today-captures",
+    "scientia.portfolio",
+    "scientia.settings"
+   ]
+  },
+  {
    "id": "scientia.calendar",
    "name": "Scientia Calendar (the day planner)",
    "side": "scientia",

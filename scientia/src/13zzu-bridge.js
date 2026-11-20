@@ -65,10 +65,8 @@ const BRIDGE = {
   },
   /** Which note: any other one. */
   pickNote(title, notId) {
-    return new Promise(res => { let got = false;
-      const m = modal({ title, wide: true, actions: [{ label: 'Cancel' }], onClose: () => { if (!got) res(null); }, body: optionPicker({ placeholder: 'Search notes…', sort: 'bridge-note',
-        items: q => DB.where('documents', x => x.id !== notId && !x.deleted && !x.archived && (!q || ((x.title || '') + ' ' + M.docPath(x)).toLowerCase().includes(q))).sort((a, b) => String(b.modified || '').localeCompare(String(a.modified || ''))),
-        render: x => h('div', typechip(x.type), ' ', x.title || 'Untitled', h('span.s', M.docPath(x))), onPick: x => { got = true; m.close(); res(x); } }) }); });
+    // 13zzzd: the move panel — a search with results or the Portfolio; the caption (BRIDGE.ask) is asked after, as before
+    return MPANEL.note({ title, exclude: [notId], refuse: 'That is its own note — a bridge goes to another note' });
   },
   /** Why: the caption under it there ('' is allowed; null — Cancel — bridges nothing). */
   ask(dest, what) { return askText('Bridge to “' + snippet(dest.title || 'Untitled', 40) + '”', 'Why bridge ' + what + ' there? It shows as a caption under it.', '', { placeholder: 'What it is for in that note…' }); },
