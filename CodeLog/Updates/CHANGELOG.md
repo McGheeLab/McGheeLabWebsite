@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.55] — 2026-11-19 — Scientia: Freewrite — with "each sentence its own component", a button between two sentences merges them; each keeps its structure; two kinds or two titles are flagged
+
+Gabe, 19 Nov: "With the option of freewrite makes each sentence its own component, have a little button in between sentences that indicates merging the two sentences in a single component. If two components are merged in one, each part retains their structure, but kind has to be one, so it raises a flag for the user to correct. Same thing for if each component had a component title."
+
+App only.
+
+### Added
+- **The ＋ between two sentences** (Each its own component): merges them into one component. Again (a link now): splits them.
+- **Each sentence keeps its structure**, as a structure on its words in the component.
+- **A flag for two kinds or two titles:** on the label, the preview and the side. Apply waits and opens the popup to choose. The popup sets one kind for all its sentences, keeps one title, changes each sentence's structure, and offers Split.
+
+### Tests
+| Test | Result |
+|---|---|
+| `fw55_t` (real clicks: no buttons by default; three buttons placed in the gaps; kinds, structure and titles before; merge; the structure kept; the flags in three places; Apply waits; one kind; keep one title; a sentence's structure; a chain of three and back; Split; merge again; Apply) · lab · without the lab layer | 19/19 · 19/19 |
+| `fw54_t` · `fw53_t` · `fw_t33` · `fw_t34` · `fw47_t` | 24/24 · 13/13 · 69/69 · 24/24 · 21/21 |
+
 ## [V4.54] — 2026-11-19 — Scientia: Freewrite — a component's label opens a clean popup of its kind and structure; drag one component onto another to link them
 
 Gabe, 19 Nov: "Dragging a component to another allows you to create a component link between them. The label on each freewrite sentence is clickable, bringing a clean popup that gives you quick modification possibilities for both kind and structure of the component (similar to highlight in PDFs)."

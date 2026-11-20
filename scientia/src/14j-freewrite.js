@@ -76,6 +76,18 @@
      grab() / linkMenu() / addLink a label, or a box in the preview, dragged onto another component (its words, label or box) →
                                    which relation → fw.links [{ a, b, rel }] (by the parts' words, like fw.over); convert adds
                                    them as links of their own (own: true, no words of their own); Apply makes them wires.
+   V4.55 — Gabe: "With the option of freewrite makes each sentence its own component, have a little button in between sentences
+   that indicates merging the two sentences in a single component. If two components are merged in one, each part retains their
+   structure, but kind has to be one, so it raises a flag for the user to correct. Same thing for if each component had a
+   component title."
+     convert → seams               Sentences no rule reads: Each its own component. Between two sentences that each made one plain
+                                   component: a seam (its words' ends), merged when fw.merges has { a, b } (the sentences' keys).
+     merged parts (p.mem)          the first sentence's part takes the next ones' words (each a stretch of its own, mem: key); each
+                                   sentence's structure becomes a structure on its words in it (p.marks); kinds: one, or a flag
+                                   (p.flag.kinds) until you choose one for all its sentences; titles likewise (p.flag.titles).
+     tags() seams · merge()        a small ＋ between the two (a link when merged: a click splits them); the label shows the flag;
+                                   the popup: Kind for all its sentences, each sentence's structure, Keep one title, Split.
+                                   Apply waits until no flag is left (it opens the popup of the first).
    ========================================================================== */
 const FREEW = {
   st: null, au: null, dict: null, wait: null,
@@ -91,6 +103,9 @@ const FREEW = {
     wand: 'M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z',
     check: 'm4.5 12.75 6 6 9-13.5',
     undo: 'M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3',
+    plus: 'M12 6v12m6-6H6',
+    link: 'M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244',
+    flag: 'M3 3v1.5M3 21v-6m0 0 2.77-.693a9 9 0 0 1 6.208.682l.108.054a9 9 0 0 0 6.086.71l3.114-.732a48.524 48.524 0 0 1-.005-10.499l-3.11.732a9 9 0 0 1-6.085-.711l-.108-.054a9 9 0 0 0-6.208-.682L3 4.5M3 15V4.5',
     eye: 'M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178ZM15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z',
   },
   ic(k, px = 16) { return h('span.fw-ic', { html: `<svg viewBox="0 0 24 24" width="${px}" height="${px}" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="${FREEW.P[k]}"/></svg>` }); },
@@ -279,7 +294,21 @@ const FREEW = {
     // V4.37 — the sentences that stay in the component before them: its words grow; each stretch keeps its own words (a click can take it out)
     joins.forEach(j => { const H = byKey.get(j.host); if (!H || H.none) return; H.text = H.text.replace(/\s+$/, '') + (/[.!?;:]$/.test(H.text.trim()) ? ' ' : '. ') + j.text; H.spans.push({ from: j.from, to: j.to, own: j.key }); H.joined = (H.joined || 0) + 1; });   // each sentence keeps its full stop
     parts.forEach(p => { if (p.marks) { const T = p.text.toLowerCase(); p.marks = p.marks.filter(m => m && m.t && m.s && KIND[m.s] && T.includes(String(m.t).toLowerCase())); if (!p.marks.length) delete p.marks; } });
-    return { parts, links, cues, text, joins };
+    // V4.55 — each sentence its own component: the seams between two that made one plain component each; merged ones become one
+    const seams = [];
+    if (mode === 'component') { const M2 = (o.merges || []).filter(m => m && m.a && m.b), isM = (a, b) => M2.some(m => m.a === a && m.b === b);
+      const one = r => { const q = r.got; return r.single && q && byKey.get(q.key) === q && !q.none && q.as === 'component' && !q.block && !q.assoc && q.spans.length === 1 ? q : null; };
+      const join = (H, q) => { if (!H.mem) { H.mem = [{ key: H.key, text: H.text, kind: H.kind, struct: H.struct, title: H.title || null }]; H.marks = (H.marks || []).slice(); if (H.struct) H.marks.push({ t: H.text, s: H.struct }); H.struct = null; }
+        H.mem.push({ key: q.key, text: q.text, kind: q.kind, struct: q.struct, title: q.title || null }); if (q.struct) H.marks.push({ t: q.text, s: q.struct }); (q.marks || []).forEach(m => H.marks.push(m));
+        H.text = H.text.replace(/\s+$/, '') + (/[.!?;:]$/.test(H.text.trim()) ? ' ' : '. ') + q.text; H.spans.push({ from: q.spans[0].from, to: q.spans[0].to, mem: q.key });
+        parts.splice(parts.indexOf(q), 1); byKey.delete(q.key); links.forEach(l => { if (l.a === q.key) l.a = H.key; if (l.b === q.key) l.b = H.key; if (l.a === l.b) l.off = true; }); };
+      let prev = null, host = null;
+      recs.forEach(r => { const q = one(r); if (!q) { prev = host = null; return; }
+        if (prev) { const on = isM(prev.key, q.key); seams.push({ a: prev.key, b: q.key, from: prev.spans[0].to, to: q.spans[0].from, on }); if (on) { host = host || prev; join(host, q); } else host = null; }
+        prev = q; });
+      parts.forEach(H => { if (!H.mem) return; const ks = [...new Set(H.mem.map(m => m.kind).filter(Boolean))], ts = [...new Set(H.mem.map(m => m.title).filter(Boolean))];
+        H.kind = ks[0] || null; H.title = ts[0] || null; if (!H.marks.length) delete H.marks; const f = {}; if (ks.length > 1) f.kinds = ks; if (ts.length > 1) f.titles = ts; if (f.kinds || f.titles) H.flag = f; }); }
+    return { parts, links, cues, text, joins, seams };
   },
   /** What a part looks like: its colour and, in words, what it became. */
   look(p) {
@@ -304,7 +333,7 @@ const FREEW = {
         if (p.title) add(p.title, 'fw-tt', {});
         (p.marks || []).forEach(m => { const K = KIND[m.s]; if (K) add(m.t, 'fw-mk', { mc: ((settings().kinds || {})[m.s] || K).color, m: K.label }); });
         kids.sort((x, y) => x.from - y.from);
-        L.push({ from: s.from, to: s.to, cls: 'fw-s' + (lk.cls ? ' ' + lk.cls : ''), k: p.key, fc: lk.col, t: tag, on, kids }); }); });
+        L.push({ from: s.from, to: s.to, cls: 'fw-s' + (lk.cls ? ' ' + lk.cls : '') + (s.mem ? ' fw-mem' : ''), k: p.key, fc: lk.col, t: s.mem ? '' : tag, on, kids, fl: !s.mem && p.flag ? FREEW.flagText(p) : '' }); }); });
     conv.links.forEach(l => { if (l.none || l.off || !l.span || l.span[1] <= l.span[0]) return; const R = REL[l.rel] || { label: l.rel }; L.push({ from: l.span[0], to: l.span[1], cls: 'fw-l', lk: l.key, fc: WIRECOL[l.rel] || '#8a8f98', t: (l.back ? '← ' : '→ ') + (R.label || l.rel), on: !!sel && sel.t === 'l' && sel.k === l.key }); });
     conv.cues.forEach(c => { const p = conv.parts.find(x => x.key === c.part); if (p && !p.none) L.push({ from: c.from, to: c.to, cls: 'fw-c', k: c.part }); });
     L.sort((a, b) => a.from - b.from || b.to - a.to); let at = 0;
@@ -313,7 +342,7 @@ const FREEW = {
       const el = document.createElement('span'); el.className = m.cls + (m.on ? ' on' : ''); el.dataset.from = m.from; el.dataset.to = m.to;
       if (m.kids && m.kids.length) { let i = m.from; m.kids.forEach(x => { if (x.from > i) el.append(text.slice(i, x.from)); const c = document.createElement('span'); c.className = x.cls; c.textContent = text.slice(x.from, x.to); if (x.mc) c.style.setProperty('--mc', x.mc); if (x.m) c.dataset.m = x.m; el.append(c); i = x.to; }); if (i < m.to) el.append(text.slice(i, m.to)); }
       else el.textContent = text.slice(m.from, m.to);
-      if (m.k) el.dataset.k = m.k; if (m.lk) el.dataset.l = m.lk; if (m.fc) el.style.setProperty('--fc', m.fc); if (m.t) el.dataset.t = m.t;
+      if (m.k) el.dataset.k = m.k; if (m.fl) el.dataset.flag = m.fl; if (m.lk) el.dataset.l = m.lk; if (m.fc) el.style.setProperty('--fc', m.fc); if (m.t) el.dataset.t = m.t;
       frag.append(el); at = m.to;
     }
     if (at < text.length) frag.append(text.slice(at)); return frag;
@@ -352,8 +381,8 @@ const FREEW = {
         `<text x="${((x1 + x2) / 2 + 4).toFixed(1)}" y="${((y1 + y2) / 2 + 3).toFixed(1)}" fill="${col}" class="fw-ml">${esc(R.label || e.rel)}</text>`; });
     host.append(h('div.fw-msvg', { html: `<svg width="${q(L.w) + 2}" height="${q(L.h) + 8}" aria-hidden="true">${svg}</svg>` }));
     P.forEach(p => { const at = L.pos[p.key]; if (!at) return; const lk = FREEW.look(p), ht = q(at.h), lines = Math.max(1, Math.floor((ht - 16 - (p.title ? 18 : 0)) / 11));   // V4.53: a title takes a line and a half
-      host.append(h('button.fw-mb' + (lk.cls ? '.' + lk.cls : '') + (o.sel && o.sel.t === 'p' && o.sel.k === p.key ? '.on' : ''), { type: 'button', 'data-k': p.key, title: lk.tag + ' — ' + snippet(p.text, 120) + (o.click ? ' · click to change' : ''), style: { left: q(at.x) + 'px', top: q(at.y) + 'px', width: q(at.w) + 'px', height: ht + 'px', '--fc': lk.col }, on: o.click ? Object.assign({ click: e => o.click(p, e) }, o.grab ? { pointerdown: e => o.grab(e, p) } : {}) : {} },
-        h('span.fw-mbt', lk.tag), p.title ? h('b.fw-mbh', p.title) : null, h('span.fw-mbx', { style: { '-webkit-line-clamp': String(lines) } }, p.as === 'slot' ? '“' + p.text + '” — ＋ add the result' : p.text))); });
+      host.append(h('button.fw-mb' + (lk.cls ? '.' + lk.cls : '') + (p.flag ? '.flag' : '') + (o.sel && o.sel.t === 'p' && o.sel.k === p.key ? '.on' : ''), { type: 'button', 'data-k': p.key, title: lk.tag + ' — ' + snippet(p.text, 120) + (o.click ? ' · click to change' : ''), style: { left: q(at.x) + 'px', top: q(at.y) + 'px', width: q(at.w) + 'px', height: ht + 'px', '--fc': lk.col }, on: o.click ? Object.assign({ click: e => o.click(p, e) }, o.grab ? { pointerdown: e => o.grab(e, p) } : {}) : {} },
+        h('span.fw-mbt', p.flag ? [FREEW.ic('flag', 9), ' '] : null, lk.tag + (p.flag ? ' · ' + FREEW.flagText(p) : '')), p.title ? h('b.fw-mbh', p.title) : null, h('span.fw-mbx', { style: { '-webkit-line-clamp': String(lines) } }, p.as === 'slot' ? '“' + p.text + '” — ＋ add the result' : p.text))); });
     return host;
   },
 
@@ -423,7 +452,7 @@ const FREEW = {
   /** The words read now (with what you changed by clicking), or null while there are no colours yet. */
   conv() {
     const st = FREEW.st; if (!st) return null; if (!st.shown && FREEW.opt('colour', 'convert') !== 'live') return null;
-    const fw = FREEW.fw(); return FREEW.convert(st.ta.value, { over: fw.over, lover: fw.lover, links: fw.links, assoc: fw.assoc, plain: FREEW.opt('plain', 'run'), docId: st.docId });
+    const fw = FREEW.fw(); return FREEW.convert(st.ta.value, { over: fw.over, lover: fw.lover, links: fw.links, merges: fw.merges, assoc: fw.assoc, plain: FREEW.opt('plain', 'run'), docId: st.docId });
   },
   paint() {
     const st = FREEW.st; if (!st) return; const text = st.ta.value, conv = st.conv = FREEW.conv();
@@ -440,12 +469,13 @@ const FREEW = {
   paintSide() {
     const st = FREEW.st; if (!st) return; const conv = st.conv;
     if (!conv) { st.side.replaceChildren(); st.ap.disabled = true; return; }
-    const P = conv.parts.filter(p => !p.none), Ls = conv.links.filter(l => !l.none && !l.off);
+    const P = conv.parts.filter(p => !p.none), Ls = conv.links.filter(l => !l.none && !l.off), F = P.filter(p => p.flag);
     st.ap.disabled = !P.length;
     const w = Math.max(200, (st.side.clientWidth || 360) - 30);
     const gon = st.beside && st.ghost !== false;   // V4.47: the preview in the note itself
     st.side.replaceChildren(h('div.fw-sh', h('b', 'The note it will make'), h('span', plural(P.length, 'component') + ' · ' + plural(Ls.length, 'link')), h('span.spacer'),
         h('button.btn.xs.fw-gbtn' + (gon ? '.on' : ''), { type: 'button', 'aria-pressed': String(gon), title: gon ? 'Hide the preview in the note' : 'See the note as it will look — its new components drawn in it, outlined, where Apply puts them (the page goes beside the note)', on: { click: () => FREEW.ghost(!gon) } }, FREEW.ic('eye', 14), gon ? 'Hide in the note' : 'Preview in the note')),
+      F.length ? h('p.fw-flagline', FREEW.ic('flag', 13), h('span', plural(F.length, 'merged component') + ' to correct before Apply — ' + F.map(p => FREEW.flagText(p)).join(', ') + '. Click its label.')) : null,
       FREEW.mini(conv, { width: w, sel: st.sel, click: (p, e) => { if (!FREEW.dragged()) FREEW.pick({ t: 'p', k: p.key }, e.currentTarget); }, grab: (e, p) => FREEW.grab(e, p.key) }),
       h('p.fw-hint', 'Click coloured words, a label or a box here to change what it becomes — its kind, its structure, or nothing; drag a label or a box onto another to link them. ' + (gon ? 'The outlined boxes in the note show where Apply puts them.' : 'Apply puts it in the note under the freewrite.') + ' Undo convert takes the colours off; what you chose is kept.'));
   },
@@ -578,9 +608,9 @@ const FREEW = {
       { label: (p.as === 'slot' ? '✓ ' : '') + 'A Result to add', sub: 'Titled with these words; ＋ adds an image, a table, a plot…', run: () => set({ as: 'slot', kind: 'result', struct: null }) },
       { label: (p.as === 'bridge' ? '✓ ' : '') + 'A bridge from a note', sub: 'Notes whose titles share these words are offered', run: () => set({ as: 'bridge', kind: null, struct: null }) },
       'sep', { head: 'A kind of component' },
-      ...K.map(k => ({ label: (p.as === 'component' && p.kind === k.id ? '✓ ' : '') + k.label, run: () => set({ as: 'component', kind: k.id, struct: p.struct || null }) })),
+      ...K.map(k => ({ label: (p.as === 'component' && p.kind === k.id && !p.flag ? '✓ ' : '') + k.label, run: () => p.mem ? FREEW.overAll(p.mem.map(m => m.key), c => Object.assign(c, { as: 'component', kind: k.id })) : set({ as: 'component', kind: k.id, struct: p.struct || null }) })),
       'sep', { head: 'A structure on its words' },
-      ...KINDS.filter(k => k.id !== 'reminder').map(k => ({ label: (p.struct === k.id ? '✓ ' : '') + k.label, run: () => set({ as: p.as === 'task' || p.as === 'slot' || p.as === 'bridge' ? 'component' : p.as, kind: p.kind || null, struct: p.struct === k.id ? null : k.id }) })),
+      ...(p.mem ? [{ head: 'Each of its sentences keeps its structure — its label changes them' }] : KINDS).filter(k => k.head || k.id !== 'reminder').map(k => k.head ? k : ({ label: (p.struct === k.id ? '✓ ' : '') + k.label, run: () => set({ as: p.as === 'task' || p.as === 'slot' || p.as === 'bridge' ? 'component' : p.as, kind: p.kind || null, struct: p.struct === k.id ? null : k.id }) })),
       'sep', { label: 'Plain words — not a component', danger: true, run: () => set({ none: true }) },
       p.changed && !p.split ? { label: 'As the rules read it', run: () => set(null) } : null]);
     FREEW.flash(J ? J.host : p.key);
@@ -594,8 +624,12 @@ const FREEW = {
     st.back.querySelectorAll('.fw-s[data-t], .fw-l[data-t]').forEach(el => { const r = el.getClientRects()[0]; if (!r) return; const lnk = el.classList.contains('fw-l'), k = el.dataset.k, n = !lnk && !seen.has(k) ? own[k] || 0 : 0; if (!lnk) seen.add(k);
       const b = h('button.fw-tag' + (lnk ? '.fw-tagl' : '') + (el.classList.contains('on') ? '.on' : ''), Object.assign({ type: 'button', title: lnk ? 'Change this link' : 'Its kind and its structure — or drag it onto another component to link them', style: { left: Math.round(r.left - pr.left) + 'px', top: Math.round(r.top - pr.top) + 'px', '--fc': el.style.getPropertyValue('--fc') },
         on: { mousedown: e => e.preventDefault(), pointerdown: e => { if (!lnk) FREEW.grab(e, k); }, click: e => { e.stopPropagation(); if (FREEW.dragged()) return; if (lnk) FREEW.pick({ t: 'l', k: el.dataset.l }, e.currentTarget); else FREEW.quick(k, e.currentTarget); } } }, lnk ? { 'data-l': el.dataset.l } : { 'data-k': k }),
-        el.dataset.t, n ? h('i.fw-tln', '· ' + plural(n, 'link')) : null);
+        el.dataset.t, el.dataset.flag ? h('i.fw-flag', FREEW.ic('flag', 10), el.dataset.flag) : null, n ? h('i.fw-tln', '· ' + plural(n, 'link')) : null);
+      if (el.dataset.flag) b.classList.add('flagged');
       out.push(b); });
+    (conv.seams || []).forEach(sm => { const r1 = FREEW.rectAt(sm.from), r2 = FREEW.rectAt(sm.to), same = Math.abs(r1.y - r2.y) < 4, x = same ? (r1.x + r2.x) / 2 : r1.x + 7;   // V4.55: between two sentences
+      out.push(h('button.fw-seam' + (sm.on ? '.on' : ''), { type: 'button', 'data-a': sm.a, 'data-b': sm.b, 'aria-label': sm.on ? 'Split these two sentences again' : 'Merge these two sentences into one component', title: sm.on ? 'One component — click to split these two sentences again' : 'Merge these two sentences into one component', style: { left: Math.round(x) + 'px', top: Math.round(r1.y) + 'px' },
+        on: { mousedown: e => e.preventDefault(), click: e => { e.stopPropagation(); FREEW.merge(sm.a, sm.b); } } }, FREEW.ic(sm.on ? 'link' : 'plus', 11))); });
     st.tg.replaceChildren(...out);
   },
   /** V4.54: a label clicked — a clean popup, as on a PDF's highlight: its kind, its structure (a letter picks one), its title, its links. */
@@ -605,6 +639,7 @@ const FREEW = {
     const P = () => FREEW.st && FREEW.st.conv && FREEW.st.conv.parts.find(x => x.key === key && !x.none);
     const keep = () => { const c = (FREEW.fw().over || {})[key] || {}, o = {}; if (c.title) o.title = c.title; if (c.marks) o.marks = c.marks; return o; };
     const set = v => { FREEW.setOver('over', key, Object.assign(keep(), v)); draw(); };
+    const kindTo = (p, id) => { if (!p.mem) return set({ as: 'component', kind: id, struct: p.struct || null }); FREEW.overAll(p.mem.map(m => m.key), c => Object.assign(c, { as: 'component', kind: id })); draw(); };   // V4.55: one kind for all its sentences
     const K = (typeof CKINDS !== 'undefined' ? CKINDS.all() : []).filter(k => !k.act && k.id !== 'report' && k.id !== 'iteration'), S = KINDS.filter(k => k.id !== 'reminder');
     const kp = (label, col, on, run, kb, id) => h('button.kpick' + (on ? '.on' : ''), { type: 'button', 'data-id': id || '', style: { '--kc': col }, on: { mousedown: e => e.preventDefault(), click: run } }, label, kb ? h('kbd', kb) : null);
     const as = p => p.as === 'task' || p.as === 'slot' || p.as === 'bridge' ? 'component' : p.as || 'component';
@@ -613,20 +648,27 @@ const FREEW = {
       const Ls = st.conv.links.filter(l => !l.none && !l.off && (l.a === key || l.b === key));
       el.replaceChildren(
         h('h5', h('span.fw-qt', { style: { '--fc': lk.col } }, lk.tag), h('span.serif', '“' + snippet(p.text, 40) + '”')),
-        h('div.fw-qh', 'Kind'), h('div.rd-kinds.fw-qkind', kp('None', 'var(--ink-3)', !p.kind && as(p) === p.as, () => set({ as: 'component', kind: null, struct: p.struct || null }), null, 'none'),
-          ...K.map(k => kp(k.label, k.color, p.kind === k.id, () => set({ as: 'component', kind: p.kind === k.id ? null : k.id, struct: p.struct || null }), null, k.id))),
-        h('div.fw-qh', 'Structure'), h('div.rd-kinds.fw-qstruct', kp('None', 'var(--ink-3)', !p.struct, () => set({ as: as(p), kind: p.kind || null, struct: null }), null, 'none'),
-          ...S.map(k => kp(k.label, sc(k), p.struct === k.id, () => struct(p, k.id), k.key, k.id))),
-        p.title ? h('div.fw-qline', h('span.fw-qh', 'Title'), h('b', '“' + snippet(p.title, 36) + '”'), h('span.spacer'), h('button.btn.xs.ghost', { type: 'button', on: { mousedown: e => e.preventDefault(), click: () => { FREEW.titleOf(key, p.title); draw(); } } }, 'Take off')) : null,
+        p.flag && p.flag.kinds ? h('div.fw-qflag', FREEW.ic('flag', 12), h('span', 'Its sentences had ' + p.flag.kinds.length + ' kinds (' + p.flag.kinds.map(id => (CKINDS.get(id) || { label: id }).label).join(', ') + ') — choose the one it is')) : null,
+        h('div.fw-qh', 'Kind'), h('div.rd-kinds.fw-qkind', kp('None', 'var(--ink-3)', !p.kind && as(p) === p.as && !p.flag, () => kindTo(p, null), null, 'none'),
+          ...K.map(k => { const b = kp(k.label, k.color, p.kind === k.id && !(p.flag && p.flag.kinds), () => kindTo(p, p.kind === k.id && !(p.flag && p.flag.kinds) ? null : k.id), null, k.id); if (p.flag && p.flag.kinds && p.flag.kinds.includes(k.id)) b.classList.add('fw-qx'); return b; })),
+        ...(p.mem ? [h('div.fw-qh', 'Its sentences — each keeps its structure'), h('div.fw-qparts', p.mem.map((m, i) => { const S0 = m.struct && KIND[m.struct];
+            return h('div.fw-qpart', h('span.fw-qn', String(i + 1)), h('span.serif', '“' + snippet(m.text, 34) + '”'), h('span.spacer'), h('button.btn.xs.fw-qps', { type: 'button', 'data-k': m.key, style: S0 ? { color: sc(S0) } : {}, on: { mousedown: e => e.preventDefault(), click: e => { const rr = e.currentTarget.getBoundingClientRect(), ar = anchor.isConnected ? anchor.getBoundingClientRect() : r; off();
+              ctxMenu(rr.left, rr.bottom + 4, [{ head: '“' + snippet(m.text, 30) + '” is a…' }, { label: (!m.struct ? '✓ ' : '') + 'No structure', run: () => { FREEW.overAll([m.key], c => Object.assign(c, { as: 'component', struct: null })); FREEW.quick(key, { getBoundingClientRect: () => ar }); } },
+                ...S.map(k => ({ label: (m.struct === k.id ? '✓ ' : '') + k.label, run: () => { FREEW.overAll([m.key], c => Object.assign(c, { as: 'component', struct: k.id })); FREEW.quick(key, { getBoundingClientRect: () => ar }); } }))]); } } }, (S0 ? S0.label : 'No structure') + ' ▾')); }))]
+          : [h('div.fw-qh', 'Structure'), h('div.rd-kinds.fw-qstruct', kp('None', 'var(--ink-3)', !p.struct, () => set({ as: as(p), kind: p.kind || null, struct: null }), null, 'none'),
+          ...S.map(k => kp(k.label, sc(k), p.struct === k.id, () => struct(p, k.id), k.key, k.id)))]),
+        p.flag && p.flag.titles ? h('div.fw-qflag.fw-qtt', FREEW.ic('flag', 12), h('span', 'Its sentences had ' + p.flag.titles.length + ' titles — keep one:'), ...p.flag.titles.map(t => h('button.btn.xs', { type: 'button', on: { mousedown: e => e.preventDefault(), click: () => { FREEW.overAll(p.mem.filter(m => m.title && m.title !== t).map(m => m.key), c => { delete c.title; return c; }); draw(); } } }, '“' + snippet(t, 22) + '”'))) :
+        p.title ? h('div.fw-qline', h('span.fw-qh', 'Title'), h('b', '“' + snippet(p.title, 36) + '”'), h('span.spacer'), h('button.btn.xs.ghost', { type: 'button', on: { mousedown: e => e.preventDefault(), click: () => { if (p.mem) FREEW.overAll(p.mem.filter(m => m.title).map(m => m.key), c => { delete c.title; return c; }); else FREEW.titleOf(key, p.title); draw(); } } }, 'Take off')) : null,
         Ls.length ? h('div.fw-qh', 'Links') : null,
         Ls.length ? h('div.fw-qlinks', Ls.map(l => { const o = l.a === key ? l.b : l.a, O = st.conv.parts.find(x => x.key === o), R = REL[l.rel] || { label: l.rel };
           return h('button.fw-qlink', { type: 'button', 'data-l': l.key, style: { '--fc': WIRECOL[l.rel] || '#8a8f98' }, on: { mousedown: e => e.preventDefault(), click: e => { const rr = e.currentTarget.getBoundingClientRect(); closePop(); off(); FREEW.pick({ t: 'l', k: l.key }, { getBoundingClientRect: () => rr }); } } },
             h('b', (l.a === key ? '→ ' : '← ') + (R.label || l.rel)), h('span.serif', '“' + snippet(O ? O.text : '', 30) + '”')); })) : null,
         h('div.fw-qfoot', h('span', 'Drag its label onto another component to link them'), h('span.spacer'),
+          p.mem ? h('button.btn.xs.fw-qsplit', { type: 'button', title: 'Each sentence its own component again', on: { mousedown: e => e.preventDefault(), click: () => { closePop(); off(); FREEW.split(p); } } }, 'Split') : null,
           h('button.btn.xs.fw-qmore', { type: 'button', on: { mousedown: e => e.preventDefault(), click: e => { const rr = e.currentTarget.getBoundingClientRect(); closePop(); off(); FREEW.pick({ t: 'p', k: key }, { getBoundingClientRect: () => rr }); } } }, 'More ▾'))); };
     const kd = e => { if (!el || !el.isConnected) return off(); if (e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closePop(); off(); return; }
-      const k = S.find(z => z.key === (e.key || '').toLowerCase()), p = P(); if (k && p) { e.preventDefault(); e.stopPropagation(); struct(p, k.id); return; }
+      const k = S.find(z => z.key === (e.key || '').toLowerCase()), p = P(); if (k && p && !p.mem) { e.preventDefault(); e.stopPropagation(); struct(p, k.id); return; }
       if (!/^(Shift|Control|Alt|Meta|CapsLock)$/.test(e.key)) { closePop(); off(); } };   // any other key: the popup goes, the key goes to the words
     const off = () => document.removeEventListener('keydown', kd, true);
     el = popover(r.left, r.bottom + 6, [], { cls: 'pop.fw-qk', onClose: off }); draw();
@@ -646,6 +688,16 @@ const FREEW = {
     addEventListener('pointermove', mv); addEventListener('pointerup', end); addEventListener('pointercancel', end);
   },
   dragged() { return Date.now() - (FREEW._dragAt || 0) < 400; },
+  /** V4.55: what a merged component has to correct, in words. */
+  flagText(p) { const f = p.flag || {}; return [f.kinds ? f.kinds.length + ' kinds' : '', f.titles ? f.titles.length + ' titles' : ''].filter(Boolean).join(' · '); },
+  /** V4.55: merge two sentences into one component (again: split them). */
+  merge(a, b) { const M0 = (FREEW.fw().merges || []).filter(m => m && m.a && m.b), had = M0.some(m => m.a === a && m.b === b);
+    FREEW.setFw({ merges: had ? M0.filter(m => !(m.a === a && m.b === b)) : M0.concat([{ a, b }]) }); closePop(); FREEW.chipOff(); FREEW.paint();
+    const H = !had && FREEW.st && FREEW.st.conv && FREEW.st.conv.parts.find(p => p.mem && p.mem.some(m => m.key === b));
+    toast(had ? 'Two components again' : H && H.flag ? 'Merged — its sentences had ' + FREEW.flagText(H) + ': choose one (click its label)' : 'Merged into one component — each sentence keeps its structure', 3200); },
+  split(p) { const ks = new Set((p.mem || []).map(m => m.key)); FREEW.setFw({ merges: (FREEW.fw().merges || []).filter(m => !(ks.has(m.a) && ks.has(m.b))) }); FREEW.paint(); toast('Each sentence its own component again', 2400); },
+  /** V4.55: change what several parts are, at once (fw.over), and draw once. */
+  overAll(keys, fn) { const ov = Object.assign({}, FREEW.fw().over || {}); keys.forEach(k => { const c = fn(Object.assign({}, ov[k] || {}), k); if (c && Object.keys(c).length) ov[k] = c; else delete ov[k]; }); FREEW.setFw({ over: ov }); FREEW.chipOff(); FREEW.paint(); },
   /** The component under a point: its label, its box in the preview, or its words. */
   keyAt(x, y) { const st = FREEW.st; if (!st) return null; const el = document.elementFromPoint(x, y), t = el && el.closest && el.closest('.fw-tag[data-k], .fw-mb[data-k]'); if (t) return t.dataset.k;
     for (const s of st.back.querySelectorAll('.fw-s[data-k]')) for (const r of s.getClientRects()) if (x >= r.left && x <= r.right && y >= r.top - 2 && y <= r.bottom + 2) return s.dataset.k;
@@ -813,6 +865,8 @@ const FREEW = {
   /** Apply: the parts as components and wires under the freewrite, which folds. One Undo. */
   apply() {
     const st = FREEW.st; if (!st) return; FREEW.save(); FREEW.ghostOff(); if (!st.shown) { st.shown = true; FREEW.setFw({ shown: true }); FREEW.paint(); }
+    const conv0 = st.conv, bad = conv0 && conv0.parts.find(p => !p.none && p.flag);   // V4.55: a merged component with two kinds or two titles waits for you
+    if (bad) { FREEW.flash(bad.key); toast('“' + snippet(bad.text, 40) + '” has ' + FREEW.flagText(bad) + ' since its sentences were merged — choose one first', 4200); const t = st.tg && st.tg.querySelector(`.fw-tag[data-k="${CSS.escape(bad.key)}"]`); if (t) FREEW.quick(bad.key, t); return; }
     const conv = st.conv, P = conv ? conv.parts.filter(p => !p.none) : []; if (!P.length) return toast('No components yet — click words to choose what they become');
     const fb = FREEW.ensure(), d = M.doc(st.docId); if (!fb || !d) return;
     const fw = Object.assign({}, fb.fw || {}), made = Object.assign({}, fw.made || {}), L = FREEW.layout(conv);
@@ -907,7 +961,7 @@ const FREEW = {
   /* ---------------- the freewrite's card in its note ---------------- */
   card(b, d, pane, ro) {
     const fw = b.fw || {}, text = (b.body && b.body.text) || '', n = (text.match(/\S+/g) || []).length, made = Object.values(fw.made || {}).filter(id => { const x = M.block(id); return x && x.status === 'live'; }).length;
-    const conv = fw.shown ? FREEW.convert(text, { over: fw.over, lover: fw.lover, links: fw.links, assoc: fw.assoc, plain: FREEW.opt('plain', 'run'), docId: b.docId }) : null;
+    const conv = fw.shown ? FREEW.convert(text, { over: fw.over, lover: fw.lover, links: fw.links, merges: fw.merges, assoc: fw.assoc, plain: FREEW.opt('plain', 'run'), docId: b.docId }) : null;
     const go = () => FREEW.open(M.doc(b.docId), { block: b.id, pane });
     const r = b.rec || {}, has = r.state && r.state !== 'new' && r.state !== 'recording';
     const tx = h('div.fwc-tx' + (text ? '' : '.empty'), { title: ro ? '' : 'Double-click to open it', on: { dblclick: e => { if (ro) return; e.stopPropagation(); go(); } } }, text ? FREEW.spans(text, conv) : 'Nothing written yet.');
