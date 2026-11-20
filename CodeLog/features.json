@@ -2366,6 +2366,31 @@
     "scientia.terms"
    ],
    "note": "The ? dialog (helpModal in 11-shell.js) is now SHORT.open(): one list, both places. A key added to the app belongs in SHORT.items()."
+  },
+  {
+   "id": "scientia.slash-workflows",
+   "name": "Slash commands made of workflows",
+   "side": "scientia",
+   "summary": "V4.90 (Gabe, 20 Nov: \"Slash commands should be tunable with workflows or actions (everything you can think of)\"): your own /commands — a name, a description and a workflow of steps run in order, each from a list of the app's actions (insert text with {date} {time} {selection} {cursor}, make it a structure, set the component's kind, tag, task, reminder, timer, widget, template, flag for synthesis, bridge, move, float, wire, day-note log, open a note or tab, any command or macro, and an inline Ask step) — run as one undo group; the built-in slash commands hidden, pinned, aliased. Settings → Features → Slash commands (FEAT 'slash'): editor, Try it on a sample in the preview, export / import. A macro (11b) can be copied into a workflow.",
+   "keywords": [
+    "slash command",
+    "workflow",
+    "actions",
+    "steps",
+    "alias",
+    "prompt step"
+   ],
+   "paths": [
+    "scientia/src/13zzga-slashwf.js",
+    "scientia/src/48-slashwf.css"
+   ],
+   "extends": "scientia.core",
+   "related": [
+    "scientia.settings",
+    "scientia.shortcuts",
+    "scientia.tasks",
+    "scientia.calendar"
+   ]
   }
  ]
 }

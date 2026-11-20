@@ -4,6 +4,40 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.95] — 2026-11-20 — Scientia: slash commands — your own, each a workflow of steps (text with placeholders, structures, kinds, tasks, reminders, timer, widgets, templates, commands, Ask…), one Ctrl+Z; the built-ins hidden, pinned or aliased
+
+Gabe, 20 Nov: "Slash commands should be tunable with workflows or actions (everything you can think of)."
+
+App only. Built on the existing macros (`MACRO`, 11b), which stay as they were; a macro becomes a workflow in one click.
+
+### Added
+- **Your own slash commands** (`13zzga-slashwf.js`, `SWF`; `settings().slashCmds`): a name, a description, aliases, and steps. They are listed under "Yours" in the slash menu (with a bolt) and in the command bar.
+- **27 actions:**
+  - **Text:** insert text and clear. Placeholders: `{date}`, `{time}`, `{now}`, `{datelong}`, `{weekday}`, `{selection}`, `{line}`, `{component}`, `{note}`, `{project}`, `{theme}`, `{cursor}`, plus Ask answers.
+  - **Structure:** a Claim, Result, Question… on the words.
+  - **Component:** its kind, its title, a new component below, float, wire to the previous one, fold, flag for synthesis, bridge, move (the move panel).
+  - **Note:** tag, flag for the weekly review, a line in today's day note.
+  - **Time:** a task due `+1d` / `tomorrow 17:30` / `fri` / a date; a reminder or deadline; the timer.
+  - **Insert:** a widget (INSERTS id), a template's components.
+  - **Go and run:** any command with arguments, a macro, open a note, a tab or today, say something.
+  - **Ask:** an inline box at the caret; its answer is `{name}`.
+- **One undo group per run.** Ctrl+Z undoes the whole run, even with the caret still in the text.
+- **The built-ins** (`settings().slashTune`): hide, pin (in your order), aliases (`/r` → /result). The command bar knows the aliases.
+- **Settings → Slash commands** (`slash`):
+  - *My commands come first*, *Mark my commands with a bolt*, *Say what a workflow did*;
+  - an editor: steps with options, ↑ ↓ and drag, duplicate, remove; three examples to start from; checks naming the step that is wrong;
+  - **Try it** on a sample in the live preview, which writes nothing;
+  - export and import as JSON;
+  - the built-ins' list with show / pin / alias.
+
+### Tests
+| Test | Result |
+|---|---|
+| `slashwf_t` (real typing: the menu, /daily's text + Result + tag + task and one Ctrl+Z, Ask inline and Esc, hide / pin / alias, the editor with real clicks, Try it, export / import), lab and plain builds (the helper's), and again on this branch (lab) | 45/45 · 45/45 · 45/45 |
+| `slashwf2_t` (a 13-step workflow, one undo entry reversing all of it, the timer included; macro → workflow; checks; due words; from the command bar), lab and plain (the helper's), and on this branch | 24/24 · 24/24 · 24/24 |
+| Regressions: `dt_t` (/data in the menu) on this branch; `fw56_t` 21/21, `float_t` 49/49, `movepanel_t` 33/33 (the helper's) | 45/46 — its build-identity check, which failed before too · pass |
+
+
 ## [V4.94] — 2026-11-20 — Scientia: 20 new settings for what was hard-coded — the hover wait, the paper (zoom speed, max zoom, the grid cell, flick glide), stamps, timers, reminders, Today, resurfacing, focus and how long messages stay
 
 Gabe, 20 Nov: "Search for other features like these that could get some easy customization, but currently do not or have very simple customization."
