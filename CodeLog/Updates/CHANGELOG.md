@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.68] — 2026-11-20 — Scientia: Calendar — tasks for an event, made in its linked note and due when it starts
+
+Gabe, 20 Nov: "You may add tasks to a calendar event, which associates that task to the linked note."
+
+App only.
+
+### Added
+- **Tasks in an event's card** (`CAL.taskRow`, `CAL.addTask`, `ev.tasks`):
+  - a task typed there is made in the event's note, due at its start (a reminder);
+  - tick it, open it where it is, or take it off (it stays in its note);
+  - with no note, the card says to link one.
+- **The event's card counts its tasks** (open / all).
+
+### Tests
+| Test | Result |
+|---|---|
+| `cal68_t`, lab build:<br>- no note → "Link a note above";<br>- "+ a task" → a task in the note, due 10:00, a reminder;<br>- a tick and the count 1/2; × keeps it in its note; open goes to it | 9/9 |
+
+
 ## [V4.67] — 2026-11-20 — Scientia: Calendar — today's all-day events show once in the bell
 
 Gabe, 19 Nov: "All day events might be tasks or events that are relevant to Reminders (which appear on the Calendar as well). All-day events also appear as a one-time notification in the bell button." Asked again on 20 Nov ("Work on … all-day items appearing once in the bell").
