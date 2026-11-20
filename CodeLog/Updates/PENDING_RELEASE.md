@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (148 changes — ready to push)
+## Pending (149 changes — ready to push)
+
+- **Hot notes (V4.50):** a star button at the right of Settings opens your favourite notes, one click away. Each shows its kind in colour, with its project's banner faintly behind it. It starts with the notes you visit most: star them, or use + to find any note. Hover over a favourite's golden star and click it to remove it.
 
 - **Data in the Atlas (V4.49):** a Data section in the Atlas gathers every folder and file logged in your notes into one master tree. View it by project and note, each note labelled by kind with a button to open it, or as one merged tree. It is searchable.
 
