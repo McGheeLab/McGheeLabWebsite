@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.45] — 2026-11-19 — Scientia: demonstrations — Look and motion (new), Fold the side panel (again)
+
+Gabe (19 Nov 2026), on the proposed demonstration of Look and motion (and the note that Fold the side panel needed recording again): "The rest is approved"
+
+App only.
+
+### Added
+- **`demokit/look.mjs`, `demos/look.mp4` / `.jpg`** (40.9 s, 1125 KB): the approved proposal.
+  - the capsule (yellow 2, blue 1, pink 1);
+  - a colour opens the panel; › folds it;
+  - full screen and the mini library's spines;
+  - List and back;
+  - step 5 shows Save structure as template… (the note's ⋯ has no Flag): a menu, a dialog, a toast.
+
+### Changed
+- **`demokit/sidefold.mjs`, `demos/sidefold.mp4` / `.jpg`** (35.2 s, 837 KB): recorded again for the capsule.
+  - it glides shut;
+  - a colour opens it;
+  - the Library's reader;
+  - beside a note (V4.40).
+- **`src/20b-demos.js`** (generated): both entries.
+
 ## [V4.44] — 2026-11-19 — Scientia: Look and motion, the rest of the boards — highlights by page on a thread, the beside / full-screen glide, popups rising and shrinking back, the pills' wheels, Freewrite's Convert, the Settings sidebar
 
 Gabe (19 Nov 2026), on the design canvas: "Don't change the Portfolio, it looks good as it is. The rest is approved"
