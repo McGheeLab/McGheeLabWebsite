@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.48] — 2026-11-19 — Scientia: Materials is a section of the Atlas — the Atlas page has sections, in a row of gliding pills
+
+Gabe (19 Nov 2026): "Merge Materials into Atlas, and create data tab in Atlas, which organizes all trees recorded there for a master tree."
+
+App only. The lab layer's Materials page, with its inventory card, shows inside the Atlas unchanged.
+
+### Added
+- **`ATHUB` (`14fb-atlashub.js`) and `37-atlashub.css`:** the Atlas's sections (`add`, `shown`, `render`, `row`, `pill`, `go`, `pv`). Map is `ATLAS.render()`; Materials is `VIEWS.materials.render()`. `VIEWS.atlas.render(key)`.
+
+### Changed
+- **The Materials tab leaves `TABS`;** `TABOF.materials` and `TABOF.mat` = `'atlas'`.
+- **`App.parse`:** `#/materials` → `#/atlas/materials`.
+- **Settings → Materials** (`20a`): a section of the Atlas, no longer a `tab` feature; its preview shows the row.
+- **`v3869` harness §1:** expects the Atlas tab and no Materials tab.
+
+### Bug Fixes
+- **V4.47's preview boxes** used the undefined `var(--f-s)`; they now use the components' serif, and the link labels the sans.
+
+### Tests
+| Test | Result |
+|---|---|
+| `ah48_t`, real clicks: the tab row; the Atlas (Map, the row inside its page, the room fitting); Materials (the page inside, the Atlas tab lit, its title, the pill part-way); the inventory card in the lab build; filters in place; `#/materials`; a material's page and All materials; the switch off/on; Settings — lab · without the lab layer | 17/17 · 17/17 |
+
 ## [V4.47] — 2026-11-19 — Scientia: Freewrite — Convert can be undone; Convert shows the note as it will look, in the note itself; Apply can be taken back
 
 Gabe (19 Nov 2026): "Also, for the freewrite, convert should be reversible. Convert can also be used to see a preview of how the note will look."

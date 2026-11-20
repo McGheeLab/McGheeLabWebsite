@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (146 changes — ready to push)
+## Pending (147 changes — ready to push)
+
+- **Materials in the Atlas (V4.48):** Materials is no longer a tab. It is a section of the Atlas, next to the Map, reached from a row of pills at the top of the Atlas. Old links still work.
 
 - **Freewrite, reversible (V4.47):** Convert can be undone (Undo convert), and your choices are kept for the next Convert. Beside the note, Preview in the note draws the new components in the note itself, outlined, where Apply will put them. After Apply, Take back on the freewrite takes them out of the note again.
 

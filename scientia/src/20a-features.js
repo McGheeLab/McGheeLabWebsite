@@ -666,7 +666,8 @@ const PV = {
       };
       draw(); return [wrap];
     } });
-  TabF('materials', 'materials', 'Materials', 'The Materials tab: gel batches, cell lines, antibody lots and the notes that used them.', () => [h('div.pv-list', [['PAA gel batch 15', '8 kPa · bench 3'], ['MDCK p12', 'LN2 box 2']].map(([a, b]) => h('div', h('b', a), h('span', b))))]);
+  // V4.48 (Gabe: "Merge Materials into Atlas"): Materials is a section of the Atlas (14fb), no longer a tab of its own
+  D({ id: 'materials', group: 'tabs', label: 'Materials (in the Atlas)', desc: 'Materials is a section of the Atlas (V4.48): gel batches, cell lines, antibody lots and the notes that used them, beside the Map and the Data. #/materials, a material’s page and “All materials” still lead there; a material’s page lights the Atlas tab. Off: the section leaves the Atlas; its page still opens from links and search.', preview: () => [ATHUB.pv('materials'), h('div.pv-list', [['PAA gel batch 15', '8 kPa · bench 3'], ['MDCK p12', 'LN2 box 2']].map(([a, b]) => h('div', h('b', a), h('span', b))))] });
   TabF('canvas', 'canvas', 'Spatial canvases (lab)', 'Canvases where components, structures, papers and datasets are arranged freely; drawn lines become real connections; export as JSON Canvas. An experiment: presets leave it as it is.', () => [PV.cap('A Canvas tab in the row.')],
     { keep: true, nb: true, get: () => CANVAS.on(), set: v => { if (CANVAS.on() !== !!v) CANVAS.toggleLab(); } });   // a lab experiment: presets leave it as it is
   // V4.12 (20-settings.js featurePage, 20b-demos.js): a feature's page shows a recording of it being used in a test note, and what it is for in the words of whoever asked for it
