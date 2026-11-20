@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (151 changes — ready to push)
+## Pending (152 changes — ready to push)
+
+- **Freewrite: one component, a title, a structure (V4.53):** sentences you make one component no longer appear twice; click a word (or select words) in a component to make them its title or a structure inside it.
 
 - **Materials demonstration (V4.52):** Settings → Materials shows its recording made through the Atlas.
 

@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.53] — 2026-11-19 — Scientia: Freewrite — words made one component leave the components they reached over (no repeats); a word or words inside a component become its title or a structure
+
+Gabe, 19 Nov: "When you highlight multiple sentences and transform them into a component, their old identity is removed from the conversion, so that there are no repeats of the same content. When clicking on a word, or after highlighting some words within the same component, it allows you to make it a component title for the component it resides in or make it a structure."
+
+App only.
+
+### Added
+- **A word clicked, or words selected inside one component:** Title (the component's label, shown on its label and in the preview) · Structure ▾ (a structure on those words inside it, an item and its mark on Apply). Words selected inside one component also keep A component… (the old question).
+
+### Changed
+- **`FREEW.convert`:** an associated stretch takes its words from the components and links it reaches over (trimmed or gone), and a sentence inside it goes into it.
+- **A kind chosen from Change ▾ keeps the title and the structures.**
+- **A component's title and structures are drawn inside its stretch** (one outline). The preview box's text makes room for the title.
+
+### Bug Fixes
+- **The first click on a word after Associate did nothing:** the words were still selected. The selection now collapses, and a click read during a selection is read again.
+
+### Tests
+| Test | Result |
+|---|---|
+| `fw53_t` (real clicks: two sentences made one, nothing twice; a word → Title; words → Structure ▾ Barrier; a kind keeps both; Apply) · lab · without the lab layer | 13/13 · 13/13 |
+| `fw_t33` · `fw_t34` (this one now expects the row inside one component and opens the question from A component…) · `fw47_t` | 69/69 · 24/24 · 21/21 |
+
 ## [V4.52] — 2026-11-19 — Scientia: the Materials demonstration recorded again through the Atlas; the Atlas's row clear of the header
 
 Materials moved into the Atlas (V4.48, Gabe: "Merge Materials into Atlas"); its demonstration clicked the Materials tab, which is gone.
