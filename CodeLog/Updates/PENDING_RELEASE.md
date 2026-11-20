@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (163 changes — ready to push)
+## Pending (164 changes — ready to push)
+
+- **Calendar (V4.65):** add event types of your own, drag on the calendar to create an event of exactly that length, link a note from your recent ones (or pick it in the Portfolio), and push an event back to wherever you click.
 
 - **Calendar focus (V4.64):** plan focus hours on the calendar and start a focus session — full screen, and everything you make or mark counts double. Leaving asks first, and you have 5 minutes to come back before the session ends.
 
