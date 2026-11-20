@@ -138,3 +138,12 @@ body.f-off-freewrite .fwc .fw-open{display:none}
 .fw-gbx{font:400 14px/1.45 var(--f-b);display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:7;overflow:hidden}
 .fw-tb[hidden]{display:none}
 @media (prefers-reduced-motion:reduce){.fw-ghosts{animation:none}}
+/* V4.53 — a component's title and structures on its words: their own stretches inside it; the chips of a click and of a selection inside one component */
+.fw-s .fw-tt{box-shadow:inset 0 -4px 0 var(--fc)}
+.fw-s .fw-mk{position:relative;background:color-mix(in srgb,var(--mc) 22%,transparent);box-shadow:inset 0 -2px 0 var(--mc)}
+.fw-s .fw-mk::after{content:attr(data-m);position:absolute;left:0;top:calc(100% + 1px);font:600 8.5px/1.2 var(--f-m);letter-spacing:.05em;text-transform:uppercase;color:color-mix(in srgb,var(--mc) 80%,var(--ink));white-space:nowrap;pointer-events:none}
+.fw-chips{position:absolute;z-index:3;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.fw-chips .fw-chip{position:static}
+.fw-chip2{padding:3px 9px;font-weight:600;color:var(--ink)}
+.fw-cw{font:italic 12px var(--f-b);color:var(--ink-3);padding:0 2px}
+.fw-mbh{display:block;font:600 11px/1.25 var(--f-d);color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
