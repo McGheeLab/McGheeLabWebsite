@@ -4,6 +4,33 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.70] — 2026-11-20 — Scientia: Calendar — deliverables on an event or at the end of the day (a result, takeaway, verdict or mini synthesis); once due the card, the bell, Today and its note ask you to attach one; with no note it is a float
+
+Gabe, 19 Nov: "Deliverables can be attached to an event or end of day, asking you to attach that deliverable, logging it in the note that it is assigned to, otherwise it becomes a float. Deliverables are inherently a structure such as result, takeaway, a kind, such as a verdict, or a mini synthesis into a region." Asked again on 20 Nov.
+
+App only.
+
+### Added
+- **Deliverables** (`kind: 'deliv'` in the events store; `CAL.addDv`, `dvWhen`, `dvAsks`):
+  - from the event's card (Deliver: Result · Takeaway · Verdict · Mini synthesis), due when the event ends;
+  - from the create window's Deliverable tab, due at the end of the day (18:00) or a set time, shown as a chip on the planner.
+- **Once due:**
+  - the card's Attach button (`.ec-dv.due`);
+  - the bell (`CAL.dvSection`, counted in the badge);
+  - Today and its note (`CAL.dvAskRow` in the Today wrapper and in `askBar`): Attach… / Not needed.
+- **Attach** (`CAL.attach`, `dvApply`, `dvSpot`, `dvRegion`):
+  - a component of its note, or one written in the window, becomes the structure (Result, Takeaway) or the kind (Verdict);
+  - a mini synthesis joins the event's region, or a region of the day's work;
+  - with no note, it is a float in the day note.
+- **Settings → Calendar:** the switch, in the preview.
+
+### Tests
+| Test | Result |
+|---|---|
+| `cal70_t`, lab and plain builds:<br>- Deliver on an event: added for its note, not a card; due → Attach on the card, the bell counts and lists it;<br>- Write it: a Synthesis component in the event's region, done (1/1);<br>- the Deliverable tab: 18:00, no note, a chip; attached → a float marked Takeaway;<br>- Today lists what is due (not tomorrow's); Not needed drops it; its note asks; choosing a component → the verdict or result;<br>- not due: 0/1; off: no marks, nothing asks, the preview follows | 22/22 and 22/22 |
+| Calendar regressions `cal57`–`cal69`, lab build | all pass |
+
+
 ## [V4.69] — 2026-11-20 — Scientia: Calendar — what was written during an event becomes a region named after it; linked events connect or bridge their regions; nothing written, its note and Today ask "Log anything from it?"
 
 Gabe, 19 Nov: "Actvity logged during an event automatically groups them in a region after the event ends, and if there is a dependency, it bridges that region to the other dependency region if it is in another note, and links them if they are in the same note. The region name is the event name. If nothing is logged into that event time, later in that note, it asks you if you want to log anything from that event, thus creating the region for you to work in. It also appears as a reminder on the Today tab." Asked again on 20 Nov.
