@@ -242,3 +242,30 @@ select.cw-in{font-family:var(--f-d)}
 .ag-none{padding:6px 10px 10px;font:500 11px/1.3 var(--f-m);color:var(--ink-4)}
 @media (prefers-reduced-motion:reduce){.cal-mside{animation:none}}
 @media (max-width:760px){.cal-mside{position:absolute;inset:0 0 0 auto;width:min(400px,92%);max-width:none;z-index:20;padding:8px}.ag-r{grid-template-columns:78px 10px minmax(0,1fr)}.ag-k,.ag-n{display:none}}
+
+/* V4.59 — links between events, on a layer above the cards like a note's arrows (20-canvas.css: .92 open, .42 over a card with a shadow) */
+svg.cal-links{position:absolute;left:0;top:0;z-index:6;overflow:visible;pointer-events:none}
+.cal-lk .lk-o{fill:none;stroke:var(--lc);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;opacity:.92}
+.cal-lk .lk-v{fill:none;stroke:var(--lc);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;opacity:.42}
+.cal-lk .lk-c{fill:var(--lc)}
+.cal-lk{transition:opacity .25s}
+.cal-lk.dim{opacity:.2}
+.cal-ec .ec-dep{display:flex;align-items:center;gap:4px;max-width:100%;font:500 10px/1.3 var(--f-m);opacity:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-ec .ec-dep svg{width:10px;height:10px}
+.cal-ec.linkable{cursor:copy;animation:cal-linkable 1.6s ease-in-out infinite}
+.cal-ec.linkable .ec-main{cursor:copy}
+.cal-ec.linksrc{box-shadow:0 0 0 2px var(--lk-card),0 0 0 4px var(--teal)}
+@keyframes cal-linkable{0%,100%{box-shadow:var(--lk-sh1),inset 0 0 0 1px rgba(255,255,255,.14)}50%{box-shadow:var(--lk-sh1),0 0 0 3px color-mix(in srgb,var(--teal) 45%,transparent)}}
+.cal-chip.lk{gap:6px}
+.toast:has(.cal-tst){pointer-events:auto}
+.cal-tst{display:inline-flex;align-items:center;gap:10px}
+.cal-tst button{height:24px;padding:0 10px;border:0;border-radius:999px;background:var(--paper);color:var(--ink);font:600 11.5px/1 var(--f-d);cursor:pointer}
+.cal-cust{display:flex;flex-direction:column;gap:8px}
+.cal-cust-r{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto auto auto;align-items:center;gap:8px}
+.cal-cust-r b{font:600 13px/1.25 var(--f-d);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-cust-r span:not(.cw-k){font:500 11px/1 var(--f-m);color:var(--ink-3)}
+.bub-links{display:flex;flex-wrap:wrap;align-items:center;gap:5px;min-width:0}
+.bub-lk{display:inline-flex;align-items:center;gap:5px;max-width:100%;height:24px;padding:0 3px 0 9px;border-radius:999px;background:var(--surface-2);font:600 11px/1 var(--f-d);white-space:nowrap;overflow:hidden}
+.bub-lk em{font:500 9.5px/1 var(--f-m);font-style:normal;color:var(--ink-3)}
+.bub-lk button{width:18px;height:18px;padding:0;border:0;border-radius:999px;background:transparent;color:var(--ink-3);cursor:pointer}
+@media (prefers-reduced-motion:reduce){.cal-ec.linkable{animation:none;box-shadow:var(--lk-sh1),0 0 0 2px color-mix(in srgb,var(--teal) 45%,transparent)}}

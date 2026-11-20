@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.59] — 2026-11-20 — Scientia: Calendar — links between events: Link → then…, drawn above the cards like a note's arrows (lighter over a card); a barrier pushes what depends on it back as much, Custom… for each
+
+Gabe, 19 Nov: "Allow links between events, which creates dependencies, and if barriers are experienced, pushing events back, it pushes the other one back the same amount with custom displacement offered as well."
+
+And on 20 Nov: "Links should appear on a layer on top of the planner and should appear like the link arrows in notes, where it gets lighter and less opacity when it flies over other cards."
+
+App only.
+
+### Added
+- **Links** (`then: [ids]` on the earlier event): Link → then… in an event's card, then a click on the next one. Loops are refused; Esc cancels.
+- **Drawn on a layer above the cards** (`CAL.drawLinks`):
+  - the note's arrow look (1.7, round, .92, an arrowhead); teal within one note;
+  - .42 with a shadow over a card in between;
+  - faded with a sort singled out;
+  - a partner off the view named on the card.
+- **Barrier** +30 min · +1 h · +2 h · +1 day (`CAL.pushBack`), and any move or lengthening that ends it later: what depends on it moves as much (`CAL.carry`, transitively). The toast offers **Custom…** (`CAL.custom`): an amount for each.
+- Unlink from the card (← after / then → ×).
+
+### Tests
+| Test | Result |
+|---|---|
+| `cal59_t`, lab build · without the lab layer:<br>- Link → then… from the card and the bar's prompt; a click links;<br>- drawn above (z 6, no pointer events, 1.7, round, .92, arrowhead), .42 with a shadow over the card in between; teal within one note;<br>- Barrier +1 h moves two dependents; Custom… with None for one; a drag later carries, earlier does not;<br>- "then → Report out" for next week; a loop refused; × unlinks; Esc;<br>- faded when singled out; Ctrl+Z takes back the push with its carry | 21/21 · 21/21 |
+
+
 ## [V4.58] — 2026-11-20 — Scientia: Calendar — Month, where a click on a day opens it on the right as its planner column; Load shows each day's hours and each event's length; Agenda
 
 Gabe, 20 Nov: "The month view should allow you to click on the day, bringing the day as a side panel on the right side of the monthly planner. Add another sorting to be load (time-wise), since this view does not directly correlate card size to time."
