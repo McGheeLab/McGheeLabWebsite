@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (171 changes — ready to push)
+## Pending (172 changes — ready to push)
+
+- **Fixed (V4.73):** a Story beat’s Complexity (1–10) can be changed again.
 
 - **One move panel (V4.72):** Move to, Bridge to, Flag for synthesis and Project & theme… all open the same panel. Search for a note, or switch to the Portfolio and click one.
 
