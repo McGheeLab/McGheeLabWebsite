@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.62] — 2026-11-20 — Scientia: lists keep their shape — a new item added to an earlier part of a list no longer runs into the item before or after it
+
+Gabe, 20 Nov: "Sometimes when in bullet point list, numbered list, etc..., going back into previous bullet points and adding a new one causes it to go into the previous one instead of maintaining the list architecture."
+
+App only.
+
+### Bug Fixes
+- **An empty list item's line break was lost on the first letter typed into it** (Chrome replaces a text node of only "\n"), so a new item's words joined the next item ("• NEW• two"). `ED.render` now draws it as a zero-width space plus "\n".
+- **Enter with the caret before an item's marker** (a click left of the item) put the new marker inside the item. `WRITE.enter` now counts the indent and marker as the start of the item's words.
+
+### Changed
+- **Enter at the start of an item's words** adds a new empty item above it, with the caret in it.
+
+### Tests
+| Test | Result |
+|---|---|
+| `list62_t`, lab build · without the lab layer. Real clicks, Enter, typing, saved text:<br>- bullets after an item and left of an item;<br>- numbers left of an item and after one (renumbered);<br>- nested; checkboxes;<br>- a split in the middle; an empty item leaving the list | 12/12 · 12/12 |
+| Before the fix (the same clicks) | "• one\n• NEW• two\n• three" · "• one\n\n• • two" |
+
+
 ## [V4.61] — 2026-11-20 — Scientia: Freewrite — highlighted words become one whole component, its own card (nothing twice, the rest kept); a ＋ between any two components one right after the other; a button beside each paragraph makes it a region
 
 Gabe, 20 Nov: "highlighting a set of sentences or a portion of it, and selecting a new component assumes that the highlighted portion becomes a whole component, merging the components together, and separates it from the rest of the freewrite, as its own card. Each component is its own card."

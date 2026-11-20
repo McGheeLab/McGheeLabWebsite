@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (160 changes — ready to push)
+## Pending (161 changes — ready to push)
+
+- **Fixed (V4.62):** adding a bullet or numbered item to an earlier part of a list no longer merges it into the item before or after — the list keeps its shape.
 
 - **Freewrite (V4.61):** highlighted words become one component of their own (the rest stays where it was, nothing repeated); a ＋ between any two neighbouring components merges them; a button beside each paragraph turns it into a region in the note.
 
