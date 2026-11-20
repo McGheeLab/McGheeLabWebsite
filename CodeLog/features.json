@@ -48,6 +48,28 @@
    ]
   },
   {
+   "id": "scientia.today-captures",
+   "name": "Scientia captures on Today (each with a Move to… footer)",
+   "side": "scientia",
+   "summary": "WIP (Gabe, 20 Nov: \"Captures show up in the Today tab for the user to come back during the day and potentially move them to projects. Additionally, each capture entry has a move to button footer right below them to bring up a move panel\"): the quick captures of the day note listed on Today, newest first, each a card with its time, kind and words and a footer with Move to… — the component goes to the note picked (MOVE, 13zb), or to a new note in the project or theme picked; Ctrl+Z puts it back. Settings → Captures on Today (FEAT 'todaycaps').",
+   "keywords": [
+    "captures",
+    "today",
+    "move to",
+    "quick capture",
+    "inbox"
+   ],
+   "paths": [
+    "scientia/src/14a-todaycaps.js",
+    "scientia/src/41-todaycaps.css"
+   ],
+   "extends": "scientia.today",
+   "related": [
+    "scientia.core",
+    "scientia.settings"
+   ]
+  },
+  {
    "id": "scientia.calendar",
    "name": "Scientia Calendar (the day planner)",
    "side": "scientia",

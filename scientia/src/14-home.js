@@ -61,6 +61,7 @@ const HomeView = {
           h('div.sec-h', h('h2', 'Capture'), h('span.r', h('a.btn.sm.ghost', { href: '#/doc/' + DAY.doc().id }, 'Day note →'))),
           h('div.capbox', h('input.inp', { placeholder: 'A thought, a delivery, a result… (Enter) — goes to today’s day note', on: { keydown: e => { if (e.key === 'Enter' && e.target.value.trim()) { DAY.add(e.target.value); e.target.value = ''; toast('Captured'); } } } }),
             h('div.tiny.muted', plural(DAY.entries(DAY.doc()).length, 'entry', 'entries') + ' today · Ctrl+Shift+Space from anywhere')),
+          typeof TCAP !== 'undefined' ? TCAP.section() : null,   // 14a: the captures, newest first, each with Move to…
           REM.home(),
           h('div.dayh.home', CHORES.dayRow(today)),
           TIMER.active().length ? [h('div.sec-h', h('h2', 'Running')), h('div.list', TIMER.active().map(s => { const d = M.doc(s.docId); return h('div.li.click', { on: { click: () => App.go('#/doc/' + s.docId) } }, h('span.tchip' + (s.state === 'running' ? '.run' : '.paused'), h('i'), h('span.wt', { 'data-sess': s.id }, fmtDur(TIMER.elapsed(s), true))), h('span.t', d ? d.title : '—', h('span.s', d ? M.docPath(d) : '')), s.steps && s.steps.length ? h('span.tiny.mono.muted', plural(s.steps.length, 'step') + ' checked') : null); }))] : null,

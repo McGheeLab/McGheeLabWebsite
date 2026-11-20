@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (169 changes — ready to push)
+## Pending (170 changes — ready to push)
+
+- **Captures on Today (V4.71):** your quick captures wait on the Today tab. Each has a *Move to…* button that moves it into a note, or into a new note in a project or theme.
 
 - **Calendar deliverables (V4.70):** say what an event or a day should produce: a result, a takeaway, a verdict or a mini synthesis. Once it is due, the calendar, the bell, Today and the note ask you to attach it. With no note, it becomes a float.
 
