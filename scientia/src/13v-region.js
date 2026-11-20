@@ -150,6 +150,7 @@ const REGION = {
       { label: r.collapsed ? 'Unfold' : 'Fold it up', sub: r.collapsed ? null : 'Only its title shows; its connections end on it', run: () => REGION.fold(pane, d, r) },
       { label: 'Connect to a component in another note…', run: () => pane.crossWire(r.id) },
       { label: 'Bridge to another note…', sub: 'Its components are bridged there, the origin kept; its regions are re-made around them', run: () => REGION.copyDialog(d, r) },
+      ...(REGION.kindRows ? REGION.kindRows(pane, d, r) : []),   // V4.86: its kind (14fe)
       'sep', { label: 'Delete region', danger: true, sub: REGION.depth(d, r) ? 'Its components stay, in the region around it' : 'The components stay where they are', run: () => REGION.remove(d, r.id) }]);
   },
   /** Drag the region by its title: every member moves together, inner regions too. */

@@ -52,7 +52,7 @@ const App = {
   openComponent(id, e) {
     if (e && e.altKey) { e.preventDefault && e.preventDefault(); return App.openSide(id, e.target, false); }
     if (e && (e.ctrlKey || e.metaKey) && App.route.name === 'split') { e.preventDefault && e.preventDefault(); return App.replacePane(id, e.target, false); }
-    const b = M.block(id); if (!b) return;
+    const b = M.block(id) || (typeof REGION !== 'undefined' && REGION.isRg(id) && REGION.find(id) ? { docId: REGION.find(id).d.id } : null); if (!b) return;   // V4.86: a region too
     const panes = App.panes().filter(p => p.docId === b.docId);
     if (panes.length) { const p = panes.includes(App.pane) ? App.pane : panes[0]; p.pendingFocus = { reveal: id }; p.focusPending(); return; }
     DocView.pendingFocus = { reveal: id, arrive: true }; App.go('#/doc/' + b.docId);

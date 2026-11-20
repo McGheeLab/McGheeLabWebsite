@@ -77,10 +77,10 @@ const DocView = {
   focusPending() {
     const f = this.pendingFocus; if (!f) return; this.pendingFocus = null;
     requestAnimationFrame(() => {
-      let id = f.focus || f.reveal || f.id, el = id && $(`.box[data-id="${id}"]`, this.paper.world);
+      let id = f.focus || f.reveal || f.id, el = id && ($(`.box[data-id="${id}"]`, this.paper.world) || (REGION.isRg(id) ? $(`:scope > .region[data-rg="${id}"]`, this.paper.world) : null));   // V4.86: a region lands too
       if (!el && id && M.block(id) && M.block(id).status === 'superseded') { const g = M.block(id), live = DocView.anchorOf(g); if (live && !this.openGhosts.has(live)) { this.openGhosts.add(live); this.pendingFocus = { reveal: live }; this.update(this.docId); return; } id = live; el = live && $(`.box[data-id="${live}"]`, this.paper.world); }
       if (!el) return;
-      this.select(id); f.reveal ? this.landOn(id, !!f.arrive) : this.reveal(id);
+      if (!REGION.isRg(id)) this.select(id); f.reveal ? this.landOn(id, !!f.arrive) : this.reveal(id);
       if (f.reveal) { el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
       if (f.focus || f.id) { const ed = $('.ed', el); if (ed && ed.contentEditable === 'true') { ed.focus({ preventScroll: true }); ED.setCaret(ed, f.pos != null ? f.pos : ED.read(ed, []).text.length); } }
     });

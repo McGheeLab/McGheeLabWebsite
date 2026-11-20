@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (184 changes — ready to push)
+## Pending (185 changes — ready to push)
+
+- **Topic syntheses (V4.86):** mark a region as a topic synthesis from its ⋯ menu. Every one is listed in Compendiums → Topic syntheses, with a small map of it, and Open takes you there.
 
 - **Compendiums (V4.85):** a new tab after the Atlas. It is a gallery of your Materials, Data and registered Protocols, each with a page of its own. The Atlas keeps only its map.
 
