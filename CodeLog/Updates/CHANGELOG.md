@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.58] — 2026-11-20 — Scientia: Calendar — Month, where a click on a day opens it on the right as its planner column; Load shows each day's hours and each event's length; Agenda
+
+Gabe, 20 Nov: "The month view should allow you to click on the day, bringing the day as a side panel on the right side of the monthly planner. Add another sorting to be load (time-wise), since this view does not directly correlate card size to time."
+
+App only.
+
+### Added
+- **Month** (`CAL.month`, M): whole weeks of tiles with their chips and "+N more"; ‹ › by month.
+- **A day on the side** (`CAL.side`):
+  - a click on a day opens it on the right as its planner column (same scroll and scale, frozen header, all-day row, cards, click-to-create);
+  - the grid narrows and the day stays outlined;
+  - another day switches it; the same day, × or Esc closes it; "Open as a day";
+  - never on hover.
+- **Load in the month:** each day's planned hours and a bar (full at 8 h), each chip's length, the bands singled out from the legend.
+- **Chips dragged between days** (`CAL.mdown`).
+- **Agenda** (`CAL.agenda`, A): the next two weeks as a list.
+
+### Tests
+| Test | Result |
+|---|---|
+| `cal58_t`, lab build · without the lab layer:<br>- M, whole weeks, "+N more";<br>- resting opens nothing; a click opens the day on the right (12 h, the all-day row, 6 cards), the grid narrows, the day outlined;<br>- its banner frozen; click-to-create in it;<br>- another day's number switches it; the same day, Esc, × close it; "Open as a day";<br>- Load: 7.3 h and its bar, the chips' lengths, a band singled out; no hours without Load;<br>- a chip dragged to the next day; a chip's click opens its note;<br>- A, the agenda | 24/24 · 24/24 |
+| `cal57_t` (V4.57) on this build | 40/40 |
+
+
 ## [V4.57] — 2026-11-20 — Scientia: the Calendar tab, as the day planner — one scroll with 12 hours to the height, the banner frozen, a click on a free spot to add, Colour by with the legend singling cards out
 
 Gabe, 20 Nov: "Add a Calendar tab right before Tasks. The calendar should look modern and refined. […] This calendar has all core features of a good calendar with quality of life features and contains extra adaptation for this lab notebook. For example, a calendar event for an experiment can be linked to a note, opening it when clicking on it on the calendar."
