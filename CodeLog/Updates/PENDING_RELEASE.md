@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (201 changes — ready to push)
+## Pending (202 changes — ready to push)
+
+- **Demonstrations (V4.103):** 41 more features have a recording on their page in Settings, showing what each is for, step by step. Only RM highlights in the Library is left (it needs the lab's hub).
 
 - **Fixed (V4.102):** in a series of experiments, the "Continue a series" hint and the series' Synthesis name each run by its number again ("Run 1, Run 2"); the Synthesis no longer shows "Run 1" beside its title. Opening a component in a note you have never opened now centres it, as everywhere else.
 

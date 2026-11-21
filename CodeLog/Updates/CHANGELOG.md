@@ -4,6 +4,35 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.103] — 2026-11-20 — Scientia: demonstrations for 41 more features — each one's page in Settings shows what it is for and a recording of it used in a test note, with its steps (one left: RM highlights, which needs the lab's hub)
+
+Gabe, 20 Nov: "Propose each one for me to approve, which will pass as a new pull request", then, on the 42 proposals: "go ahead".
+
+App only (recordings, their scripts and made-up assets; no code change).
+
+### Added
+- **41 demonstrations** (`demokit/<id>.mjs` → `demos/<id>.mp4`, `.jpg`, `src/20b-demos.js`), as proposed and approved:
+  - **Canvas:** Template canvas, Shortcuts, Freewrite, Links to protocol steps, Experiment series, Synthesis notes, Tidy layout, Open a component, Shift+click zooms, Component titles, Moving around the paper, Back and forward, Topic syntheses, Code, The move panel.
+  - **Pen:** Photo from the camera, Pills, Rotate the app.
+  - **Structures and time:** Challenges, Milestones.
+  - **Reading:** Selection popup, References Map, Reading sets by project, Reader button, Mini library, Fit/zoom/full screen beside a note, Popup windows.
+  - **Widgets:** Data tree.
+  - **Tabs:** Calendar, Section headers, Protocols in the Portfolio, References in the Portfolio, Theme banners, Portfolio activity, Data (a compendium), Data: instruments and flow, Compendiums, Hot notes, Captures on Today, The Today page, Messages.
+- **Made-up assets:**
+  - a theme banner (`make.py` `banner()`);
+  - the camera's view (`make-camera.py`);
+  - a data folder (`make-data.py`);
+  - readings and a script for Code;
+  - a review PDF with numbered citations.
+- **Left without:** RM highlights in the Library (`labhl`), which needs the lab's hub.
+
+### Tests
+| Test | Result |
+|---|---|
+| `v103_t`, lab and plain builds:<br>- `FEAT.undemoed()`: `labhl` alone (lab), none (plain, which has no `labhl`);<br>- each of the 41 pages has its use, video and steps;<br>- Play (a real click) plays it;<br>- its last step plays from its second, marked in the list | 7/7 · 7/7 |
+| Every take judged from the end of each step by two helpers who did not write it | 5 BAD steps fixed and recorded again; the rest GOOD or MINOR |
+
+
 ## [V4.102] — 2026-11-20 — Scientia: fixes the demonstration takes turned up — a series' runs named by their number again where V4.97 left them all with the series' name (the Continue-a-series hint, the series' Synthesis), the Synthesis without a run chip; Open a component lands on it in a note opened for the first time
 
 Found by the takes for the demonstrations (V4.103). V4.97 gave every run of a series the series' name, and three places still listed the runs by name. And a component opened in a note that had never been opened lost its place.
