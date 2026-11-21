@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (202 changes — ready to push)
+## Pending (203 changes — ready to push)
+
+- **Ink (V4.104):** ink no longer sits on a card, and what it is written over can still be clicked, typed in or moved; click a stroke to pick the ink itself. Settings → Ink & shapes → Click through ink turns it off.
 
 - **Demonstrations (V4.103):** 41 more features have a recording on their page in Settings, showing what each is for, step by step. Only RM highlights in the Library is left (it needs the lab's hub).
 

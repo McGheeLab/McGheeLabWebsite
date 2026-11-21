@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.104] — 2026-11-20 — Scientia: ink is see-through (no card under it, whatever the look) and can be clicked through — a click on its empty part reaches the component beneath; Settings → Ink & shapes → Click through ink
+
+Gabe, 20 Nov: "The ink background should be invisible/see through. You may interact with components overlaid by ink components."
+
+App only.
+
+### Changed
+- **No card under ink:** since look B (V4.42), the look's `.box` rule had given ink a background, ring and shadow. Now none, under any look. The dashed outline shows only while a stroke is hovered or the ink is selected (`21-sync.css`, `.paper .box.w-ink.w-ink`).
+- **Click through:** only an ink component's strokes take the pointer, plus its title, tags and ports. A click on its empty part reaches the component or paper beneath, which can be selected, typed in or dragged. Each freehand stroke has a see-through edge 10 screen pixels wide, so a thin line is easy to catch. The ink stays over the component it was written on (z-index 5), even while that component is being edited.
+
+### Added
+- **Settings → Ink & shapes → *Click through ink*** (on). Off: `body.ink-solid`, and the whole rectangle takes the pointer as before. The preview shows which one gets the click (`PV.inkThrough`).
+
+### Tests
+| Test | Result |
+|---|---|
+| `v104_t`, lab and plain builds:<br>- two strokes written over a component (`INK.addStroke`) gather into one ink;<br>- its background, shadow and outline are see-through;<br>- the pointer on its empty part is on the component beneath;<br>- a click there selects the component and gives its text the caret, and the ink stays over it while it is edited;<br>- on a stroke, and 5 px beside a thin one: the ink. A click on a stroke selects the ink, and a drag moves it;<br>- the switch off: `body.ink-solid`, the empty part is the ink's again, still see-through;<br>- the preview follows; the switch on again with a real click;<br>- with the look off too: see-through | 19/19 · 19/19 |
+| `fw_t34` (look B) · `cap_t` · `steplinks_t` | 24/24 · 25/25 · 32/32 |
+| `fw_t33` · `flt_t` | 68/69 · 21/22, the same on V4.103 without this change (fw_t33 expects the Quick cast order before V4.93's Float and Photo) |
+
+
 ## [V4.103] — 2026-11-20 — Scientia: demonstrations for 41 more features — each one's page in Settings shows what it is for and a recording of it used in a test note, with its steps (one left: RM highlights, which needs the lab's hub)
 
 Gabe, 20 Nov: "Propose each one for me to approve, which will pass as a new pull request", then, on the 42 proposals: "go ahead".
