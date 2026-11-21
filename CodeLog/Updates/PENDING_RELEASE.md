@@ -24,7 +24,15 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (200 changes — ready to push)
+## Pending (204 changes — ready to push)
+
+- **Search (V4.105):** an experiment's notes no longer all look alike in search. Each says whether it is the Planning, the Run or the Analysis, and which run (for example "30 kPa series — Analysis · Run 2"), in the search list, the Atlas and when you pick a note.
+
+- **Ink (V4.104):** ink no longer sits on a card, and what it is written over can still be clicked, typed in or moved; click a stroke to pick the ink itself. Settings → Ink & shapes → Click through ink turns it off.
+
+- **Demonstrations (V4.103):** 41 more features have a recording on their page in Settings, showing what each is for, step by step. Only RM highlights in the Library is left (it needs the lab's hub).
+
+- **Fixed (V4.102):** in a series of experiments, the "Continue a series" hint and the series' Synthesis name each run by its number again ("Run 1, Run 2"); the Synthesis no longer shows "Run 1" beside its title. Opening a component in a note you have never opened now centres it, as everywhere else.
 
 - **Fixed (V4.101):** in a PDF shown one page at a time, the ‹ › arrows turn the page again. PDF pages no longer turn upside down when you zoom out.
 

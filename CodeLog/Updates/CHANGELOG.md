@@ -4,6 +4,102 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.105] — 2026-11-20 — Scientia: search says an experiment note's stage and run — the quick list (Planning, Run, Analysis in its column; "Run 2" as a chip), the Atlas and the note pickers ("30 kPa series — Analysis · Run 2"); Settings → Experiment series → In search, the stage and run
+
+Gabe, 20 Nov: "the search function should show if the experiment note is planning, run, or analysis, and shows the run on it too."
+
+App only.
+
+### Changed
+- **The quick search list:** an experiment's note shows its stage (Planning, Run, Analysis, Synthesis) where the type was, and its run as a chip. Typing "analysis" or "run 2" finds it (`19-activity.js`).
+- **The Atlas:** a note's dot reads "30 kPa series — Analysis · Run 2". The note's card and caption in its bubble say the same, and so does a component's caption.
+- **The note pickers** (`/open`, Move to…, lenses) list notes the same way (`CMD.KINDS.note`).
+- **New in `13c-chain.js`:** `CHAIN.stageRun(d)` and `CHAIN.listTitle(d)`. The run follows `CHAIN.runNo`: a run of a series, or any run past the first.
+
+### Added
+- **Settings → Experiment series → *In search, the stage and run*** (on). Off: the name alone, as before. The preview shows the search rows.
+
+### Tests
+| Test | Result |
+|---|---|
+| `v105_t`, lab and plain builds:<br>- list titles: "30 kPa series — Analysis · Run 2", "— Run 2", "— Planning · Run 1", a lone experiment "— Planning", a plain note unchanged;<br>- the quick list (typed for real): six rows with Planning, Run, Analysis and Run 1 or Run 2;<br>- "30 kPa analysis run 2" finds that note alone;<br>- the Atlas dot's label; the note picker;<br>- the switch off: the name and type alone;<br>- the preview follows, and the switch goes on again with a real click | 12/12 · 12/12 |
+| `v97_t` · `v102_t` · `v104_t` · `cg_t` · `comp85_t` | 12/12 · 11/11 · 19/19 · 28/28 · 22/22 |
+| `ad49_t` · `ah48_t` (the Atlas's section row, since moved to the Compendiums tab) | 4/6 · 5/8, the same on V4.103 without this change |
+
+
+## [V4.104] — 2026-11-20 — Scientia: ink is see-through (no card under it, whatever the look) and can be clicked through — a click on its empty part reaches the component beneath; Settings → Ink & shapes → Click through ink
+
+Gabe, 20 Nov: "The ink background should be invisible/see through. You may interact with components overlaid by ink components."
+
+App only.
+
+### Changed
+- **No card under ink:** since look B (V4.42), the look's `.box` rule had given ink a background, ring and shadow. Now none, under any look. The dashed outline shows only while a stroke is hovered or the ink is selected (`21-sync.css`, `.paper .box.w-ink.w-ink`).
+- **Click through:** only an ink component's strokes take the pointer, plus its title, tags and ports. A click on its empty part reaches the component or paper beneath, which can be selected, typed in or dragged. Each freehand stroke has a see-through edge 10 screen pixels wide, so a thin line is easy to catch. The ink stays over the component it was written on (z-index 5), even while that component is being edited.
+
+### Added
+- **Settings → Ink & shapes → *Click through ink*** (on). Off: `body.ink-solid`, and the whole rectangle takes the pointer as before. The preview shows which one gets the click (`PV.inkThrough`).
+
+### Tests
+| Test | Result |
+|---|---|
+| `v104_t`, lab and plain builds:<br>- two strokes written over a component (`INK.addStroke`) gather into one ink;<br>- its background, shadow and outline are see-through;<br>- the pointer on its empty part is on the component beneath;<br>- a click there selects the component and gives its text the caret, and the ink stays over it while it is edited;<br>- on a stroke, and 5 px beside a thin one: the ink. A click on a stroke selects the ink, and a drag moves it;<br>- the switch off: `body.ink-solid`, the empty part is the ink's again, still see-through;<br>- the preview follows; the switch on again with a real click;<br>- with the look off too: see-through | 19/19 · 19/19 |
+| `fw_t34` (look B) · `cap_t` · `steplinks_t` | 24/24 · 25/25 · 32/32 |
+| `fw_t33` · `flt_t` | 68/69 · 21/22, the same on V4.103 without this change (fw_t33 expects the Quick cast order before V4.93's Float and Photo) |
+
+
+## [V4.103] — 2026-11-20 — Scientia: demonstrations for 41 more features — each one's page in Settings shows what it is for and a recording of it used in a test note, with its steps (one left: RM highlights, which needs the lab's hub)
+
+Gabe, 20 Nov: "Propose each one for me to approve, which will pass as a new pull request", then, on the 42 proposals: "go ahead".
+
+App only (recordings, their scripts and made-up assets; no code change).
+
+### Added
+- **41 demonstrations** (`demokit/<id>.mjs` → `demos/<id>.mp4`, `.jpg`, `src/20b-demos.js`), as proposed and approved:
+  - **Canvas:** Template canvas, Shortcuts, Freewrite, Links to protocol steps, Experiment series, Synthesis notes, Tidy layout, Open a component, Shift+click zooms, Component titles, Moving around the paper, Back and forward, Topic syntheses, Code, The move panel.
+  - **Pen:** Photo from the camera, Pills, Rotate the app.
+  - **Structures and time:** Challenges, Milestones.
+  - **Reading:** Selection popup, References Map, Reading sets by project, Reader button, Mini library, Fit/zoom/full screen beside a note, Popup windows.
+  - **Widgets:** Data tree.
+  - **Tabs:** Calendar, Section headers, Protocols in the Portfolio, References in the Portfolio, Theme banners, Portfolio activity, Data (a compendium), Data: instruments and flow, Compendiums, Hot notes, Captures on Today, The Today page, Messages.
+- **Made-up assets:**
+  - a theme banner (`make.py` `banner()`);
+  - the camera's view (`make-camera.py`);
+  - a data folder (`make-data.py`);
+  - readings and a script for Code;
+  - a review PDF with numbered citations.
+- **Left without:** RM highlights in the Library (`labhl`), which needs the lab's hub.
+
+### Tests
+| Test | Result |
+|---|---|
+| `v103_t`, lab and plain builds:<br>- `FEAT.undemoed()`: `labhl` alone (lab), none (plain, which has no `labhl`);<br>- each of the 41 pages has its use, video and steps;<br>- Play (a real click) plays it;<br>- its last step plays from its second, marked in the list | 7/7 · 7/7 |
+| Every take judged from the end of each step by two helpers who did not write it | 5 BAD steps fixed and recorded again; the rest GOOD or MINOR |
+
+
+## [V4.102] — 2026-11-20 — Scientia: fixes the demonstration takes turned up — a series' runs named by their number again where V4.97 left them all with the series' name (the Continue-a-series hint, the series' Synthesis), the Synthesis without a run chip; Open a component lands on it in a note opened for the first time
+
+Found by the takes for the demonstrations (V4.103). V4.97 gave every run of a series the series' name, and three places still listed the runs by name. And a component opened in a note that had never been opened lost its place.
+
+App only.
+
+### Bug Fixes
+- **+ Experiment → Continue a series:** the hint lists the runs by number ("— after Run 1, Run 2"), not by their names, which are now all the same (`13c-chain.js`).
+- **The series' Synthesis:**
+  - its line reads "it covers Run 1 and Run 2", each a link;
+  - the message when a run joins it reads "Run 2 joins the series' synthesis" (`15e-syntheses.js`).
+- **The series' Synthesis carries no run chip:** `CHAIN.runNo` gives nothing for a note with `synthRuns`, since that note covers every run.
+- **Open a component, in a note never opened before** (a task's Open, a search result…): the component is centred at the zoom set in Settings, as in any other note. Before, the note's first-open fit ran after the landing and ended at the whole-note view (`12-doc.js`: `landOn` marks the pane, `_arrived`, and the fit stands aside).
+
+### Tests
+| Test | Result |
+|---|---|
+| `v102_t`, lab and plain builds:<br>- the hint "Run 3 of “30 kPa series” — after Run 1, Run 2.";<br>- the series' Synthesis: made, no chip;<br>- Run 2 joining it: "Run 2 joins the series' synthesis";<br>- its line "it covers Run 1 and Run 2.";<br>- a run's note still shows "Run 2" | 11/11 · 11/11 |
+| `v97_t` (runs beside the title) | 12/12 |
+| `oc_probe` (a never-opened note of 9 cards → open its last card: 50%, centred), lab and plain builds | before: 76%, off-centre · after: 4/4 · 4/4 |
+| `opencomp_t` (V4.67, Open a component) | 17/17 · 17/17 |
+
+
 ## [V4.101] — 2026-11-20 — Scientia: PDF fixes — the ‹ › arrows of one-page view work again (the text layer covered them); pages no longer come out upside down after zooming out (two draws overlapped in one canvas)
 
 Gabe, 20 Nov: "One at a time page view on PDFs arrows for page scrolling does not work. right and left arrow keys work." Then: "When zoomed out PDF pages appear upside down, include that fix in the same V as the PDF fix I have just mentioned." Asked where: the PDF card on a note's canvas, in the website's Lab Notebook, "most of them when zooming out. zooming in puts the page right side up again".
