@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (203 changes — ready to push)
+## Pending (204 changes — ready to push)
+
+- **Search (V4.105):** an experiment's notes no longer all look alike in search. Each says whether it is the Planning, the Run or the Analysis, and which run (for example "30 kPa series — Analysis · Run 2"), in the search list, the Atlas and when you pick a note.
 
 - **Ink (V4.104):** ink no longer sits on a card, and what it is written over can still be clicked, typed in or moved; click a stroke to pick the ink itself. Settings → Ink & shapes → Click through ink turns it off.
 

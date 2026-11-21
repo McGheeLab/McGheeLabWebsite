@@ -22,6 +22,13 @@ const PV = {
       o.body != null ? h('div.pvb-tx', o.body) : null, o.chips && o.chips.filter(Boolean).length ? h('div.pvb-ch', o.chips) : null, ...(o.extra || []));
   },
   chip: (t, cls) => h('span.pvc' + (cls ? '.' + cls : ''), t),
+  /** V4.105: search for an experiment's name — its notes, each with its stage and run (Settings → Experiment series → In search, the stage and run). */
+  xsSearch() {
+    const on = FEAT.tune('expseries', 'search') !== false, n = FEAT.on('expseries') && FEAT.tune('expseries', 'runchip') !== false;
+    const rows = [['Planning', n ? 'Planning · Run 3' : 'Planning'], ['Run', n ? 'Run 3' : 'Run'], ['Analysis', n ? 'Analysis · Run 3' : 'Analysis']];
+    return h('div.pv-xs-srch', h('div.pv-xs-sq', '⌕ 30 kPa'), rows.map(([st, sr]) => h('div.pv-xs-sr', h('b', '30 kPa series'), on ? h('span.pv-xs-sb', sr) : h('span.pv-xs-sb.off', ({ Run: 'Experiment' })[st] || st))),
+      h('div.tiny.muted', on ? 'Search says which note is which' : 'Search: the name alone, with the note’s type'));
+  },
   /** V4.104: ink written over a component, see-through; with Click through ink, the pointer on its empty part reaches the component beneath. */
   inkThrough() {
     const thru = FEAT.tune('ink', 'through') !== false;
@@ -153,13 +160,16 @@ const PV = {
 
   // V4.15 (13c): + Experiment asks the name and can continue a series; one name for every note of an experiment
   D({ id: 'expseries', group: 'canvas', label: 'Experiment series', isNew: true, presets: { simple: true },
-    tune: [T('runchip', 'Show the run number', 'switch', { isNew: true, def: true, d: 'Beside the experiment in the Portfolio, and beside the title in the note', changed: () => { try { App.refresh(); } catch (e) { } } })],
+    tune: [T('runchip', 'Show the run number', 'switch', { isNew: true, def: true, d: 'Beside the experiment in the Portfolio, and beside the title in the note', changed: () => { try { App.refresh(); } catch (e) { } } }),
+      // V4.105 (Gabe: "the search function should show if the experiment note is planning, run, or analysis, and shows the run on it too")
+      T('search', 'In search, the stage and run', 'switch', { isNew: true, def: true, d: 'The notes of an experiment all carry its name, so search, the Atlas and the note pickers add which one it is: Planning · Run 3, Run 3, Analysis · Run 3. Typing “analysis” or “run 3” finds them. Off: the name alone' })],
     desc: '+ Experiment asks the experiment’s name, and can continue a series of its theme: pick “30 kPa series” and its next run is made — named “30 kPa series” too, its number (Run 3) beside the title, never in it (V4.97): next to the experiment in the Portfolio and beside the title in the note. Titles that ended in “Run N” lost it once; the number stays on the notes. Every note of an experiment carries its name alone — the stage is its chip and the strip, not part of the title — and renaming one renames them all. A series’ runs share one Synthesis. Off: no series to continue (the name is still asked); series already made stay.',
     preview: () => { const on = FEAT.on('expseries');
       return [h('div.pv-xs', h('div.pv-xs-h', 'New experiment'),
         on ? h('div.pv-xs-f', h('span', 'Continue a series'), h('div.pv-xs-sel', '30 kPa series · 2 runs', h('i', '▾'))) : null,
         h('div.pv-xs-f', h('span', 'Name'), h('div.pv-xs-in', '30 kPa series'))),
         h('div.pv-xs-notes', ['Planning', 'Run', 'Analysis'].map(s => h('div.pv-xs-n', h('span.pv-xs-st', s), h('b', '30 kPa series'), on && FEAT.tune('expseries', 'runchip') !== false ? h('span.run-chip', 'Run 3') : null))),
+        PV.xsSearch(),
         PV.cap(on ? 'Picking a series makes its next run; its three notes all carry the series’ name, each stage as its chip' + (FEAT.tune('expseries', 'runchip') !== false ? ', and “Run 3” beside the title (the Portfolio, the note).' : '; the run number is not shown.') : 'Off: the name is asked, with no series to continue; each note still carries the name alone.')]; } });
 
   // V4.16 (15e): one Synthesis per series; Syntheses in the Portfolio; a note's synthesis in its first block and under its row
