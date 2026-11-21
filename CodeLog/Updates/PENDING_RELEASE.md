@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (200 changes — ready to push)
+## Pending (201 changes — ready to push)
+
+- **Fixed (V4.102):** in a series of experiments, the "Continue a series" hint and the series' Synthesis name each run by its number again ("Run 1, Run 2"); the Synthesis no longer shows "Run 1" beside its title. Opening a component in a note you have never opened now centres it, as everywhere else.
 
 - **Fixed (V4.101):** in a PDF shown one page at a time, the ‹ › arrows turn the page again. PDF pages no longer turn upside down when you zoom out.
 
