@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.101] — 2026-11-20 — Scientia: PDF fixes — the ‹ › arrows of one-page view work again (the text layer covered them); pages no longer come out upside down after zooming out (two draws overlapped in one canvas)
+
+Gabe, 20 Nov: "One at a time page view on PDFs arrows for page scrolling does not work. right and left arrow keys work." Then: "When zoomed out PDF pages appear upside down, include that fix in the same V as the PDF fix I have just mentioned." Asked where: the PDF card on a note's canvas, in the website's Lab Notebook, "most of them when zooming out. zooming in puts the page right side up again".
+
+App only.
+
+### Bug Fixes
+- **One page at a time — the arrows:** the page's text layer (`.textLayer`, z-index 2) covered `.dk-nav`. The arrows now sit above it (`21-sync.css`).
+- **Upside-down pages after zooming out:** a second draw of a page resized its canvas while the first was still drawing, which cleared pdf.js's flip.
+  - `PDFW.page` now cancels and waits for a running draw before resizing (`canvas._rt`).
+  - `PDFW.draw` does one draw of a page at a time; the newest sharpness follows (`s._drawing` / `s._again`, `PDFW.drawNow`).
+
+### Tests
+| Test | Result |
+|---|---|
+| `v4101_t`, lab and plain builds (a 3-page PDF with a bar at the top of each page):<br>- on the canvas, › is on top and turns to page 2, then 3 (› gone); ‹ back to 2; upright; → still works;<br>- two draws of one page overlapping in one canvas: upright four times out of four (before: upside down);<br>- a quick zoom out on the canvas: upright;<br>- beside the note: › on top, turns the page, upright | 15/15 · 15/15 |
+| Regressions: `cg_t` (citations with a PDF), `rep_t` (the reader), `fa_t1` | 28/28 · 19/19 · 11/11 |
+
+
 ## [V4.100] — 2026-11-20 — Scientia: fix — the term card holds still: a fixed sentence area and a fade instead of a slide, so it no longer jumps as you hover its timeline and notes
 
 Gabe, 20 Nov: "Current term popup should not move too much/stagger when hovering over timeline points or notes displaying context around the term appearance."

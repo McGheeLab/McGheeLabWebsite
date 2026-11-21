@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (199 changes — ready to push)
+## Pending (200 changes — ready to push)
+
+- **Fixed (V4.101):** in a PDF shown one page at a time, the ‹ › arrows turn the page again. PDF pages no longer turn upside down when you zoom out.
 
 - **Fixed (V4.100):** the term card stays still while you move over its timeline dots and notes.
 
