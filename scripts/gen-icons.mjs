@@ -214,12 +214,15 @@ const TYPOGRAPHIC = new Set(['↔', '↕', '↖', '↗', '↘', '↙', '©', '®
 /* Every file the site actually ships: deploy/site.json's include list (the
  * one definition of what the site IS, V3.817), minus third-party code —
  * rm/vendor and Gabe's vendored Scientia build — and the generated icons.js,
- * whose reverse map IS emoji. */
+ * whose reverse map IS emoji. Also minus modules/: the course modules are
+ * built and checked in the Teaching repo and copied here byte-identical, so
+ * they cannot be edited here to pass this gate (Alex, 2026-11-23, V4.102: "lets
+ * not care about an emoji check" for them). */
 function shippedFiles() {
   const site = JSON.parse(readFileSync(join(ROOT, 'deploy', 'site.json'), 'utf8'));
   const out = [];
   const ok = (rel) => /\.(js|mjs|html|css|json)$/.test(rel)
-    && !/(^|\/)(vendor|node_modules)\//.test(rel) && !/^rm\/scientia\//.test(rel)
+    && !/(^|\/)(vendor|node_modules)\//.test(rel) && !/^rm\/scientia\//.test(rel) && !/^modules\//.test(rel)
     && !/(^|\/)icons\.js$/.test(rel) && rel !== 'manifest.json';
   const walk = (d) => {
     if (!existsSync(d)) return;

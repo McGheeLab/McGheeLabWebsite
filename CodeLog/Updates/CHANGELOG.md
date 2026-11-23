@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
-## [V4.102] — 2026-11-23 — BME 466: Module 9 "The Squeeze and the Pull" on the site; HW5's links into it; this checkout brought up to date
+## [V4.102] — 2026-11-23 — BME 466: Module 9 "The Squeeze and the Pull" on the site; HW5's links into it; this checkout brought up to date; course modules out of the emoji gate
 
 Plan: [CodeLog/ClaudesPlan/V4.102_bme466_module9_staged.md](../ClaudesPlan/V4.102_bme466_module9_staged.md). Course repo
 V3.143 and V3.144 (the module's build is V3.142). The instructor: "stage it", then, of the two ways offered to put it
@@ -20,11 +20,12 @@ live, "option 2" (bring this checkout up to date first, then upload normally).
 - Two version numbers are used twice, by origin's Scientia entries and by entries made in this checkout from older
   fetches: **V3.990** (Scientia bridges / the hero video) and **V4.38** (Scientia reading sets / HW5). Each local entry sits
   directly below origin's, as V3.958 and V3.971 already do. Nothing was renumbered.
-- **Not pushed.** The push gate (`scripts/merge_check.py range origin/main HEAD`) merges cleanly but HOLDS on the
-  icon/emoji gate: 138 colour emoji in the course modules copied from the Teaching repo (`hw-04` 36, `hw-05` 34, `08` 31,
-  `report-02` 29, `07` 5, `09` 3; ☁, ✓, ▶, ⏸, ✕ in buttons and status lines). Those files must stay byte-identical to
-  their builds, so they were not edited here. The instructor decides: exempt course modules from the emoji scan, replace
-  the emoji in the course builds, or push past the gate. Until then this checkout is ahead of origin, not behind it.
+- **The push gate's emoji scan no longer reads `modules/`.** `merge_check.py` merged cleanly but HELD on the icon/emoji
+  gate: 138 colour emoji in the course modules copied from the Teaching repo (`hw-04` 36, `hw-05` 34, `08` 31, `report-02`
+  29, `07` 5, `09` 3; ☁, ✓, ▶, ⏸, ✕ in buttons and status lines). Those files must stay byte-identical to their builds.
+  Offered three ways, Alex chose to exempt them ("option 1, lets not care about an emoji check"):
+  `scripts/gen-icons.mjs` `shippedFiles()` now leaves out `modules/`, as it already leaves out vendor code and
+  `rm/scientia/`. RM, the site's own pages and Scientia are still scanned (0 colour emoji across 541 files). Then pushed.
 - origin's own CHANGELOG still carries an old `<<<<<<< Updated upstream … >>>>>>> Stashed changes` block (about line
   36 300); left as it is.
 
@@ -57,7 +58,6 @@ live, "option 2" (bring this checkout up to date first, then upload normally).
 ### Still the instructor's
 - As admin at `#/classes/bme466`: **+ Add Module** → `modules/bme466/09-the-squeeze-and-the-pull.html`, title and order,
   tick Visible.
-- The push decision above.
 
 ## [V4.101] — 2026-11-20 — Scientia: PDF fixes — the ‹ › arrows of one-page view work again (the text layer covered them); pages no longer come out upside down after zooming out (two draws overlapped in one canvas)
 
