@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (206 changes — ready to push)
+## Pending (207 changes — ready to push)
+
+- **Fingers in pen mode (V4.108):** fixed — after a while of writing with the pen, a finger could no longer move the note until you left it and came back. A finger now always pans again; a palm resting on the screen still does nothing.
 
 - **Ink (V4.107):** point at handwriting and a dotted outline shows all of it; it stays while the ink is selected. No outline appears while you write with the pen, and the ink never has a white card behind it.
 
