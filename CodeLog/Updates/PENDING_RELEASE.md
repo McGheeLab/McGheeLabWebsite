@@ -26,7 +26,7 @@
 
 ## Pending (203 changes — ready to push)
 
-- **BME 466 Module 9, "The Squeeze and the Pull" (V4.102):** the module on muscle is staged for the site, not yet uploaded: the ring of muscle round a blood vessel that decides where the blood goes (and why a frightened hand goes cold), the calf and its tendon, and what a long stretch before a sprint costs, with fifteen simulations for the whiteboard.
+- **BME 466 Module 9, "The Squeeze and the Pull" (V4.102):** the module on muscle is on the site, ready to add to the class page: the ring of muscle round a blood vessel that decides where the blood goes (and why a frightened hand goes cold), the calf and its tendon, and what a long stretch before a sprint costs, with fifteen simulations for the whiteboard. Homework 5's practice problems now link to its worked examples.
 
 - **Fixed (V4.101):** in a PDF shown one page at a time, the ‹ › arrows turn the page again. PDF pages no longer turn upside down when you zoom out.
 

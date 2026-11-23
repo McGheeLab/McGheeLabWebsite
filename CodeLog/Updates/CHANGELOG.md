@@ -4,36 +4,60 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
-## [V4.102] — 2026-11-23 — BME 466: Module 9 "The Squeeze and the Pull" staged (not uploaded)
+## [V4.102] — 2026-11-23 — BME 466: Module 9 "The Squeeze and the Pull" on the site; HW5's links into it; this checkout brought up to date
 
 Plan: [CodeLog/ClaudesPlan/V4.102_bme466_module9_staged.md](../ClaudesPlan/V4.102_bme466_module9_staged.md). Course repo
-V3.143 (the build is V3.142). **Numbered from origin/main (V4.101, fetched 2026-11-23); this checkout is 112 commits
-behind it, so when it is brought up to date this entry goes above V4.101.**
+V3.143 and V3.144 (the module's build is V3.142). The instructor: "stage it", then, of the two ways offered to put it
+live, "option 2" (bring this checkout up to date first, then upload normally).
 
-### Added
+### This checkout, brought up to date
+- It was 112 commits behind origin/main (local `main` at V3.989, eed83e1e) with seven pieces of staged, mostly uploaded
+  work never committed. Committed now, one commit each: V3.958 (Module 7 and HW4), V3.971 (Module 8), V3.984 (Report 2,
+  with its three PubMed Central papers, CC BY / CC BY-NC, and 164 questions PDFs), V3.985 (the module frame's sandbox
+  token), V3.990 (the hero video and `scripts/hero_video/`), V4.38 (HW5), V4.102 (Module 9), and one commit of the shared
+  records. Rebased onto origin/main (c82505f2, V4.101): conflicts only in this file, `PENDING_RELEASE.md` and
+  `ARCHITECTURE.md`, resolved by keeping both sides. The local `sw.js` bump (959 → 960) was dropped for origin's 1071.
+- Two version numbers are used twice, by origin's Scientia entries and by entries made in this checkout from older
+  fetches: **V3.990** (Scientia bridges / the hero video) and **V4.38** (Scientia reading sets / HW5). Each local entry sits
+  directly below origin's, as V3.958 and V3.971 already do. Nothing was renumbered.
+- **Not pushed.** The push gate (`scripts/merge_check.py range origin/main HEAD`) merges cleanly but HOLDS on the
+  icon/emoji gate: 138 colour emoji in the course modules copied from the Teaching repo (`hw-04` 36, `hw-05` 34, `08` 31,
+  `report-02` 29, `07` 5, `09` 3; ☁, ✓, ▶, ⏸, ✕ in buttons and status lines). Those files must stay byte-identical to
+  their builds, so they were not edited here. The instructor decides: exempt course modules from the emoji scan, replace
+  the emoji in the course builds, or push past the gate. Until then this checkout is ahead of origin, not behind it.
+- origin's own CHANGELOG still carries an old `<<<<<<< Updated upstream … >>>>>>> Stashed changes` block (about line
+  36 300); left as it is.
+
+### Added (uploaded)
 - `modules/bme466/09-the-squeeze-and-the-pull.html` — fresh learning module, cmp-identical to the course build (629,912
   bytes, sha256 c93ee2c6…). Five tabs, 17 sections, fifteen simulations.
 - `modules/bme466/simulations/`: fifteen whiteboard pages for module 9 (9.1.1–9.1.5, 9.2.1–9.2.4, 9.3.1, 9.3.3–9.3.5,
-  9.4.1, 9.5.1). None removed; no other module's pages changed.
+  9.4.1, 9.5.1). §3.2 has none of its own (its bench is in §3.1). None removed; no other module's pages changed.
 
-### Changed
-- `modules/bme466/simulations/index.json` and `modules/manifest.json` regenerated (120 simulation pages; 12 folders, 89
-  files). The module is listed under bme466 as "The Squeeze and the Pull — Muscle, Twice (Module 9, BME 466/566)".
-- `sw.js`: **unchanged.** The deploy script's bump (960 → 961) was undone in this stale checkout; origin/main is at 1071.
+### Changed (uploaded)
+- `modules/bme466/hw-05-squeeze-and-pull.html` — rebuilt (course V3.144): the rule that hid the practice tab's five
+  "open it inside the module" links is gone. The rebuilt page differs from the live one only in that CSS rule and its
+  comment; per-student numbers unchanged (parity 15 718 checks over 507 NetIDs, 0 mismatches).
+- `modules/bme466/simulations/index.json`, `modules/manifest.json` regenerated (120 simulation pages; 12 folders, 89 files).
+- `sw.js` `CACHE_VERSION` 1071 → 1072 (Module 9) → 1073 (HW5). The live 1071 was origin's file exactly. Monday; the class
+  meets Tuesday and Thursday.
 
 ### Verification
-- The course's chain before staging: harness 375, engine parity, equations, call sites, syntax, `sync_nocopy --check`.
-- On the staged copy, opened as files from this tree: the module's headless QA 695/695 at 1280 and 390 px; 0 console
-  errors, 0 failed requests; `qa_deployed_sims.mjs` on the fifteen pages of module 9 with 0 failures; three pages
-  screenshotted and read. No local web server was run (refused by a permission check in the session), so nothing that
-  needs http was checked.
+- Before upload, from this tree: Module 9's own headless QA 695/695 at 1280 and 390 px; 0 console errors, 0 failed
+  requests; `qa_deployed_sims.mjs` on the fifteen pages, 0 failures; three pages read. HW5: keygen self-test, parity, grade
+  self-check, headless QA 36/36 (its check now requires the links to show and point at Module 9's worked examples).
+- Uploads: `python3 scripts/deploy.py ftp --only modules/ --only sw.js --yes`, twice — 20 files (Module 9, its pages, the
+  index, the list, `sw.js`, `rm/build.json`), then 4 (HW5, the list, `sw.js`, `rm/build.json`); 0 failed; all live and
+  recorded in `deploy/manifest.json`.
+- After: live sha256 equals local for the module, `index.json`, 9.4.1, the list, HW5 and `sw.js`. The live module loads
+  headless with 0 console errors and 0 failed requests; all fifteen live simulation pages pass `qa_deployed_sims.mjs`;
+  HW5's five live links each open the live module on its tab with the worked example open (`we-ring`, `we-shunt`,
+  `we-overlap`, `we-creep`, `we-loop`).
 
-### FTP — pending, on the instructor's word
-- `modules/bme466/09-the-squeeze-and-the-pull.html`, `modules/bme466/simulations/` (the 9.*.html pages and
-  `index.json`), `modules/manifest.json`. Not `sw.js` from this checkout.
-- `deploy.py ftp` will refuse from this checkout (behind origin/main). The override used for HW5 (V4.38) was for that
-  upload only.
-- After the upload, the instructor's: **+ Add Module** at `#/classes/bme466`.
+### Still the instructor's
+- As admin at `#/classes/bme466`: **+ Add Module** → `modules/bme466/09-the-squeeze-and-the-pull.html`, title and order,
+  tick Visible.
+- The push decision above.
 
 ## [V4.101] — 2026-11-20 — Scientia: PDF fixes — the ‹ › arrows of one-page view work again (the text layer covered them); pages no longer come out upside down after zooming out (two draws overlapped in one canvas)
 

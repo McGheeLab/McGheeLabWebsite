@@ -529,6 +529,12 @@
    "size": 591621,
    "via": "verify"
   },
+  "modules/bme466/09-the-squeeze-and-the-pull.html": {
+   "deployedAt": "2026-11-23T15:37:35-07:00",
+   "sha256": "c93ee2c61d75c3b55350efdfcc591fb2a8350247a22758bb4bb40b2bbfaa9e0e",
+   "size": 629912,
+   "via": "verify"
+  },
   "modules/bme466/HW1-student-key.html": {
    "deployedAt": "2026-10-23T10:34:36-07:00",
    "sha256": "6ac82beb88abc51af462285a6e02e16cc6c4a7f9ab59a5eea8932ffb222ed536",
@@ -608,9 +614,9 @@
    "via": "verify"
   },
   "modules/bme466/hw-05-squeeze-and-pull.html": {
-   "deployedAt": "2026-11-19T09:30:42-07:00",
-   "sha256": "846dbd3abe7c17ce94cabb012e267ce395a35f474bf35200a2cbf63d3c243ee1",
-   "size": 247298,
+   "deployedAt": "2026-11-23T15:41:38-07:00",
+   "sha256": "2ef1f9111aec04356d837289db7e4c03e93537e1a7cf344c7c9c3e409dcd14e6",
+   "size": 247204,
    "via": "verify"
   },
   "modules/bme466/hw1-diffusion.html": {
@@ -2275,10 +2281,100 @@
    "size": 1418,
    "via": "verify"
   },
+  "modules/bme466/simulations/9.1.1.html": {
+   "deployedAt": "2026-11-23T15:37:35-07:00",
+   "sha256": "83b5abf44e555422e7157fd16774b88d989d909762e0b077b2e21d101d3b01c4",
+   "size": 1436,
+   "via": "verify"
+  },
+  "modules/bme466/simulations/9.1.2.html": {
+   "deployedAt": "2026-11-23T15:37:35-07:00",
+   "sha256": "0483062961a1a1c1eab16316549433e7c34ddd57e9687bfbf260655b6145e360",
+   "size": 1415,
+   "via": "verify"
+  },
+  "modules/bme466/simulations/9.1.3.html": {
+   "deployedAt": "2026-11-23T15:37:35-07:00",
+   "sha256": "b6671b55be56f0e1dd71ee3c488fbe0a8a073d358df833e4ac763d34dfefe3c2",
+   "size": 1448,
+   "via": "verify"
+  },
+  "modules/bme466/simulations/9.1.4.html": {
+   "deployedAt": "2026-11-23T15:37:35-07:00",
+   "sha256": "b8594671d9149bfe0538de5502ac8bb8903dfe36fb6f8b7384b50db752e36629",
+   "size": 1415,
+   "via": "verify"
+  },
+  "modules/bme466/simulations/9.1.5.html": {
+   "deployedAt": "2026-11-23T15:37:35-07:00",
+   "sha256": "d80f52da582b5ad11295211ec7ab524afe8c28168d529041cfa34f69dd72ebe5",
+   "size": 1424,
+   "via": "verify"
+  },
+  "modules/bme466/simulations/9.2.1.html": {
+   "deployedAt": "2026-11-23T15:37:35-07:00",
+   "sha256": "4c385fe71c790f262ac4120d92ea741b4e13e435f2dbf0d8a915df11bcfb4675",
+   "size": 1424,
+   "via": "verify"
+  },
+  "modules/bme466/simulations/9.2.2.html": {
+   "deployedAt": "2026-11-23T15:37:35-07:00",
+   "sha256": "edc8117e5fab603b4d7c12936e0ad27948254d01260f6638230a70e14c860161",
+   "size": 1427,
+   "via": "verify"
+  },
+  "modules/bme466/simulations/9.2.3.html": {
+   "deployedAt": "2026-11-23T15:37:35-07:00",
+   "sha256": "50632f33fd8329b543d94b4545460195f8fff3046319927cebb2e43115f34be3",
+   "size": 1382,
+   "via": "verify"
+  },
+  "modules/bme466/simulations/9.2.4.html": {
+   "deployedAt": "2026-11-23T15:37:35-07:00",
+   "sha256": "feb538af52b8398ee2d13cb6c2e43e18808cddd9c3167eb6d85ee0f617e55666",
+   "size": 1388,
+   "via": "verify"
+  },
+  "modules/bme466/simulations/9.3.1.html": {
+   "deployedAt": "2026-11-23T15:37:35-07:00",
+   "sha256": "1fdd6f1d7c93a35f76016a24dcc35ea42d70ff66639100147e53247439bec280",
+   "size": 1411,
+   "via": "verify"
+  },
+  "modules/bme466/simulations/9.3.3.html": {
+   "deployedAt": "2026-11-23T15:37:35-07:00",
+   "sha256": "98ac9c9a297107e982836a2a9b281075dc110f19b2d5c37bb5aca73d94f95565",
+   "size": 1414,
+   "via": "verify"
+  },
+  "modules/bme466/simulations/9.3.4.html": {
+   "deployedAt": "2026-11-23T15:37:35-07:00",
+   "sha256": "40ca03394b4ae244a837479310d21d235d0e7e6c051c88c0ebc33c837a279e5f",
+   "size": 1438,
+   "via": "verify"
+  },
+  "modules/bme466/simulations/9.3.5.html": {
+   "deployedAt": "2026-11-23T15:37:35-07:00",
+   "sha256": "069df1a8f59adfcd937c516cb550cd89e98fab891e8721b8df411c30c6add04b",
+   "size": 1387,
+   "via": "verify"
+  },
+  "modules/bme466/simulations/9.4.1.html": {
+   "deployedAt": "2026-11-23T15:37:35-07:00",
+   "sha256": "91b2427320589458d5e48cee397dea7e22b1ede85d373d846c4c4cdd35fff37a",
+   "size": 1429,
+   "via": "verify"
+  },
+  "modules/bme466/simulations/9.5.1.html": {
+   "deployedAt": "2026-11-23T15:37:35-07:00",
+   "sha256": "16f17ebbea49b84e255b922eb24b5582d51ee28d9fcfcaef94a03cc4eb9347bf",
+   "size": 1436,
+   "via": "verify"
+  },
   "modules/bme466/simulations/index.json": {
-   "deployedAt": "2026-11-10T20:32:40-07:00",
-   "sha256": "91a04fdc02f2326bbbddecdc9ae03dabc33b004bd0cb83a89323384c9e08867d",
-   "size": 26801,
+   "deployedAt": "2026-11-23T15:37:35-07:00",
+   "sha256": "553a9ad80617a40a7e2e2e272fe0c6807612a88d669f37f9dd670a1c73557ba9",
+   "size": 30570,
    "via": "verify"
   },
   "modules/bme466/w01-instructor-notes.html": {
@@ -2462,9 +2558,9 @@
    "via": "baseline"
   },
   "modules/manifest.json": {
-   "deployedAt": "2026-11-19T09:30:42-07:00",
-   "sha256": "4514f5d6792430c002925075136831dad65174ba6cd2b16d74a0ec1f5fcb7dde",
-   "size": 15008,
+   "deployedAt": "2026-11-23T15:41:38-07:00",
+   "sha256": "fd7febce7a0ce4f03477b36d39db0d0fd478531a44af427b44413e98be0fdc9d",
+   "size": 15174,
    "via": "verify"
   },
   "modules/optics/01-light-and-matter.html": {
@@ -2792,9 +2888,9 @@
    "via": "verify"
   },
   "rm/build.json": {
-   "deployedAt": "2026-11-19T09:30:42-07:00",
-   "sha256": "64077d0107c13de58e7893dba7f0c4daff4cf2ffe1b09ff8c0e1fd9903ff3d66",
-   "size": 82,
+   "deployedAt": "2026-11-23T15:41:38-07:00",
+   "sha256": "aa475e8fa34d3b816a90186aefc2f796d7bb6d7024653895f3bbc6e24eeab2a8",
+   "size": 83,
    "via": "verify"
   },
   "rm/css/activity-overview.css": {
@@ -6482,9 +6578,9 @@
    "via": "verify"
   },
   "sw.js": {
-   "deployedAt": "2026-11-13T14:49:52-07:00",
-   "sha256": "05e607d5144ea7a90caf507a8e5ee4c1c5b8c3a13853a048f299b039cf693e21",
-   "size": 10269,
+   "deployedAt": "2026-11-23T15:41:38-07:00",
+   "sha256": "c0349092341fea3d0bf49090fdfd78dde37d03de0886e1fb8880e9f4120b7371",
+   "size": 10270,
    "via": "verify"
   },
   "teacher-classes.js": {
