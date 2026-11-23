@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (200 changes — ready to push)
+## Pending (203 changes — ready to push)
+
+- **BME 466 Module 9, "The Squeeze and the Pull" (V4.102):** the module on muscle is staged for the site, not yet uploaded: the ring of muscle round a blood vessel that decides where the blood goes (and why a frightened hand goes cold), the calf and its tendon, and what a long stretch before a sprint costs, with fifteen simulations for the whiteboard.
 
 - **Fixed (V4.101):** in a PDF shown one page at a time, the ‹ › arrows turn the page again. PDF pages no longer turn upside down when you zoom out.
 
@@ -152,6 +154,8 @@
 
 - **Popups stay open (V4.39):** a popup window no longer disappears when you leave the note — it stays over the Portfolio, the Library and every other page until you close it with its ×.
 
+- **BME 466 Homework 5, "Squeeze and Pull" (V4.38):** the homework on muscle (the blood vessel's ring, the calf and its tendon) is on the site, ready to add to the class page. Every student gets their own numbers when they sign in.
+
 - **Reading sets fixed (V4.38):** a paper now opens in its own project's reading set — the project of the note it is in, or the project where it appears most — instead of always in the same one. The tab row is slimmer, and each set's colour now wraps all its tabs.
 
 - **Freewrite keeps your description together (V4.37):** sentences that set off no rule stay in the component you were describing (a verdict, a result…), or become one text component between the links. Click one to take it out. Settings → Freewrite can make every sentence its own component instead.
@@ -249,6 +253,8 @@
 - **Needs investigation (V3.991):** a new kind of reminder for something to look into: right-click a component (or a note's ⋯) → Needs investigation. It shows as a dot in the note, a gently glowing dot on the note in the Portfolio, and on Today above Recent notes, beside the resurfaced claim, until you mark it investigated.
 
 - **Bridges at the edges of a note (V3.990):** a note shows the notes it is bridged with as small circles at its left and right edges; click one to go there. A bar under the tabs keeps the way back and your three most-used bridges (close it for the day with ×, or turn it off in Settings). In the Lab Notebook, deletions waiting for approval moved from the top of the page to a History button on shared notes.
+
+- **New hero video (V3.990):** the landing page now opens on a seamless loop — a close-up of a steel needle printing cell-laden ink through a glowing, dyed microgel bath; the bath gives way around the needle and closes behind it, and the printed cells spread, crawl over the granules and pull them together. It is a physical simulation rendered in Blender, and it loops without a jump.
 
 - Fixed: **Post to website** said "The lab roster did not load", so nobody could be credited on a protocol — the list of lab members now loads. Also: a protocol you just made, uploaded or posted now shows on the Protocols list straight away, as Published once posted (it could take half an hour), and if posting fails, the message says exactly what went wrong.
 
@@ -733,3 +739,7 @@
 - BME 466 Week 6's springs-and-dampers tab now keeps the cell in view: every element is the gel under an adhesion, each loading is something the cell does with the course's own numbers one click away, the drawings are twice as large, and a new section shows how to read a force back from the bead displacements a microscope actually measures. One new whiteboard simulation (6.2.7).
 - BME 466 Week 6's springs-and-dampers tab now derives every element's answer to the four loadings by one identical four-step procedure, so students learn the method rather than five sets of results; the damper's response to a sudden displacement comes out as an infinitely brief, infinitely high force, by the argument that the step is done within a dt. Same 19 whiteboard simulations.
 - V3.797 — BME 466 Week 6 lesson re-staged: a new Tab 2 section works out a single stiffness number for each spring-and-damper model, shows how it would plug into the Week 6 clutch equations, and explains why that shortcut fails; one new simulation page (6.2.8). Upload the module, its simulations folder, the manifest and sw.js.
+- V3.958 — BME 466 Module 7 "The River" is now on the site in full: all five tabs and twelve whiteboard simulations, including the T cell's trip round the circulation and a capillary that leaks a tracer; Homework 4 "Flow and Leak" is uploaded, ready to be added to the class page.
+- V3.971 — BME 466 Module 8 "The Exchange" is on the site: five tabs on how the capillary wall trades water, oxygen and cells with the tissue, with eleven whiteboard simulations (the osmometer, the Krogh cylinder, the T cell at the wall, and others). It still needs adding to the class page.
+- V3.984 — BME 466 Report 2 "Read, Use, Relate" is staged for its release on 2026-11-12: students pick one of three recent papers, read it, use lecture's relations on its numbers and say what the lecture adds; the first tab says what students may and may not do with AI, and shows the papers only once they have ticked that they read each part; the paper and its questions, made for each student's own numbers, are two PDFs on the second tab; the module records their numbers. Uploaded 2026-11-12; it still needs adding to the class page.
+- V3.985 — A PDF opened from a learning module (Report 2's paper and questions) now opens in its new tab instead of Chrome's "This page has been blocked" page.

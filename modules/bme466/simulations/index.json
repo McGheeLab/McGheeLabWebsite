@@ -861,6 +861,346 @@
    "tab": 1,
    "section": 4,
    "title": "Rouleaux, stasis & DVT"
+  },
+  {
+   "ref": "7.2.1",
+   "file": "7.2.1.html",
+   "module": 7,
+   "moduleFile": "07-the-river.html",
+   "moduleTitle": "The River — Why Blood Moves, and Where the T Cell Rides",
+   "tab": 2,
+   "section": 1,
+   "title": "The same litres per minute"
+  },
+  {
+   "ref": "7.2.2",
+   "file": "7.2.2.html",
+   "module": 7,
+   "moduleFile": "07-the-river.html",
+   "moduleTitle": "The River — Why Blood Moves, and Where the T Cell Rides",
+   "tab": 2,
+   "section": 2,
+   "title": "Pressure and volume"
+  },
+  {
+   "ref": "7.3.1",
+   "file": "7.3.1.html",
+   "module": 7,
+   "moduleFile": "07-the-river.html",
+   "moduleTitle": "The River — Why Blood Moves, and Where the T Cell Rides",
+   "tab": 3,
+   "section": 1,
+   "title": "More cells, more rubbing"
+  },
+  {
+   "ref": "7.3.2",
+   "file": "7.3.2.html",
+   "module": 7,
+   "moduleFile": "07-the-river.html",
+   "moduleTitle": "The River — Why Blood Moves, and Where the T Cell Rides",
+   "tab": 3,
+   "section": 2,
+   "title": "Fåhræus–Lindqvist"
+  },
+  {
+   "ref": "7.3.3",
+   "file": "7.3.3.html",
+   "module": 7,
+   "moduleFile": "07-the-river.html",
+   "moduleTitle": "The River — Why Blood Moves, and Where the T Cell Rides",
+   "tab": 3,
+   "section": 3,
+   "title": "What the wall feels"
+  },
+  {
+   "ref": "7.3.4",
+   "file": "7.3.4.html",
+   "module": 7,
+   "moduleFile": "07-the-river.html",
+   "moduleTitle": "The River — Why Blood Moves, and Where the T Cell Rides",
+   "tab": 3,
+   "section": 4,
+   "title": "Inverse Fåhræus–Lindqvist"
+  },
+  {
+   "ref": "7.4.1",
+   "file": "7.4.1.html",
+   "module": 7,
+   "moduleFile": "07-the-river.html",
+   "moduleTitle": "The River — Why Blood Moves, and Where the T Cell Rides",
+   "tab": 4,
+   "section": 1,
+   "title": "The circuit on a clock"
+  },
+  {
+   "ref": "7.5.1",
+   "file": "7.5.1.html",
+   "module": 7,
+   "moduleFile": "07-the-river.html",
+   "moduleTitle": "The River — Why Blood Moves, and Where the T Cell Rides",
+   "tab": 5,
+   "section": 1,
+   "title": "The wall is built to be crossed"
+  },
+  {
+   "ref": "8.1.1",
+   "file": "8.1.1.html",
+   "module": 8,
+   "moduleFile": "08-the-exchange.html",
+   "moduleTitle": "The Exchange — The Capillary Built for Contact",
+   "tab": 1,
+   "section": 1,
+   "title": "One cell wide"
+  },
+  {
+   "ref": "8.1.3",
+   "file": "8.1.3.html",
+   "module": 8,
+   "moduleFile": "08-the-exchange.html",
+   "moduleTitle": "The Exchange — The Capillary Built for Contact",
+   "tab": 1,
+   "section": 3,
+   "title": "Does it finish?"
+  },
+  {
+   "ref": "8.1.4",
+   "file": "8.1.4.html",
+   "module": 8,
+   "moduleFile": "08-the-exchange.html",
+   "moduleTitle": "The Exchange — The Capillary Built for Contact",
+   "tab": 1,
+   "section": 4,
+   "title": "Three walls"
+  },
+  {
+   "ref": "8.2.1",
+   "file": "8.2.1.html",
+   "module": 8,
+   "moduleFile": "08-the-exchange.html",
+   "moduleTitle": "The Exchange — The Capillary Built for Contact",
+   "tab": 2,
+   "section": 1,
+   "title": "Two pressures"
+  },
+  {
+   "ref": "8.2.2",
+   "file": "8.2.2.html",
+   "module": 8,
+   "moduleFile": "08-the-exchange.html",
+   "moduleTitle": "The Exchange — The Capillary Built for Contact",
+   "tab": 2,
+   "section": 2,
+   "title": "The tissue pushes back"
+  },
+  {
+   "ref": "8.3.1",
+   "file": "8.3.1.html",
+   "module": 8,
+   "moduleFile": "08-the-exchange.html",
+   "moduleTitle": "The Exchange — The Capillary Built for Contact",
+   "tab": 3,
+   "section": 1,
+   "title": "Week 3's curve"
+  },
+  {
+   "ref": "8.3.2",
+   "file": "8.3.2.html",
+   "module": 8,
+   "moduleFile": "08-the-exchange.html",
+   "moduleTitle": "The Exchange — The Capillary Built for Contact",
+   "tab": 3,
+   "section": 2,
+   "title": "How far oxygen reaches"
+  },
+  {
+   "ref": "8.3.3",
+   "file": "8.3.3.html",
+   "module": 8,
+   "moduleFile": "08-the-exchange.html",
+   "moduleTitle": "The Exchange — The Capillary Built for Contact",
+   "tab": 3,
+   "section": 3,
+   "title": "Supply and demand"
+  },
+  {
+   "ref": "8.3.4",
+   "file": "8.3.4.html",
+   "module": 8,
+   "moduleFile": "08-the-exchange.html",
+   "moduleTitle": "The Exchange — The Capillary Built for Contact",
+   "tab": 3,
+   "section": 4,
+   "title": "The tap"
+  },
+  {
+   "ref": "8.4.1",
+   "file": "8.4.1.html",
+   "module": 8,
+   "moduleFile": "08-the-exchange.html",
+   "moduleTitle": "The Exchange — The Capillary Built for Contact",
+   "tab": 4,
+   "section": 1,
+   "title": "The cascade on a clock"
+  },
+  {
+   "ref": "8.5.1",
+   "file": "8.5.1.html",
+   "module": 8,
+   "moduleFile": "08-the-exchange.html",
+   "moduleTitle": "The Exchange — The Capillary Built for Contact",
+   "tab": 5,
+   "section": 1,
+   "title": "Next module's headline"
+  },
+  {
+   "ref": "9.1.1",
+   "file": "9.1.1.html",
+   "module": 9,
+   "moduleFile": "09-the-squeeze-and-the-pull.html",
+   "moduleTitle": "The Squeeze and the Pull — Muscle, Twice",
+   "tab": 1,
+   "section": 1,
+   "title": "A tube that wants to split"
+  },
+  {
+   "ref": "9.1.2",
+   "file": "9.1.2.html",
+   "module": 9,
+   "moduleFile": "09-the-squeeze-and-the-pull.html",
+   "moduleTitle": "The Squeeze and the Pull — Muscle, Twice",
+   "tab": 1,
+   "section": 2,
+   "title": "What is in the wall"
+  },
+  {
+   "ref": "9.1.3",
+   "file": "9.1.3.html",
+   "module": 9,
+   "moduleFile": "09-the-squeeze-and-the-pull.html",
+   "moduleTitle": "The Squeeze and the Pull — Muscle, Twice",
+   "tab": 1,
+   "section": 3,
+   "title": "Squeeze, let go, what stops it"
+  },
+  {
+   "ref": "9.1.4",
+   "file": "9.1.4.html",
+   "module": 9,
+   "moduleFile": "09-the-squeeze-and-the-pull.html",
+   "moduleTitle": "The Squeeze and the Pull — Muscle, Twice",
+   "tab": 1,
+   "section": 4,
+   "title": "One pump, many taps"
+  },
+  {
+   "ref": "9.1.5",
+   "file": "9.1.5.html",
+   "module": 9,
+   "moduleFile": "09-the-squeeze-and-the-pull.html",
+   "moduleTitle": "The Squeeze and the Pull — Muscle, Twice",
+   "tab": 1,
+   "section": 5,
+   "title": "Why the hand goes cold"
+  },
+  {
+   "ref": "9.2.1",
+   "file": "9.2.1.html",
+   "module": 9,
+   "moduleFile": "09-the-squeeze-and-the-pull.html",
+   "moduleTitle": "The Squeeze and the Pull — Muscle, Twice",
+   "tab": 2,
+   "section": 1,
+   "title": "From a calf to one head"
+  },
+  {
+   "ref": "9.2.2",
+   "file": "9.2.2.html",
+   "module": 9,
+   "moduleFile": "09-the-squeeze-and-the-pull.html",
+   "moduleTitle": "The Squeeze and the Pull — Muscle, Twice",
+   "tab": 2,
+   "section": 2,
+   "title": "End to end, side by side"
+  },
+  {
+   "ref": "9.2.3",
+   "file": "9.2.3.html",
+   "module": 9,
+   "moduleFile": "09-the-squeeze-and-the-pull.html",
+   "moduleTitle": "The Squeeze and the Pull — Muscle, Twice",
+   "tab": 2,
+   "section": 3,
+   "title": "The lever"
+  },
+  {
+   "ref": "9.2.4",
+   "file": "9.2.4.html",
+   "module": 9,
+   "moduleFile": "09-the-squeeze-and-the-pull.html",
+   "moduleTitle": "The Squeeze and the Pull — Muscle, Twice",
+   "tab": 2,
+   "section": 4,
+   "title": "The overlap"
+  },
+  {
+   "ref": "9.3.1",
+   "file": "9.3.1.html",
+   "module": 9,
+   "moduleFile": "09-the-squeeze-and-the-pull.html",
+   "moduleTitle": "The Squeeze and the Pull — Muscle, Twice",
+   "tab": 3,
+   "section": 1,
+   "title": "A spring in series"
+  },
+  {
+   "ref": "9.3.3",
+   "file": "9.3.3.html",
+   "module": 9,
+   "moduleFile": "09-the-squeeze-and-the-pull.html",
+   "moduleTitle": "The Squeeze and the Pull — Muscle, Twice",
+   "tab": 3,
+   "section": 3,
+   "title": "Stronger or weaker?"
+  },
+  {
+   "ref": "9.3.4",
+   "file": "9.3.4.html",
+   "module": 9,
+   "moduleFile": "09-the-squeeze-and-the-pull.html",
+   "moduleTitle": "The Squeeze and the Pull — Muscle, Twice",
+   "tab": 3,
+   "section": 4,
+   "title": "Speed: the fan and the loop"
+  },
+  {
+   "ref": "9.3.5",
+   "file": "9.3.5.html",
+   "module": 9,
+   "moduleFile": "09-the-squeeze-and-the-pull.html",
+   "moduleTitle": "The Squeeze and the Pull — Muscle, Twice",
+   "tab": 3,
+   "section": 5,
+   "title": "What tears"
+  },
+  {
+   "ref": "9.4.1",
+   "file": "9.4.1.html",
+   "module": 9,
+   "moduleFile": "09-the-squeeze-and-the-pull.html",
+   "moduleTitle": "The Squeeze and the Pull — Muscle, Twice",
+   "tab": 4,
+   "section": 1,
+   "title": "The minute before the gun"
+  },
+  {
+   "ref": "9.5.1",
+   "file": "9.5.1.html",
+   "module": 9,
+   "moduleFile": "09-the-squeeze-and-the-pull.html",
+   "moduleTitle": "The Squeeze and the Pull — Muscle, Twice",
+   "tab": 5,
+   "section": 1,
+   "title": "Next module's headline"
   }
  ]
 }

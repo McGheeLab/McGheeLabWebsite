@@ -41,6 +41,14 @@
           "title": "The River \u2014 Why Blood Moves, and Where the T Cell Rides (Module 7, BME 466/566)"
         },
         {
+          "name": "08-the-exchange.html",
+          "title": "The Exchange \u2014 The Capillary Built for Contact (Module 8, BME 466/566)"
+        },
+        {
+          "name": "09-the-squeeze-and-the-pull.html",
+          "title": "The Squeeze and the Pull \u2014 Muscle, Twice (Module 9, BME 466/566)"
+        },
+        {
           "name": "HW1-student-key.html",
           "title": "HW1 \u2014 Worked solutions"
         },
@@ -89,6 +97,14 @@
           "title": "Grip and Ground \u2014 Your Dataset (HW-03, BME 466/566)"
         },
         {
+          "name": "hw-04-flow-and-leak.html",
+          "title": "Flow and Leak \u2014 Your Dataset (HW-04, BME 466/566)"
+        },
+        {
+          "name": "hw-05-squeeze-and-pull.html",
+          "title": "Squeeze and Pull \u2014 Your Dataset (HW-05, BME 466/566)"
+        },
+        {
           "name": "hw1-diffusion.html",
           "title": "BME/AME 466/566 \u2014 Homework 1"
         },
@@ -103,6 +119,10 @@
         {
           "name": "report-01-journal-review.html",
           "title": "Read & Rebuild \u2014 Report 1 (BME 466/566)"
+        },
+        {
+          "name": "report-02-read-use-relate.html",
+          "title": "Read, Use, Relate \u2014 Report 2 (BME 466/566)"
         },
         {
           "name": "w01-instructor-notes.html",
@@ -397,5 +417,5 @@
       ]
     }
   },
-  "generated": "2026-10-27T09:07:00"
+  "generated": "2026-11-23T13:40:06"
 }

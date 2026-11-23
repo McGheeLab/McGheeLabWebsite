@@ -4,6 +4,37 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.102] — 2026-11-23 — BME 466: Module 9 "The Squeeze and the Pull" staged (not uploaded)
+
+Plan: [CodeLog/ClaudesPlan/V4.102_bme466_module9_staged.md](../ClaudesPlan/V4.102_bme466_module9_staged.md). Course repo
+V3.143 (the build is V3.142). **Numbered from origin/main (V4.101, fetched 2026-11-23); this checkout is 112 commits
+behind it, so when it is brought up to date this entry goes above V4.101.**
+
+### Added
+- `modules/bme466/09-the-squeeze-and-the-pull.html` — fresh learning module, cmp-identical to the course build (629,912
+  bytes, sha256 c93ee2c6…). Five tabs, 17 sections, fifteen simulations.
+- `modules/bme466/simulations/`: fifteen whiteboard pages for module 9 (9.1.1–9.1.5, 9.2.1–9.2.4, 9.3.1, 9.3.3–9.3.5,
+  9.4.1, 9.5.1). None removed; no other module's pages changed.
+
+### Changed
+- `modules/bme466/simulations/index.json` and `modules/manifest.json` regenerated (120 simulation pages; 12 folders, 89
+  files). The module is listed under bme466 as "The Squeeze and the Pull — Muscle, Twice (Module 9, BME 466/566)".
+- `sw.js`: **unchanged.** The deploy script's bump (960 → 961) was undone in this stale checkout; origin/main is at 1071.
+
+### Verification
+- The course's chain before staging: harness 375, engine parity, equations, call sites, syntax, `sync_nocopy --check`.
+- On the staged copy, opened as files from this tree: the module's headless QA 695/695 at 1280 and 390 px; 0 console
+  errors, 0 failed requests; `qa_deployed_sims.mjs` on the fifteen pages of module 9 with 0 failures; three pages
+  screenshotted and read. No local web server was run (refused by a permission check in the session), so nothing that
+  needs http was checked.
+
+### FTP — pending, on the instructor's word
+- `modules/bme466/09-the-squeeze-and-the-pull.html`, `modules/bme466/simulations/` (the 9.*.html pages and
+  `index.json`), `modules/manifest.json`. Not `sw.js` from this checkout.
+- `deploy.py ftp` will refuse from this checkout (behind origin/main). The override used for HW5 (V4.38) was for that
+  upload only.
+- After the upload, the instructor's: **+ Add Module** at `#/classes/bme466`.
+
 ## [V4.101] — 2026-11-20 — Scientia: PDF fixes — the ‹ › arrows of one-page view work again (the text layer covered them); pages no longer come out upside down after zooming out (two draws overlapped in one canvas)
 
 Gabe, 20 Nov: "One at a time page view on PDFs arrows for page scrolling does not work. right and left arrow keys work." Then: "When zoomed out PDF pages appear upside down, include that fix in the same V as the PDF fix I have just mentioned." Asked where: the PDF card on a note's canvas, in the website's Lab Notebook, "most of them when zooming out. zooming in puts the page right side up again".
@@ -1521,6 +1552,43 @@ App only (no lab-layer file changes).
 | `ra_t29` (V4.29; its two-sets step first quotes the paper in Detection) lab · without the lab layer · `ra_t30` lab · without | 47/47 · 47/47 · 38/38 · 38/38 |
 | `rb_t31` · `rb_t32` · `t_995` · `sync9_rdr` · `ff_t` · `lr_t` | 41/41 · 50/50 · 27/27 · 37/37 · 33/33 · 18/18 |
 
+## [V4.38] — 2026-11-19 — BME 466: HW5 "Squeeze and Pull" on the site
+
+Plan: [CodeLog/ClaudesPlan/V4.38_bme466_hw5_staged.md](../ClaudesPlan/V4.38_bme466_hw5_staged.md). Course repo V3.140 (the
+build is V3.138). **Numbered from origin/main (V4.37, 7784f6d, fetched 2026-11-19); this checkout is 48 commits behind
+it, so when it is brought up to date this entry goes above V4.37.**
+
+### Added
+- `modules/bme466/hw-05-squeeze-and-pull.html` — fresh homework module, cmp-identical to the course build (247,298
+  bytes, sha256 846dbd3a…). Practice, three problems, a challenge, export; no bench, so no simulation pages.
+
+### Changed
+- `modules/manifest.json` regenerated (scan_modules.py, 12 folders, 88 files): HW5 is listed under bme466 as "Squeeze and
+  Pull — Your Dataset (HW-05, BME 466/566)". Nothing else in it changed.
+- `sw.js`: **unchanged.** The deploy script's bump (960 → 961) was undone in this stale checkout; the live 1007 already
+  fetches `/modules/` network-first.
+
+### Verification
+- The course's chain, re-run before staging: keygen self-test PASS (41 623 corners), parity 15 718 checks over 507 NetIDs
+  with 0 mismatches on the built module, headless QA 36/36 with its screenshots read, `sync_nocopy --check` ok for the
+  build and the site copy.
+- From the website root (`python3 -m http.server 8871`, stopped by PID): 200, 0 console errors, 0 failed requests, the
+  four tabs present, no page overflow, the text not selectable.
+
+### FTP — done 2026-11-19, 09:30 (the instructor: "ftp the homework to the site so i can put it up")
+- `deploy.py ftp` refused: this checkout is behind origin/main. The instructor chose to override the guard for this
+  upload only: `python3 scripts/deploy.py ftp --only modules/bme466/hw-05-squeeze-and-pull.html --only
+  modules/manifest.json --any-branch --yes`. Checked first: the live `modules/manifest.json` was byte-identical to this
+  checkout's before HW5 was added. 3 files over FTPS (the page, the list, and the `rm/build.json` stamp the script always
+  sends last), 0 failed, all verified live and recorded in `deploy/manifest.json`.
+- After: the live page and the live list are byte-identical to the local files (sha256 compared over HTTPS); the live
+  page loads headless with 0 console errors and 0 failed requests; the live `sw.js` is still 1007.
+- ⚠ The stamp now reads head eed83e1e and sw 960, the stale checkout's, where it read 7784f6d and 1007. Only its `build`
+  time is used (open RM pages offer a reload once); the next deploy from an up-to-date tree writes a correct one.
+- Still the instructor's, as admin at `#/classes/bme466`: **+ Add Module** → `modules/bme466/hw-05-squeeze-and-pull.html`,
+  title and order, tick Visible; and the unpublished assignment row (`schedules/bme466/assignments/hw5`) by a website
+  session.
+
 ## [V4.37] — 2026-11-18 — Scientia: Freewrite — sentences no rule reads go on with the component before them, or are one text component between the links
 
 Gabe (18 Nov 2026): "I want the default to be that a string of sentences not recognized are their own text component in between the links. For example, describing a verdict in a sentence and you keep describing in more sentences with no trigger of other components, it remains in that verdict. Manual editing can override that. Keep the other every sentence into a component as a setting."
@@ -2979,6 +3047,44 @@ App (`scientia/src`) and lab layer (`rm/scientia/lab-mode.js` §17 — **Alex re
 | `v3880` notes harness | 13/13 |
 | Earlier suites: bridges `t_981`, wires `t_982wire`, the simple notebook `t_983`, the Portfolio `t_984` | 35/35 · 13/13 · 18/18 · 31/31 · the full-screen edge pan t_980edge 9/9 |
 
+## [V3.990] — 2026-11-13 — Hero video: a needle writing cell-laden ink into a liquid-like solid, looping
+
+Alex: *"the website hero is a needle moving through LLS and printing some new red lls material within … make a
+better version that loops better, is more accurate simulation, has cells crawling on the granules and binding them
+together … use the knowledge in all of the repos here,"* then a close side view with a steel needle, rough fluorescent
+polyhedral granules, an out-of-focus background and granules that deform around the needle by physical simulation.
+Plan: [CodeLog/ClaudesPlan/V3.990_hero_video_lls_print_loop.md](../ClaudesPlan/V3.990_hero_video_lls_print_loop.md).
+
+### Added
+- **`scripts/hero_video/`** (not deployed) — the pipeline that makes the hero:
+  - `simulate.py` — Durian's bubble model in 3D (overdamped soft spheres, Hookean contacts, drag against the solvent):
+    ≈23,600 polydisperse granules grown to φ = 0.72 in a strip of five identical tiles periodic along the print
+    direction, relaxed with FIRE; a no-slip container (wall granules fixed); a rigid hollow blunt cannula at 3 radii/s;
+    ink fed into the bore, pushed by a piston force and extruded through the mouth; cells attach → spread → crawl →
+    bridge a void of 0.45–2.4 radii → contract with a rest-gap spring, after GELLS-DEM. No tethers, kicks or scripted
+    clearing: the yield, flow and re-jamming are emergent.
+  - `loopify.py` — closes the seam on the *arrangement* (last-frame granules and cells matched to the nearest unclaimed
+    partner in the loop-start arrangement, gliding onto its track over 72 frames, eased; unmatched ones shrink or grow
+    in) and computes each granule's volume-preserving squash tensor from its contacts with granules and the needle
+    (`gdef`).
+  - `render_blender.py` — Blender 5.2 Eevee, headless: an orthographic close side view tracking the needle, the bath
+    in front of its axis cut away; four depth bands per frame with sliding weights; 16 random convex-hull chunks
+    instanced with a per-point `FLOAT4X4` transform (squash × rotation × radius) through Set Instance Transform;
+    emission + dithered transparency (FITC green bath, rhodamine ink, Cy5 cells); a brushed-steel needle lit by an
+    environment the camera does not see; the needle a holdout in the back bands.
+  - `optics.py` — per-band defocus blur (σ 0/3/7/12 px), the blur kept off the needle's silhouette, bands summed in
+    linear light, glow, light grain.
+  - `encode.py` — ffmpeg → VP9 webm, H.264 mp4, poster jpg; `README.md` — what the pictures show, the physics, the
+    squash, the loop, the depth of field, units.
+- **`Videos/hero-lls-print.webm`** (3.2 MB), **`Videos/hero-lls-print.mp4`** (2.6 MB) — 1600×640, 30 fps, a 16 s
+  seamless loop; **`Videos/hero-poster.jpg`** — its first frame.
+
+### Changed
+- `index.html` — the hero `<video>` plays the new files (webm first, mp4 fallback) and its `poster` is the local
+  first frame instead of a random `picsum.photos` photo. `Videos/Deposit In Lls Video.webm` stays on disk and on the
+  server, unreferenced.
+- `sw.js` — `CACHE_VERSION` 959 → 960.
+
 ## [V3.989] — 2026-11-13 — Protocols: the contributors list loads; the list shows a new, uploaded or posted protocol at once; a failed post says what failed
 
 Alex: "I uploaded a html protocol, but I don't see it on the Protocols page, and I can't upload it to the public facing
@@ -3166,6 +3272,57 @@ their metadata in RM, and are shown on the public site. Plan:
 ### Deploy
 - **Rules need Alex**: `firebase deploy --only firestore:rules`. Until then the site files are safe live: the list
   says nothing is posted, the Team page ignores the failed read, and Post to website says the rules may not be live.
+
+## [V3.985] — 2026-11-12 — A PDF opened from a module opens: the module frame lets its new tabs out of the sandbox
+
+Instructor, on the live Report 2 (V3.984): opening the paper or the questions PDF showed *"mcgheelab.com is blocked —
+This page has been blocked by Chrome — ERR_BLOCKED_BY_CLIENT"*. Plan:
+[CodeLog/ClaudesPlan/V3.985_module_frame_pdfs_open.md](../ClaudesPlan/V3.985_module_frame_pdfs_open.md).
+
+- **Cause:** the class page shows a module in a sandboxed iframe, and a tab a module opens (`target="_blank"`)
+  inherits that sandbox unless the frame also carries `allow-popups-to-escape-sandbox`; Chrome will not run its PDF
+  viewer in a sandboxed page. Reproduced headless: the live module in a frame with the live sandbox, the paper's link
+  clicked on Tab 1, the new tab ends on `chrome-error://chromewebdata/` (origin `null`), for the paper and the
+  questions alike.
+- **`class-builder.js`:** the module viewer's iframe gains `allow-popups-to-escape-sandbox`, with a comment beside the
+  V3.682 `allow-downloads` one. **`teacher-teach.js`:** the teacher's preview frame gains the same token.
+  `allow-scripts allow-same-origin` on our own files already lets a module lift its sandbox, so the token adds no risk;
+  Scientia's embed already carries it. It also stops DOI and PubMed links from modules opening sandboxed.
+- **`sw.js`:** `CACHE_VERSION` 954 → 955.
+- **Verified:** both scripts and `sw.js` pass `node --check`; with each edited sandbox string both of Report 2's PDFs
+  open in the new tab at `https://mcgheelab.com` (paper and the sample card's questions), and with the old string
+  both are blocked.
+- **FTP — done 2026-11-12 (the instructor: "publish it"):** `class-builder.js`, `teacher-teach.js`, `sw.js` and the
+  `rm/build.json` stamp, via `python3 scripts/deploy.py ftp --only class-builder.js --only teacher-teach.js --only
+  sw.js`: 4 files over FTPS, 0 failed, verified and recorded; the live scripts are byte-identical to the tree and the
+  live `sw.js` reads 955.
+
+## [V3.984] — 2026-11-12 — BME 466: Report 2 "Read, Use, Relate" staged for release
+
+Plan: [CodeLog/ClaudesPlan/V3.984_bme466_report2_staged.md](../ClaudesPlan/V3.984_bme466_report2_staged.md). Course repo V3.119 (the build is V3.118). The local tree was 11 commits behind origin and was pulled first; the uncommitted Module 7/8 and HW4 staging (V3.958, V3.971) stays in place. **Renumbered from V3.982 on 2026-11-12 (later):** origin had since taken V3.982 and V3.983 (Scientia, Lab Notebook) and its `sw.js` read 953, the number now live; the tree was 2 commits behind, so the staging was stashed, pulled fast-forward and restored, and this entry moved above them.
+
+### Added
+- `modules/bme466/report-02-read-use-relate.html` — fresh report module, cmp-identical to the course build (188,041 bytes: re-staged before any upload after the same-day adversarial review, course V3.120, after Tab 0 gained the AI policy, course V3.125, after the time budget became six hours, course V3.126, after the papers were gated behind three AI-policy tick boxes, course V3.127, after Part 1 became "Review" and the full-credit lists were cut to named pieces, course V3.128, after each piece got a description and an example, course V3.129, after Tab 1 became the paper and the questions as two PDFs, course V3.130, after the hidden text went to 0.5 pt, course V3.131, and after the questions became one PDF per card, course V3.132; `sw.js` kept at 954 because nothing was uploaded in between). Students pick one of three recent papers, read their card, record about ten numbers and export `REPORT2_<NETID>_<code>.json`; the written report is marked from the prompt's full-credit lists. No-copy guard declared and checked. No simulation pages (no bench).
+- `modules/bme466/report-02-files/` (course V3.130): `report2-{A,B,C}-paper.pdf`, the three papers' PubMed Central copies unchanged, and 164 questions PDFs, one per card (`report2-<option>-<card>.pdf`), locked against copying; 167 files, identical to the course build (course V3.132). The module's Tab 1 links them.
+
+### Changed
+- `modules/manifest.json` regenerated (scan_modules.py, 12 folders, 87 files): the module is listed under bme466 as "Read, Use, Relate — Report 2 (BME 466/566)".
+- `sw.js` CACHE_VERSION 953 → 954 (origin's and the live 953, plus one; it read 951 → 952 before the pull).
+
+### Verification
+- The course's own chain before staging: keygen self-test and trap audit over all 138 240 cards, JS–Python parity over 507 NetIDs, no cross-check fires on honest work, grader self-check, headless QA with screenshots read.
+- From the website root (`python3 -m http.server 8873`): the page loads with 0 console errors and 0 failed requests; the option picker, the card, every question pane with its typeset formulas, the boxes and their locking, the inline cross-check, the ladder, the progress table and the Notes panel all render; select-all copies nothing. Again after the V3.125 re-stage: 0 console errors, 0 failed requests, the AI policy on Tab 0, Option A's nine questions on Tab 1.
+
+### FTP — done 2026-11-12, 15:04 (the instructor: "lets ftp the report into the website")
+- `python3 scripts/deploy.py ftp --only modules/bme466/report-02 --only modules/manifest.json --only sw.js --yes`
+  (after class, which meets Tue/Thu 9:30–10:45): the module, `modules/bme466/report-02-files/` (167 PDFs, 16 MB),
+  `modules/manifest.json`, `sw.js` (954) and the `rm/build.json` stamp the script always sends last — 171 files over
+  FTPS, 0 failed, all verified live and recorded in `deploy/manifest.json`. The Scientia files `status` also lists
+  (V3.982/V3.983) were left alone. Before: the staged module and PDFs cmp/diff-identical to the course build, the PDF
+  map test OK on the staged copy. After: the live module is byte-identical to the build; headless on the live page,
+  0 console errors and 0 failed requests, the Tab 0 boxes reveal the papers, and Tab 1's six PDF links (the sample
+  card's) return 200. My QA screenshots in the site root were removed (never uploaded: not in `site.json`).
+- Still the instructor's, as admin at `#/classes/bme466`: **+ Add Module** → `modules/bme466/report-02-read-use-relate.html`, title "Report 2 — Read, Use, Relate", tick Visible; and an assignment row for the report (`schedules/bme466/assignments/report2`, left unpublished) by a website session.
 
 ## [V3.983] — 2026-11-11 — Lab Notebook: a menu — the Simple notebook (a canvas a week) or Scientia (the whole page)
 
@@ -3368,6 +3525,45 @@ Gabe: "I want to be able to add websites as a component, and should behave like 
 - **`scientia/serve.py`:** `POST /api/capture {url, id}` (the computer and its paired devices): saves the copy as `images/<id>.<html|pdf>` and answers with its title, address, time, size, what did not come and the page's icon — a small answer (a large one was reset now and then by this server on Windows).
 - **`scientia/src/13zzs-webcap.js` (`WEBCAP`):** + Insert → Website… (`/website`); the media record and an `html` or `pdf` component with `web { url, final, title, at, size, missing, icon }`; the strip under the header (`WEBCAP.strip`: saved when and from where, ↗ Live page, ⟳ Capture again — the next version via `ITER.attach`, its "how it improved" filled with the time); the Markdown says where and when it came from.
 - **`14b-atlas.js`:** `/collection website`. **`24-kinds.css`:** `.web-strip`. **`rm/scientia/lab-mode.js`** (Alex reviews; the lab harness asks every + Insert row for its own icon): `website: 'globe-alt'` and the icon's path, as `rm/js/icons.js` has it. **`scripts/scientia_build.py`:** `webcap.py` in the desktop download.
+
+## [V3.971] — 2026-11-10 — BME 466: Module 8 "The Exchange" on the site (five tabs, eleven simulations)
+
+Numbering: a Scientia entry dated 2026-11-10 took V3.971 as well. It was committed from another checkout while this entry sat uncommitted here; this entry was merged in below it on 2026-11-11 (V3.982) and keeps its number.
+
+Plan: [CodeLog/ClaudesPlan/V3.971_bme466_module8_the_exchange.md](../ClaudesPlan/V3.971_bme466_module8_the_exchange.md). Course repo V3.115.
+
+### Added
+- `modules/bme466/08-the-exchange.html` — Module 8, fresh (591,621 bytes, cmp-identical to the course build; whiteboard head block
+  present, no-copy guard declared and in sync).
+- `modules/bme466/simulations/` — `gen_simulations.py bme466`: 105 pages; module 8 has 11, all new (8.1.1, 8.1.3, 8.1.4, 8.2.1,
+  8.2.2, 8.3.1, 8.3.2, 8.3.3, 8.3.4, 8.4.1, 8.5.1); none removed, no ref moved; `index.json` updated.
+
+### Changed
+- `modules/manifest.json` — `scan_modules.py`: 86 files; lists the page as "The Exchange — The Capillary Built for Contact
+  (Module 8, BME 466/566)".
+- `sw.js` CACHE_VERSION 940 → 941.
+- This checkout was 15 commits behind origin (V3.958–V3.970) and held the uncommitted 2026-11-04 staging (the BME 466 V3.958 entry
+  below). Stashed, pulled fast-forward, restored: `sw.js` took origin's 940, and that entry was merged back in above V3.957.
+
+### Verified (served from the website root, port 8852)
+- The page: 0 console errors, 0 failed requests (the whiteboard and Firebase assets resolve here); the module's whole-page QA
+  (`qa_w8.mjs`) clean: five tabs, 14 rail sections, 38 details blocks, no raw TeX, no placeholder text.
+- `qa_deployed_sims.mjs` SIM_MODULE=8: 11 pages, each one visible section, every canvas inked, no NaN/undefined; 0 failures, 0 weak.
+- Screenshots read: 8.2.1 (the osmometer), 8.3.4 (the tap), 8.4.1 (the cascade). In 8.4.1's readout column the squeeze row is cut
+  short at 1280 px ("0 s · tumour: ne…"); that is the build's layout, not changed here.
+
+### FTP, relative to the site root
+- `modules/bme466/08-the-exchange.html`
+- `modules/bme466/simulations/` (the eleven 8.x pages and `index.json`)
+- `modules/manifest.json`
+- `sw.js`
+**Uploaded 2026-11-10** (20:32 MST, no class running) with `python3 scripts/deploy.py ftp --only modules/ --only sw.js --yes` (FTPS):
+16 files (the page, the eleven 8.x simulation pages, `simulations/index.json`, `modules/manifest.json`, `sw.js`, plus `rm/build.json`,
+the stamp the script always sends last), 16/16 live and recorded. Live SHA-256 equals local for the page, `sw.js`, the manifest,
+`index.json`, 8.1.1, 8.3.4 and 8.5.1; the live `sw.js` reads 941; the live page and the live 8.4.1 load with 0 console errors and
+0 failed requests. Narrowed with `--only` so six `rm/scientia/` files that another session committed but did not upload stayed off
+the server (the script rebuilt the ignored `rm/scientia/scientia.html` locally, as it does on every run; it was not sent).
+Nothing to delete on the server. Module 8 now needs **+ Add Module** on `#/classes/bme466` (Visible ticked when it should open).
 
 ## [V3.970] — 2026-11-10 — Scientia: the deck answers clicks, and has one size
 
@@ -3663,6 +3859,40 @@ Gabe: "Reintroduce the DOI lookup from C:\\Users\\gabri\\Scientia In Situ\\doi-l
 - `node scripts/tests/scientia-doi-lookup.test.mjs`: 68 passed, 0 failed.
 - **Harnesses:** lab-mode 278/278, notes 13/13.
 - `sw.js` CACHE_VERSION 927 → 928.
+
+## [V3.958] — 2026-11-04 — BME 466: Module 7 "The River" whole (all five tabs, twelve simulations) and HW4 "Flow and Leak" staged
+
+Plan: [CodeLog/ClaudesPlan/V3.958_bme466_module7_full_and_hw4.md](../ClaudesPlan/V3.958_bme466_module7_full_and_hw4.md). Course repo V3.95. Numbered V3.958, not V3.941 as first staged: this computer's main was 18 commits behind origin (V3.941–V3.957 are Scientia's); pulled first, then re-staged on top.
+
+Numbering: a Scientia entry dated 2026-11-05 took V3.958 as well. It was committed from another checkout while this entry sat uncommitted here; this entry was merged in below it on 2026-11-10 (V3.971) and keeps its number, which the course changelog (V3.95) and the plan file cite.
+
+### Changed
+- `modules/bme466/07-the-river.html` — redeploy: Tab 1 only → the whole module (574,965 bytes, cmp-identical to the build).
+- `modules/bme466/simulations/` — `gen_simulations.py bme466`: 94 pages; module 7 now 12 (new 7.2.1, 7.2.2, 7.3.1, 7.3.2, 7.3.3, 7.3.4,
+  7.4.1, 7.5.1; 7.1.1–7.1.4 unchanged; none removed, no ref moved); `index.json` updated.
+- `modules/manifest.json` — `scan_modules.py`: 85 files.
+- `sw.js` CACHE_VERSION 927 → 929.
+
+### Added
+- `modules/bme466/hw-04-flow-and-leak.html` — HW4, fresh (260,926 bytes, cmp-identical, no-copy guard declared). Module only.
+
+### Verified (served from the website root, port 8847, before the pull; the re-staged files are the same bytes)
+- Both pages: 0 console errors, 0 failed requests (the whiteboard and Firebase assets resolve here).
+- `qa_deployed_sims.mjs` SIM_MODULE=7: 12 pages, each one visible section, every canvas inked, no NaN/undefined; 0 failures, 0 weak.
+- Screenshots read: 7.4.1 (the aorta chapter) and 7.5.1 (the tracer capillary).
+
+### FTP (Cyberduck), relative to the site root
+- `modules/bme466/07-the-river.html`
+- `modules/bme466/hw-04-flow-and-leak.html`
+- `modules/bme466/simulations/` (whole folder)
+- `modules/manifest.json`
+- `sw.js`
+**Uploaded 2026-11-04** with `python3 scripts/deploy.py ftp --only modules/ --only sw.js --yes` (FTPS): 14 files (the above plus
+`rm/build.json`, the stamp the script always sends last), 14/14 live and recorded; live SHA-256 equals local for the page, HW4,
+7.4.1 and `sw.js`. Narrowed with `--only` so seven `rm/scientia/` files committed by another session but not uploaded stayed off
+the server.
+Nothing to delete on the server. HW4 then needs **+ Add Module** on `#/classes/bme466` (Visible ticked when it should open) and its
+assignment row (`schedules/bme466/assignments/<slug>`, unpublished) from a website session.
 
 ## [V3.957] — 2026-11-04 — Scientia desktop: the pen's button switches at once
 
