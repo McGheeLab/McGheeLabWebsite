@@ -4618,6 +4618,13 @@ function renderModuleViewer(classId, modRef) {
   // of a direct link was told they had a file they did not have. Verified
   // three ways: no-sandbox control downloads, this sandbox without the token
   // does not, this sandbox with it does.
+  //
+  // V3.985 — `allow-popups-to-escape-sandbox` is REQUIRED too. A module's
+  // PDF links open a new tab, and without the token that tab inherits this
+  // sandbox; Chrome will not run its PDF viewer in a sandboxed page, so
+  // Report 2's paper and questions showed "This page has been blocked by
+  // Chrome (ERR_BLOCKED_BY_CLIENT)". allow-scripts + allow-same-origin on our
+  // own files already lets a module lift its sandbox, so this adds no risk.
   return `
     <div class="cb-module-viewer-page">
       <div class="cb-module-nav-bar" id="cb-module-nav-bar">
@@ -4635,7 +4642,7 @@ function renderModuleViewer(classId, modRef) {
         <iframe
           id="cb-module-iframe"
           class="cb-module-iframe"
-          sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-downloads"
+          sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-downloads allow-popups-to-escape-sandbox"
         ></iframe>
       </div>
     </div>

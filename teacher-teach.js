@@ -724,7 +724,8 @@
         <button class="btn btn-secondary btn-small" data-preview-close>Close</button>
       </div>
       <iframe class="teach-preview-frame" src="${esc(url)}" title="Module preview"
-        sandbox="allow-scripts allow-same-origin allow-popups allow-forms"></iframe>`;
+        sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-popups-to-escape-sandbox"></iframe>`;
+    // V3.985: the escape token lets a module's PDF open in its new tab (a sandboxed tab gets Chrome's blocked page).
     box.querySelector('[data-preview-close]').addEventListener('click', () => {
       box.hidden = true;
       const toggle = box.closest('[data-previewable]')?.querySelector('[data-preview-toggle]');
