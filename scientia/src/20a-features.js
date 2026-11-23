@@ -34,8 +34,12 @@ const PV = {
     const thru = FEAT.tune('ink', 'through') !== false;
     return h('div.pv-inkthru' + (thru ? '' : '.solid'), PV.box({ num: 'Block', label: 'Seeding', body: 'Seed at 40k/cm² on the 30 kPa gels; wait 4 h before imaging.', cls: thru ? 'pv-hit' : '' }),
       h('div.pv-inkov', PV.svg(220, 70, '<path d="M14 48 q 18 -40 36 -6 t 34 -4 t 36 2" fill="none" stroke="var(--k-barrier, #c92a2a)" stroke-width="2.6" stroke-linecap="round"/><path d="M150 20 l 34 30 M184 20 l -34 30" fill="none" stroke="var(--k-barrier, #c92a2a)" stroke-width="2.4" stroke-linecap="round"/>'), h('span.pv-inkptr', '➚')),
-      PV.cap(thru ? 'A click on the ink’s empty part reaches the component beneath (it is outlined)' : 'The ink’s whole rectangle (dashed) takes the click; the component beneath does not get it'));
+      PV.cap(thru ? 'Point at the ink: a dotted outline shows all of it. A click on its empty part reaches the component beneath (it is outlined)' : 'The ink’s whole rectangle (dotted) takes the click; the component beneath does not get it'));
   },
+  /** V4.107: the preview's ink is outlined while the pointer is over any part of it, as on a note. */
+  inkHover(el) { const ov = el.querySelector('.pv-inkov'); if (!ov) return el;
+    el.addEventListener('pointermove', e => { const r = ov.getBoundingClientRect(); ov.classList.toggle('hov', e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom); });
+    el.addEventListener('pointerleave', () => ov.classList.remove('hov')); return el; },
   cap: t => h('div.fpv-cap', t),
   st: (k, t) => h('span.st.st-' + k, t),
   /** A row of things side by side; a stage where children sit where they're put. */
@@ -265,10 +269,10 @@ const PV = {
     } });
 
   /* =============================== Pen & touch =============================== */
-  D({ id: 'ink', group: 'pen', label: 'Ink & shapes', desc: 'Writing on the paper with a pen (or the mouse): pen, highlighter, eraser and lasso in the ink bar; strokes written close together gather into one ink component. Ink is see-through, and what it lies over can still be clicked. Off: the ink tools leave; ink already written stays.',
+  D({ id: 'ink', group: 'pen', label: 'Ink & shapes', desc: 'Writing on the paper with a pen (or the mouse): pen, highlighter, eraser and lasso in the ink bar; strokes written close together gather into one ink component. Ink is see-through, and what it lies over can still be clicked; a dotted outline shows all of an ink component while you point at it or it is selected, and none while the pen writes. Off: the ink tools leave; ink already written stays.',
     // V4.104 (Gabe: "The ink background should be invisible/see through. You may interact with components overlaid by ink components.") — 21-sync.css
     tune: [T('through', 'Click through ink', 'switch', { isNew: true, def: true, d: 'Only the strokes take the pointer: a click on an empty part of an ink component reaches the component beneath it. Off: the whole of its rectangle takes the pointer, as before', changed: () => FEAT.apply() })],
-    preview: () => [PV.inkThrough(),h('div.pv-ink', PV.svg(300, 90, '<path d="M20 60 q 14 -34 28 0 t 28 0 t 28 0" fill="none" stroke="var(--ink)" stroke-width="2.4" stroke-linecap="round"/><path d="M130 30 l 40 40 M170 30 l -40 40" stroke="var(--k-barrier, #c92a2a)" stroke-width="2" stroke-linecap="round"/><rect x="195" y="22" width="90" height="16" rx="3" fill="color-mix(in srgb, #f2c94c 55%, transparent)"/><text x="200" y="34" font-size="11" font-family="Source Serif 4, serif" fill="var(--ink)">highlighted</text>'), h('div.pv-inkbar', ['✎ Pen', 'Highlighter', 'Eraser', 'Lasso'].map((x, i) => h('span' + (i ? '' : '.on'), x))))] });
+    preview: () => [PV.inkHover(PV.inkThrough()),h('div.pv-ink', PV.svg(300, 90, '<path d="M20 60 q 14 -34 28 0 t 28 0 t 28 0" fill="none" stroke="var(--ink)" stroke-width="2.4" stroke-linecap="round"/><path d="M130 30 l 40 40 M170 30 l -40 40" stroke="var(--k-barrier, #c92a2a)" stroke-width="2" stroke-linecap="round"/><rect x="195" y="22" width="90" height="16" rx="3" fill="color-mix(in srgb, #f2c94c 55%, transparent)"/><text x="200" y="34" font-size="11" font-family="Source Serif 4, serif" fill="var(--ink)">highlighted</text>'), h('div.pv-inkbar', ['✎ Pen', 'Highlighter', 'Eraser', 'Lasso'].map((x, i) => h('span' + (i ? '' : '.on'), x))))] });
 
   D({ id: 'pen', group: 'pen', core: true, label: 'Pen & touch shortcuts', desc: 'What the pen’s buttons, taps and gestures do. Today: the Slim Pen’s button switches to the pen and between its modes; the barrel button lassoes (in pen mode) or loops a region; the pen’s back erases; two fingers tapped undo, three redo; a right-drag loop makes a region; P pans. Choosing a different action for each comes in a later version.',
     tune: window.SIS_DESKTOP ? [T('button', 'The Slim Pen’s button (this computer)', 'node', { render: () => { const n = HANDS.settingsUI(); $$(':scope > .sec, :scope > .sec-h', n).forEach(x => x.remove()); return n; } })] : [],

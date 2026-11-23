@@ -4,6 +4,33 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.107] — 2026-11-23 — Scientia: ink — a dotted outline round all of it while the pointer is over any part of it, and while it is selected; none while the pen writes; see-through at all times (checked by pixels, light and dark)
+
+Gabe, 23 Nov: "The ink board is white, when I said it should be transparent (it currently is when the pen is writing) at all times. When hovering over the ink board you should be able to see a dotted outline of the entire board. The same when clicking on it. During the pen writing, you should not see any outline."
+
+App only.
+
+### Changed
+- **A dotted outline:**
+  - it shows round the whole ink component while the pointer is over any part of it, the empty part too (`.ink-hov`, set from the pointer's position, because only the strokes take the pointer), and while the ink is selected (darker);
+  - it is an outline, so nothing shifts;
+  - a click on the empty part still reaches the component beneath.
+- **No outline while the pen writes:**
+  - in pen mode (`body.ink-pen`: the pen hand, or the pen with the ink bar out, or the mouse when it draws), and while a stroke goes down;
+  - with the lab's pills, as on any hand but pan (V3.942);
+  - with the desktop's ink bar out, the mouse still sees the outline and the pen does not.
+- **See-through at all times:** V4.104 already did it. Before V4.104, look B gave ink a card, and only writing made it see-through. This version checks it with pixels.
+- **The ink's title tab** (shown while it is selected) keeps its own paper background. Look B had tinted it, so the card's header beneath showed through.
+- **Settings → Ink & shapes:**
+  - the description and the caption say it;
+  - pointing at the preview's ink outlines it, dotted.
+
+### Tests
+| Test | Result |
+|---|---|
+| `v107_t`, lab and plain builds:<br>- at rest, light and dark: the ink's empty part (over a card and over the paper) and its rim are the same pixels with the ink and without it; no outline;<br>- the pointer on the empty part: dotted outline round that ink alone, and the card is still under the pointer; away: none;<br>- a click on a stroke: selected, outlined;<br>- pen mode: none, pointed at or selected; a stroke going down, and after it: none;<br>- back to move: outlined again;<br>- plain: the ink bar out, the mouse sees it, the pen does not;<br>- Settings: the words, the preview's ink outlined while pointed at; `FEAT.audit()` empty | 17/17 · 18/18 |
+
+
 ## [V4.106] — 2026-11-23 — Scientia: Shift held while resizing goes a grid cell at a time, as Shift held while moving does: a component's edge and corner, an HTML page's and a PDF's grip, a table's height
 
 Gabe, 23 Nov: "Expanding and holding Shift key should also expand grid block by grid block."
