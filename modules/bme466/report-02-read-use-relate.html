@@ -1,0 +1,2696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Read, Use, Relate — Report 2 (BME 466/566)</title>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<!-- V3.685 — whiteboard panel (see hw-00-pretest.html for the full note).
+     Homework boards are owner-only and structurally unshareable. The relative
+     whiteboard/firebase-config paths 404 from local-test — that is expected
+     and fail-soft; they resolve on mcgheelab.com. This keeps the local file
+     byte-identical to the deployed copy (V2.48 deploy rule). -->
+<meta name="ml-module-viewport" content="1">
+<meta name="ml-module-board" content="homework">
+<meta name="ml-module-key" content="bme466-report2">
+<link rel="stylesheet" href="../../whiteboard-board.css">
+<link rel="stylesheet" href="../shared/whiteboard-panel.css">
+<!-- ML-CLOUD-SAVE: Firebase compat SDK (same 10.14.0 pins as mcgheelab.com).
+     Loaded with defer; Cloud.init() runs on window load and fails soft to
+     localStorage-only when these are unreachable (file://, offline). -->
+<script defer src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.14.0/firebase-storage-compat.js"></script>
+<script defer src="../../firebase-config.js"></script>
+<script defer src="../../whiteboard.js"></script>
+<script defer src="../shared/whiteboard-panel.js"></script>
+<style>
+/* ── Reset & Base ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  background:#f1f5f9;color:#1e293b;line-height:1.5;overflow-x:hidden}
+
+/* ── Header ── */
+header{background:linear-gradient(135deg,#1e3a5f 0%,#2563eb 100%);color:#fff;padding:22px 32px;text-align:center}
+header h1{font-size:1.65rem;font-weight:700;letter-spacing:-.5px}
+header .subtitle{font-size:.95rem;opacity:.85;margin-top:4px}
+
+/* ── Sign-in rail (NetID-seeded — no code is ever shown) ── */
+.id-rail{background:#0f172a;color:#e2e8f0;padding:8px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  position:sticky;top:0;z-index:120;box-shadow:0 1px 4px rgba(0,0,0,.3)}
+.id-rail button{border:none;border-radius:6px;padding:6px 12px;font-size:.78rem;font-weight:700;cursor:pointer;transition:all .15s}
+.id-status{font-size:.75rem;color:#94a3b8;flex:1;min-width:180px}
+.id-status strong{color:#fbbf24}
+.save-dot{font-size:.7rem;color:#34d399}
+.cloud-dot{font-size:.72rem;color:#94a3b8;white-space:nowrap}
+.cloud-dot.ok{color:#34d399}
+.cloud-dot.warn{color:#fbbf24}
+.cloud-dot.err{color:#f87171;cursor:pointer;text-decoration:underline}
+#cloud-google{background:#1e293b;color:#93c5fd;border:1px solid #334155}
+#cloud-google:hover{color:#dbeafe;border-color:#475569}
+#cloud-google[hidden]{display:none}
+.cloud-user{font-size:.72rem;color:#a7f3d0;white-space:nowrap}
+.cloud-user a{color:#64748b;font-size:.68rem;margin-left:6px}
+
+/* ── Tabs ── */
+.tab-bar{display:flex;background:#fff;border-bottom:2px solid #e2e8f0;padding:0 16px;overflow-x:auto;position:sticky;top:46px;z-index:100}
+.tab-btn{padding:12px 14px;border:none;background:none;font-size:.84rem;font-weight:600;color:#64748b;
+  cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;transition:all .2s}
+.tab-btn:hover{color:#2563eb}
+.tab-btn.active{color:#2563eb;border-bottom-color:#2563eb}
+.tabprog{font-size:.62rem;background:#eff6ff;color:#2563eb;border-radius:8px;padding:1px 6px;margin-left:5px;font-weight:800;vertical-align:middle}
+.tabprog.done{background:#dcfce7;color:#15803d}
+
+/* ── Main layout ── */
+main{max-width:1400px;margin:0 auto;padding:16px}
+.tab-content{display:none}
+.tab-content.active{display:flex;flex-direction:column}
+
+/* ── Background prose ── */
+.background-section{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);
+  padding:20px 26px;margin-bottom:14px;border-left:4px solid #1e3a5f}
+.background-section h2{font-size:1.08rem;color:#1e3a5f;margin-bottom:10px}
+.background-section h3{font-size:.95rem;color:#334155;margin:14px 0 6px}
+.background-section p,.background-section li{font-size:.88rem;color:#475569;line-height:1.6}
+.background-section ul,.background-section ol{padding-left:20px;margin:6px 0}
+.equation-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:10px 14px;margin:10px 0;overflow-x:auto}
+.equation-box mjx-container,.background-section mjx-container{max-width:100%;overflow-x:auto;overflow-y:hidden}
+.key-takeaways{background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 14px;margin-top:10px}
+.key-takeaways::before{content:"KEY TAKEAWAYS";display:block;font-size:.6rem;font-weight:700;letter-spacing:.08em;color:#15803d;margin-bottom:4px}
+.key-takeaways ul{margin:0 0 0 16px;padding:0}
+.key-takeaways li{font-size:.82rem;color:#14532d}
+.insight{background:#fffbeb;border-left:4px solid #f59e0b;border-radius:0 8px 8px 0;padding:12px 16px;margin:12px 0;font-size:.88rem;color:#78350f}
+.insight strong{color:#b45309}
+.bench-steps{margin:10px 0 4px}
+.bench-steps li{margin:7px 0}
+.bench-steps li::marker{font-weight:800;color:#1e3a5f}
+.cform{display:flex;flex-direction:column;gap:4px;margin-top:10px}
+.cform .crow{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.cform .clab{flex:0 0 330px;font-size:.88rem;color:#334155;line-height:1.4}
+.cform .qchoices{display:flex;gap:6px;flex-wrap:wrap;flex:1;min-width:280px}
+.cform .choice-btn{padding:5px 10px;font-size:.78rem;flex:0 1 auto}
+.cform input.wide{flex:1;min-width:260px}
+.cform .qstatus{margin:0 0 6px 340px}
+@media (max-width:900px){.cform .clab{flex-basis:100%}.cform .qstatus{margin-left:0}}
+.handoff{background:#eef2ff;border-left:4px solid #6366f1;border-radius:0 8px 8px 0;padding:10px 14px;margin:10px 0;font-size:.86rem;color:#3730a3}
+.handoff strong{color:#4338ca}
+
+/* ── Mission (gated questions) ── */
+.mission{margin-bottom:14px}
+.mission-label{font-size:.7rem;font-weight:800;letter-spacing:.1em;color:#7c3aed;margin:0 0 6px 2px}
+.qcard{background:#fff;border:2px solid #e2e8f0;border-radius:10px;padding:12px 16px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.qcard.active{border-color:#7c3aed}
+.qcard.answered{border-color:#86efac;background:#f7fdf9}
+.qcard.locked{opacity:.65;background:#f8fafc}
+.qnum{font-size:.64rem;font-weight:800;letter-spacing:.08em;color:#7c3aed}
+.qcard.answered .qnum{color:#15803d}
+.qtext{font-size:.9rem;color:#334155;margin:3px 0 8px;line-height:1.5}
+.qtext .grad,.qnum .grad{display:inline-block;background:#ede9fe;color:#6d28d9;border-radius:4px;font-size:.62rem;font-weight:800;padding:1px 5px;margin-right:6px;vertical-align:middle}
+.qrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.qrow input[type=text],.cform input[type=text]{border:1px solid #cbd5e1;border-radius:6px;padding:6px 10px;font-size:.86rem;
+  font-family:ui-monospace,Menlo,monospace;width:140px}
+.qrow input[type=text]:focus{outline:2px solid #c4b5fd;border-color:#7c3aed}
+.qrow .unit{font-size:.78rem;color:#64748b;min-width:60px}
+.qsubmit{background:#7c3aed;color:#fff;border:none;border-radius:6px;padding:7px 14px;font-size:.78rem;font-weight:700;cursor:pointer}
+.qsubmit:hover{background:#6d28d9}
+.qstatus{font-size:.8rem;line-height:1.4;flex-basis:100%}
+.qstatus.ok{color:#047857;font-weight:700}
+.qstatus.no{color:#b91c1c}
+.qstatus.rec{color:#334155}
+.tab-btn.practice-tab{color:#0e7490;font-weight:700}
+.tab-btn.practice-tab.active{color:#0e7490;border-bottom-color:#0e7490}
+.pquestion{background:#ecfeff;border:2px solid #a5f3fc;border-radius:10px;padding:12px 16px;margin-bottom:12px}
+.pquestion .plabel{font-size:.66rem;font-weight:800;letter-spacing:.1em;color:#0e7490;margin-bottom:4px}
+.pquestion p{font-size:.9rem;color:#155e75;line-height:1.55;margin:0}
+.reveal-box{background:#fff;border:1px dashed #cbd5e1;border-radius:10px;padding:12px 14px}
+.reveal-btn{background:#0f172a;color:#e2e8f0;border:none;border-radius:8px;padding:9px 16px;
+  font-size:.84rem;font-weight:700;cursor:pointer}
+.reveal-btn:hover{background:#1e293b}
+.reveal-btn.open{background:#ecfeff;color:#0e7490;border:1px solid #a5f3fc}
+.reveal-body{display:none;margin-top:10px;font-size:.86rem;color:#334155;line-height:1.6}
+.reveal-body.show{display:block}
+.reveal-body .cert{background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:8px 12px;margin-bottom:8px;
+  font-variant-numeric:tabular-nums;color:#14532d}
+.reveal-body .cert b{color:#15803d}
+.pq{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:12px 16px;margin-bottom:8px}
+.pq .pqt{font-size:.88rem;color:#334155;margin-bottom:8px;line-height:1.5}
+.pq .grad,.wq .grad{display:inline-block;background:#ede9fe;color:#6d28d9;border-radius:4px;font-size:.62rem;font-weight:800;padding:1px 5px;margin-right:5px;vertical-align:middle}
+.calnote{background:#ecfeff;border:1px solid #a5f3fc;border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:.82rem;color:#155e75}
+.calnote strong{color:#0e7490}
+.qchoices{display:flex;flex-direction:column;gap:6px;margin-top:4px}
+.choice-btn{text-align:left;border:1.5px solid #e2e8f0;background:#fff;border-radius:8px;padding:8px 12px;
+  font-size:.84rem;color:#334155;cursor:pointer;transition:all .12s;line-height:1.4}
+.choice-btn:hover{border-color:#c4b5fd;background:#faf5ff}
+.choice-btn.chosen{border-color:#7c3aed;background:#f5f3ff;color:#5b21b6;font-weight:600}
+.choice-btn.right{border-color:#059669;background:#ecfdf5;color:#065f46;font-weight:600}
+.xcheck{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;margin:8px 0;font-size:.84rem}
+.xcheck h4{font-size:.72rem;letter-spacing:.06em;color:#64748b;margin-bottom:6px;font-weight:800}
+.xrow{display:flex;gap:8px;padding:3px 0;border-bottom:1px solid #f1f5f9;line-height:1.45}
+.xrow .mark{font-weight:800;min-width:16px}
+.xrow.ok .mark{color:#059669}
+.xrow.warn .mark{color:#b45309}
+.xrow.na .mark{color:#94a3b8}
+.xrow .txt{color:#334155}
+.gate-msg{font-size:.78rem;color:#b45309;background:#fffbeb;border:1px dashed #fcd34d;border-radius:6px;padding:6px 10px;margin-top:4px;display:inline-block}
+.lock-msg{font-size:.8rem;color:#94a3b8}
+
+/* ── Practice concept picker (scenario bar) ── */
+.scenario-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#fff;border:1px solid #e2e8f0;
+  border-radius:10px;padding:10px 14px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.scenario-bar-label{font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#64748b}
+.scen-btn{border:1.5px solid #cbd5e1;background:#f8fafc;color:#334155;border-radius:16px;padding:6px 13px;
+  font-size:.8rem;font-weight:600;cursor:pointer;transition:all .12s}
+.scen-btn:hover{border-color:#67e8f9;background:#ecfeff}
+.scen-btn.on{background:#0e7490;border-color:#0e7490;color:#fff}
+
+
+/* ── Worked-example flow (V2.35 practice redesign) ── */
+.wsec{margin:26px 0;scroll-margin-top:110px}
+.wsec-head{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:16px 20px;border-left:4px solid #0e7490;margin-bottom:10px}
+.wsec-head h3{font-size:1.05rem;color:#0e7490;margin-bottom:6px}
+.wsec-intro{font-size:.88rem;color:#475569;line-height:1.55}
+.wsec-tools{display:flex;align-items:center;gap:14px;margin-top:10px;flex-wrap:wrap}
+.wsec-reset{font-size:.74rem;color:#94a3b8;text-decoration:underline;cursor:pointer}
+.wstep{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:14px;background:#fff;border:1px solid #e2e8f0;
+  border-radius:10px;padding:14px 16px;margin-bottom:10px}
+.wstep.done{border-color:#a7f3d0;background:#fbfefc}
+@media(max-width:900px){.wstep{grid-template-columns:1fr}}
+.wleft{min-width:0}
+.wq{font-size:.9rem;color:#334155;line-height:1.55;margin-bottom:8px}
+.wnum{display:inline-block;background:#0e7490;color:#fff;border-radius:4px;font-size:.62rem;font-weight:800;
+  letter-spacing:.06em;padding:2px 6px;margin-right:7px;vertical-align:middle}
+.wstep.done .wnum{background:#059669}
+.wplot{min-width:0}
+.wplot canvas{width:100%;max-width:100%;height:auto;background:#f8fafc;border:1px solid #f1f5f9;border-radius:8px}
+.wplot .runbtn{margin:2px 0 8px;padding:8px;font-size:.82rem}
+.wcap{font-size:.72rem;color:#94a3b8;margin-top:4px;line-height:1.4}
+.wshow a{font-size:.76rem;color:#b45309}
+.wsum{background:#ecfeff;border:2px solid #a5f3fc;border-radius:10px;padding:14px 18px;margin:4px 0 8px}
+.wsum p{font-size:.88rem;color:#155e75;line-height:1.6}
+.wsum .reveal-box{margin-top:10px;background:#fff}
+.wsum-wait{font-size:.78rem;color:#94a3b8;padding:2px 4px 10px}
+/* ── V2.48 practice additions: hint ladder, dual reveals, quiet bot link ── */
+.revbtn{display:block;width:100%;text-align:left;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:8px;
+  padding:9px 12px;font-size:.82rem;font-weight:600;color:#475569;cursor:pointer;margin:6px 0}
+.revbtn:hover{border-color:#94a3b8;color:#1e293b}
+.wrevb{background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px;margin:2px 0 8px}
+.cert{background:#fef9c3;border:1px solid #fde047;border-radius:8px;padding:8px 12px;font-size:.86rem;
+  color:#713f12;margin-bottom:8px}
+.whint{margin-top:8px}
+.whint-bar{font-size:.76rem}
+.whint-bar a{color:#b45309;text-decoration:underline;cursor:pointer}
+.whint-n{color:#cbd5e1;margin-left:8px;font-size:.7rem}
+.whint-line{background:#fffbeb;border-left:3px solid #fbbf24;border-radius:0 6px 6px 0;
+  padding:6px 10px;margin:5px 0;font-size:.8rem;color:#78350f;line-height:1.5}
+.whint-line span{font-weight:800;font-size:.68rem;letter-spacing:.05em;color:#b45309;margin-right:6px}
+.wsrc{margin:6px 0}
+.wsrc-body{background:#f5f3ff;border:1px solid #ddd6fe;border-radius:8px;padding:12px 16px;margin:2px 0 8px}
+.wsrc-note{font-size:.78rem;color:#6d28d9;font-style:italic;margin-bottom:8px}
+.wsrc-steps{margin:0 0 8px 20px}
+.wsrc-steps li{font-size:.84rem;color:#3b0764;line-height:1.55;margin-bottom:7px}
+.wsrc-steps .lead{font-weight:700;color:#6d28d9}
+.wsrc-answer{background:#fff;border:1px solid #ddd6fe;border-radius:6px;padding:7px 10px;font-size:.84rem;color:#3b0764}
+.wsrc-link{font-size:.76rem;margin-top:6px}
+.wsrc-link a{color:#7c3aed}
+.wsum-hints{font-size:.74rem;color:#0e7490;font-style:italic}
+.wsec-more{font-size:.76rem;color:#94a3b8;margin:2px 2px 0;font-style:italic}
+.wsec-more a{color:#64748b;text-decoration:underline;cursor:pointer}
+/* problem statements on the Problems / Challenge tabs */
+.prob-head{background:#f1f5f9;border-left:4px solid #2563eb;border-radius:0 8px 8px 0;
+  padding:10px 14px;margin:16px 0 8px}
+.prob-head h3{font-size:.98rem;color:#1e3a5f;margin-bottom:4px}
+.prob-head p{font-size:.86rem;color:#475569;line-height:1.55}
+.qrow input[disabled],.choice-btn[disabled],.qsubmit[disabled]{opacity:.45;cursor:not-allowed}
+
+/* ── Context panels (V2.38): floating Notes + Calculator ── */
+.tool-dock{display:flex;gap:6px;flex:none}
+.tool-btn{background:#1e293b;color:#94a3b8;border:1px solid #334155;border-radius:6px;padding:5px 10px;
+  font-size:.76rem;font-weight:700;cursor:pointer;white-space:nowrap}
+.tool-btn:hover{color:#e2e8f0;border-color:#475569}
+.tool-btn.on{background:#0e7490;color:#fff;border-color:#0e7490}
+.cpanel{position:fixed;z-index:210;background:#fff;border:1px solid #cbd5e1;border-radius:12px;
+  box-shadow:0 10px 34px rgba(15,23,42,.30);display:flex;flex-direction:column;
+  resize:both;overflow:hidden;min-width:300px;min-height:44px;max-width:97vw;max-height:94vh}
+.cpanel[hidden]{display:none}
+.cpanel.min{resize:none;min-height:0;height:auto !important}
+.cpanel.min .cpanel-body{display:none}
+.cpanel-head{display:flex;align-items:center;gap:8px;background:#0f172a;color:#e2e8f0;padding:8px 12px;
+  cursor:grab;flex:none;touch-action:none;user-select:none}
+.cpanel-head:active{cursor:grabbing}
+.cpanel-title{font-size:.82rem;font-weight:700;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cpanel-btns{display:flex;gap:6px}
+.cpanel-btns button{background:#1e293b;color:#cbd5e1;border:none;border-radius:5px;width:24px;height:22px;
+  font-size:.68rem;cursor:pointer;line-height:1}
+.cpanel-btns button:hover{background:#334155;color:#fff}
+.cpanel-body{flex:1;overflow:auto;padding:12px 14px;min-height:0;overscroll-behavior:contain}
+.cpanel-body .background-section{padding:14px 16px;margin-bottom:12px;box-shadow:none;border:1px solid #f1f5f9}
+.cpanel-body-calc{display:flex;flex-direction:column}
+.cpanel-body-calc .calc{flex:1;min-height:0}
+@media(max-width:700px){
+  .cpanel{left:0 !important;right:0 !important;top:auto !important;bottom:0 !important;width:100% !important;
+    height:auto !important;max-height:72vh;border-radius:14px 14px 0 0;resize:none;max-width:100vw}
+  .cpanel-head{cursor:default}
+  .graph-wrap{flex:none}
+  #graph-cv{height:auto;aspect-ratio:16/10;max-height:34vh}
+}
+.calc{display:flex;flex-direction:column;gap:8px;flex:1;min-height:0}
+.calc-modes{display:flex;gap:5px;align-items:center;flex:none}
+.calc-modes button{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:7px;padding:4px 0;flex:1;
+  font-size:.76rem;font-weight:700;color:#475569;cursor:pointer}
+.calc-modes button:hover{border-color:#94a3b8}
+.calc-modes button.on{background:#0e7490;border-color:#0e7490;color:#fff}
+.calc-modes #cm-pad{flex:0 0 36px}
+.calc-q{flex:none;width:18px;height:18px;border-radius:50%;background:#e2e8f0;color:#64748b;font-size:.68rem;
+  font-weight:800;display:flex;align-items:center;justify-content:center;cursor:help}
+.calc-face{display:flex;flex-direction:column;gap:8px;flex:1;min-height:0}
+.calc-face[hidden]{display:none}
+.calc-hist{flex:1;min-height:60px;overflow:auto;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;
+  padding:8px 10px;font:12px/1.7 ui-monospace,Menlo,monospace}
+.calc-row{display:flex;align-items:baseline;gap:8px;padding:2px 0;border-bottom:1px dashed #f1f5f9;cursor:pointer}
+.calc-row:hover{background:#f1f5f9}
+.calc-row .ce{color:#64748b;flex:1;word-break:break-all;font-size:11px}
+.calc-row .cr{color:#0f172a;font-weight:700;white-space:nowrap}
+.calc-row .cerr{color:#b45309;font-size:11px}
+.calc-row .ccopy{border:none;background:none;color:#94a3b8;cursor:pointer;font-size:12px;padding:0 2px;flex:none}
+.calc-row .ccopy:hover{color:#0e7490}
+.calc-vars{display:flex;gap:6px;font-size:.72rem;align-items:center;min-height:22px;overflow-x:auto;flex:none;white-space:nowrap}
+.calc-vars .vchip{background:#ecfeff;border:1px solid #a5f3fc;color:#155e75;border-radius:12px;padding:2px 9px;
+  cursor:pointer;font-family:ui-monospace,Menlo,monospace;flex:none}
+.calc-vars .vchip:hover{border-color:#22d3ee}
+.calc-vars .vdel{margin-left:6px;color:#94a3b8;cursor:pointer}
+.calc-vars .vdel:hover{color:#b91c1c}
+.calc-vars .vclear{border:none;background:none;color:#94a3b8;text-decoration:underline;cursor:pointer;font-size:.7rem;flex:none}
+.calc-disp{background:#0f172a;border-radius:10px;padding:9px 12px 7px;flex:none;display:flex;flex-direction:column;gap:2px}
+.calc-disp-row{display:flex;gap:8px;align-items:center}
+.calc-disp-row input{flex:1;background:none;border:none;outline:none;min-width:0;
+  font:1.02rem/1.4 ui-monospace,Menlo,monospace;color:#f1f5f9;caret-color:#7dd3fc}
+.calc-disp-row input::placeholder{color:#475569;font-size:.8rem}
+#calc-mode{background:#1e293b;color:#fbbf24;border:none;border-radius:6px;padding:3px 8px;
+  font-size:.68rem;font-weight:800;cursor:pointer;flex:none;letter-spacing:.04em}
+#calc-mode:hover{background:#334155}
+.calc-prev{min-height:1.15em;text-align:right;font:.84rem ui-monospace,Menlo,monospace;color:#7dd3fc}
+.calc-prev.perr{color:#fbbf24;font-size:.72rem}
+.calc-pad{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;flex:none}
+.calc-pad[hidden],.calc-more[hidden]{display:none}
+.calc-pad button{border:1px solid #e2e8f0;background:#f8fafc;border-radius:8px;min-height:30px;
+  font-size:.88rem;color:#334155;cursor:pointer;font-family:ui-monospace,Menlo,monospace;padding:0}
+.calc-pad button:hover{background:#ecfeff;border-color:#67e8f9}
+.calc-pad button:active{transform:scale(.96)}
+.calc-pad button.kd{background:#fff;font-weight:700;color:#0f172a}
+.calc-pad button.kf{background:#e2e8f0;font-size:.78rem}
+.calc-pad button.keq{background:#0e7490;border-color:#0e7490;color:#fff;font-weight:800}
+.calc-pad button.keq:hover{background:#155e75}
+.calc-pad button.kon{background:#0f172a;border-color:#0f172a;color:#fbbf24}
+.calc-more{display:flex;flex-wrap:wrap;gap:4px;flex:none}
+.calc-more button{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;padding:3px 9px;font-size:.74rem;
+  font-family:ui-monospace,Menlo,monospace;cursor:pointer;color:#334155}
+.calc-more button:hover{background:#ecfeff;border-color:#67e8f9}
+.calc-hint{font-size:.66rem;color:#94a3b8;line-height:1.5;flex:none;margin:0}
+/* graph face */
+.graph-wrap{position:relative;flex:1 1 58%;min-height:110px}
+#graph-cv{display:block;width:100%;height:100%;background:#fff;
+  border:1px solid #e2e8f0;border-radius:10px;touch-action:none;cursor:grab}
+#graph-cv:active{cursor:grabbing}
+.graph-tools{position:absolute;right:7px;top:7px;display:flex;flex-direction:column;gap:4px}
+.graph-tools button{width:26px;height:24px;border:1px solid #e2e8f0;background:rgba(255,255,255,.92);
+  border-radius:6px;cursor:pointer;color:#475569;font-size:.8rem;line-height:1}
+.graph-tools button:hover{border-color:#67e8f9;color:#0e7490}
+.graph-exprs{flex:1 1 42%;min-height:64px;overflow:auto;display:flex;flex-direction:column;gap:4px}
+.gexpr{display:flex;align-items:center;gap:7px;border:1px solid #e2e8f0;border-radius:8px;
+  padding:5px 7px;flex-wrap:wrap;flex:none;background:#fff}
+.gexpr.gerr{border-color:#fca5a5;background:#fff7f7}
+.gexpr .gdot{width:15px;height:15px;border-radius:50%;border:none;background:var(--c,#2563eb);cursor:pointer;flex:none;padding:0}
+.gexpr.goff .gdot{background:#fff;box-shadow:inset 0 0 0 2.5px var(--c,#2563eb)}
+.gexpr .gin{flex:1;border:none;outline:none;background:none;min-width:0;
+  font:.85rem ui-monospace,Menlo,monospace;color:#0f172a}
+.gexpr .gx{border:none;background:none;color:#cbd5e1;cursor:pointer;font-size:.78rem;flex:none;padding:0 2px}
+.gexpr .gx:hover{color:#b91c1c}
+.gexpr .gsl{flex:0 0 100%;display:flex;align-items:center;gap:6px}
+.gexpr .gsl[hidden]{display:none}
+.gexpr .gsr{flex:1;accent-color:var(--c,#2563eb);min-width:0}
+.gexpr .gsn{width:52px;border:1px solid #e2e8f0;border-radius:5px;font:.68rem ui-monospace,Menlo,monospace;
+  padding:2px 4px;color:#64748b;text-align:center}
+.graph-add{border:1px dashed #cbd5e1;background:none;border-radius:8px;padding:5px;color:#64748b;
+  cursor:pointer;font-size:.76rem;flex:none}
+.graph-add:hover{border-color:#0e7490;color:#0e7490}
+/* collapsible notes sections */
+#panel-notes .nsec-h{cursor:pointer}
+#panel-notes .nsec-h:hover{color:#0e7490}
+.nsec-car{color:#94a3b8;font-size:.78em;margin-right:2px}
+#panel-notes .background-section.nsec-closed{padding-top:10px;padding-bottom:10px;margin-bottom:8px}
+#panel-notes .background-section.nsec-closed>*:not(.nsec-h){display:none}
+#panel-notes .background-section.nsec-closed .nsec-h{margin:0}
+
+/* ── Notes tab ── */
+.eqmeta{list-style:none;margin:8px 0 0;font-size:.84rem;line-height:1.55;color:#334155}
+.eqmeta li{padding:2px 0 2px 0}
+.eqmeta b{display:inline-block;min-width:118px;color:#0f172a;font-size:.72rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;vertical-align:top}
+.eqmeta li span{display:inline-block;max-width:calc(100% - 130px)}
+.worked{background:#fff;border:1px solid #e2e8f0;border-radius:10px;margin:10px 0;padding:0}
+.worked summary{cursor:pointer;padding:12px 16px;font-size:.9rem;font-weight:700;color:#1e3a5f;list-style:none}
+.worked summary::before{content:'▸ ';color:#0e7490}
+.worked[open] summary::before{content:'▾ '}
+.worked .wbody{padding:0 18px 14px;font-size:.87rem;color:#334155;line-height:1.65;border-top:1px dashed #e2e8f0}
+.worked .wbody p{margin:8px 0}
+.punit{font-size:.8rem;color:#64748b}
+
+/* ── Experiment panel ── */
+.panel{display:grid;grid-template-columns:300px 1fr;gap:14px;margin-bottom:14px}
+@media(max-width:900px){.panel{grid-template-columns:1fr}}
+.ctrl{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:14px}
+.ctrl h3{font-size:.82rem;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8;margin-bottom:10px;border-bottom:1px solid #f1f5f9;padding-bottom:6px}
+.ctrl-group{margin-bottom:11px}
+.ctrl-group label{display:flex;justify-content:space-between;font-size:.82rem;font-weight:600;color:#334155;margin-bottom:3px}
+.ctrl-group label span{font-weight:400;color:#2563eb;font-variant-numeric:tabular-nums}
+.ctrl-group input[type=range]{width:100%;accent-color:#2563eb;height:6px}
+.runbtn{width:100%;background:#059669;color:#fff;border:none;border-radius:8px;padding:10px;font-size:.9rem;font-weight:800;cursor:pointer;margin:4px 0 10px}
+.runbtn:hover{background:#047857}
+.runbtn.running{background:#b45309}
+.stats{background:#f8fafc;border-radius:8px;padding:11px;font-size:.82rem;font-variant-numeric:tabular-nums;margin-top:6px}
+.stats h4{font-size:.68rem;letter-spacing:.06em;color:#64748b;margin-bottom:5px;font-weight:800}
+.stat-row{display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid #f1f5f9}
+.stat-row .label{color:#64748b}
+.stat-row .value{font-weight:600;color:#1e293b}
+.stat-row.highlight .value{color:#2563eb}
+.stats.fresh{outline:2px solid #34d399}
+
+/* ── Viz + data ── */
+.viz{display:flex;flex-direction:column;gap:12px}
+.canvas-wrap{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:12px}
+.canvas-wrap canvas{display:block;width:100%;height:auto;max-width:100%;border-radius:6px}
+.canvas-title{font-size:.76rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+.chart-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:700px){.chart-row{grid-template-columns:1fr}}
+.data-card{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:12px}
+table.dt{width:100%;border-collapse:collapse;font-size:.8rem;font-variant-numeric:tabular-nums}
+table.dt th{background:#f1f5f9;color:#334155;font-weight:700;padding:4px 8px;border:1px solid #e2e8f0;text-align:left}
+table.dt td{padding:3px 8px;border:1px solid #f1f5f9;color:#1e293b}
+table.dt td.del{width:26px;text-align:center}
+.dt-del{border:none;background:none;color:#ef4444;cursor:pointer;font-weight:800;font-size:.82rem}
+.addrow{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px}
+.addrow input[type=text]{border:1px solid #cbd5e1;border-radius:6px;padding:5px 8px;font-size:.8rem;
+  font-family:ui-monospace,Menlo,monospace;width:96px}
+.addrow input[type=text]:focus{outline:2px solid #93c5fd;border-color:#2563eb}
+.addbtn{background:#2563eb;color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:.76rem;font-weight:700;cursor:pointer}
+.addbtn:hover{background:#1d4ed8}
+.addrow .addmsg{font-size:.76rem;flex-basis:100%}
+.addrow .addmsg.no{color:#b91c1c}
+.addrow .addmsg.ok{color:#047857}
+.val-verdict{border-radius:8px;padding:10px 14px;font-size:.84rem;line-height:1.5}
+.val-verdict.good{background:#f0fdf4;border:1px solid #86efac;color:#14532d}
+.val-verdict.bad{background:#fef2f2;border:1px solid #fca5a5;color:#7f1d1d}
+.val-verdict.warn{background:#fffbeb;border:1px solid #fde68a;color:#78350f}
+.val-verdict strong{display:block;font-size:.9rem;margin-bottom:2px}
+
+/* ── Map/export tab ── */
+.report-grid{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:18px 22px;margin-bottom:14px}
+.report-grid h3{font-size:.95rem;color:#1e3a5f;margin:12px 0 8px;border-bottom:1px solid #f1f5f9;padding-bottom:4px}
+.report-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.report-actions button,.report-actions label.filebtn{border:none;border-radius:8px;padding:10px 18px;font-size:.85rem;font-weight:700;cursor:pointer}
+#btn-export{background:#2563eb;color:#fff}
+#btn-export:hover{background:#1d4ed8}
+label.filebtn{background:#f1f5f9;color:#334155;border:1px solid #cbd5e1 !important;display:inline-block}
+label.filebtn:hover{background:#e2e8f0}
+#btn-clear{background:#fff;color:#b91c1c;border:1px solid #fca5a5 !important}
+.report-note{font-size:.8rem;color:#64748b;margin-top:10px;line-height:1.5}
+.report-note strong{color:#b45309}
+table.prog{width:100%;border-collapse:collapse;font-size:.84rem;margin:8px 0}
+table.prog th,table.prog td{border:1px solid #e2e8f0;padding:5px 10px;text-align:left;color:#475569}
+table.prog th{background:#f1f5f9;color:#334155}
+table.prog td.ok{color:#15803d;font-weight:700}
+table.prog td.todo{color:#b45309}
+
+/* ── Sources / footer ── */
+.sources{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:18px 24px;margin-top:16px}
+.sources h2{font-size:1rem;color:#1e3a5f;margin-bottom:8px}
+.sources ol{margin:0 0 0 18px}
+.sources li{font-size:.8rem;color:#475569;margin-bottom:5px;line-height:1.45}
+.sources a{color:#2563eb;text-decoration:none}
+.sources a:hover{text-decoration:underline}
+footer{text-align:center;padding:20px;font-size:.78rem;color:#94a3b8}
+mjx-container{display:inline-block !important}
+
+/* ══════════════════════════════════════════════════════════════════════
+   THE BENCH (unused in Report 2, which has no bench) — every rule namespaced under .scope.
+   Nothing here may leak into the shell's own components: the only
+   selectors are .scope, .scope-*, and descendants of .scope.
+   ══════════════════════════════════════════════════════════════════════ */
+.scope{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin:14px 0}
+
+/* ── slide chips ───────────────────────────────────────────────────── */
+.scope-top{margin-bottom:12px}
+.scope-slides{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:8px}
+.scope-lbl{font-size:.7rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#64748b}
+.scope .slide-chip{border:1px solid #cbd5e1;background:#fff;color:#334155;border-radius:999px;
+  padding:6px 14px;font-size:.84rem;font-weight:600;cursor:pointer;transition:.12s}
+.scope .slide-chip:hover{border-color:#94a3b8;background:#f8fafc}
+.scope .slide-chip.on{background:#1e3a5f;border-color:#1e3a5f;color:#fff;box-shadow:0 1px 3px rgba(30,58,95,.3)}
+.scope-job{margin-bottom:8px}
+
+/* ── the protocol strip: Set ▸ Run ▸ Keep n/5 ▸ Answer ─────────────── */
+.scope-strip{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:9px 12px}
+.strip-steps{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:6px}
+.strip-step{font-size:.82rem;font-weight:700;color:#94a3b8;background:#f8fafc;border:1px solid #e2e8f0;
+  border-radius:6px;padding:3px 10px;font-variant-numeric:tabular-nums}
+.strip-step.lit{color:#065f46;background:#ecfdf5;border-color:#6ee7b7}
+.strip-arrow{color:#cbd5e1;font-size:.8rem}
+.strip-rule{font-size:.78rem;line-height:1.5;color:#475569;border-top:1px dashed #e2e8f0;padding-top:6px}
+.strip-rule.ok{color:#065f46}
+
+/* ── the result card ───────────────────────────────────────────────── */
+.scope-card{margin-top:8px}
+.scope-legend{font-size:.72rem;line-height:1.45;color:#64748b;margin:6px 2px 8px}
+.scope-tags{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:8px}
+.tag-lbl{font-size:.68rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#94a3b8;
+  width:100%;margin-bottom:-2px}
+.scope .tagbtn{flex:1 1 46%;border:1px solid #cbd5e1;background:#fff;color:#475569;border-radius:7px;
+  padding:6px 8px;font-size:.74rem;font-weight:600;cursor:pointer;line-height:1.25;text-align:left}
+.scope .tagbtn:disabled{opacity:.45;cursor:not-allowed}
+.scope .tagbtn.ok.on{background:#ecfdf5;border-color:#10b981;color:#065f46}
+.scope .tagbtn.no.on{background:#fffbeb;border-color:#f59e0b;color:#78350f}
+.scope .keepbtn{width:100%;background:#1e3a5f;color:#fff;border:none;border-radius:8px;padding:9px;
+  font-size:.86rem;font-weight:800;cursor:pointer}
+.scope .keepbtn:hover:not(:disabled){background:#152c47}
+.scope .keepbtn:disabled{background:#cbd5e1;color:#f8fafc;cursor:not-allowed}
+.scope-keepnote{font-size:.72rem;line-height:1.4;color:#64748b;margin:6px 2px 0}
+
+/* ── axis chips over the sweep ─────────────────────────────────────── */
+.scope-axes{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin-bottom:7px}
+.ax-lbl{font-size:.64rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#94a3b8;
+  margin-right:2px}
+.scope .ax-chip{border:1px solid #e2e8f0;background:#f8fafc;color:#475569;border-radius:6px;
+  padding:3px 9px;font-size:.73rem;font-weight:600;cursor:pointer}
+.scope .ax-chip:hover{border-color:#cbd5e1;background:#fff}
+.scope .ax-chip.on{background:#2563eb;border-color:#2563eb;color:#fff}
+
+/* ── the fit numbers under the sweep ───────────────────────────────── */
+.scope-fit{font-size:.78rem;line-height:1.55;color:#1e293b;margin-top:7px;padding:8px 10px;
+  background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-variant-numeric:tabular-nums}
+.scope-fit strong{color:#1e3a5f}
+.fit-note{color:#64748b;font-size:.72rem}
+.fit-none{color:#64748b}
+
+/* ── the kept-runs table ───────────────────────────────────────────── */
+.scope .scope-dt{margin-bottom:10px}
+.scope .scope-dt th,.scope .scope-dt td{padding:3px 5px;font-size:.74rem}
+.scope .scope-dt td{white-space:nowrap}
+.scope .scope-dt th{white-space:normal;line-height:1.2}
+.scope .scope-dt .num{padding:3px 2px;color:#94a3b8;text-align:right}
+.scope .scope-dt span.sig{color:#94a3b8;font-size:.92em}
+
+.scope .scope-dt tr.row-noisy td{color:#94a3b8;background:#fafafa}
+.scope .scope-dt td.tagcell{text-align:center;padding:2px 4px}
+.scope .rowtag{border:1px solid transparent;border-radius:999px;padding:1px 9px;font-size:.68rem;
+  font-weight:700;cursor:pointer;line-height:1.5}
+.scope .rowtag.ok{background:#ecfdf5;border-color:#a7f3d0;color:#065f46}
+.scope .rowtag.no{background:#fffbeb;border-color:#fde68a;color:#78350f}
+.scope-empty{font-size:.8rem;color:#94a3b8;margin:4px 0}
+
+/* ── layout tweaks that belong to the scope only ───────────────────── */
+/* grid tracks default to min-width:auto, so a canvas that setupCanvas has
+   pinned to an inline pixel width can push its own column wider than the
+   viewport and never shrink back.  min-width:0 lets the track shrink, the
+   canvas's max-width:100% then clamps it, and the next render measures the
+   smaller box — the whole thing re-converges on resize. */
+.scope .panel > *, .scope .chart-row > *{min-width:0}
+.scope .data-card{overflow-x:auto}
+.scope .panel{margin-bottom:12px}
+.scope .val-verdict{margin-top:2px}
+.scope .canvas-wrap{padding:10px}
+
+@media (max-width: 860px){
+  .scope .panel{grid-template-columns:1fr}
+  .scope .chart-row{grid-template-columns:1fr}
+}
+@media (max-width: 640px){
+  .scope{padding:10px}
+  .scope .slide-chip{padding:5px 11px;font-size:.78rem}
+  .strip-step{font-size:.75rem;padding:2px 8px}
+  .scope .tagbtn{flex:1 1 100%}
+  .scope-fit{font-size:.74rem}
+}
+
+/* ── bench additions: slide heads, ladder table, job line ── */
+.prob-head.slide-head h3{color:#1e3a5f}
+table.ladder td.ok{color:#065f46;font-weight:600}
+.scope .job{font-size:.9rem;line-height:1.5;margin:6px 0 8px;padding:8px 12px;background:#f8fafc;border-left:3px solid #2563eb;border-radius:0 6px 6px 0}
+.scope-practice{border:1px dashed #94a3b8;border-radius:10px;padding:10px;margin:8px 0 12px;background:#fffdf5}
+
+/* ════ Report 2 extras ════ */
+.opt-pane[hidden]{display:none!important}
+.pick-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin:14px 0}
+.pick-card{background:#fff;border:2px solid #e2e8f0;border-radius:12px;padding:16px 18px;box-shadow:0 1px 3px rgba(0,0,0,.06);display:flex;flex-direction:column;gap:6px}
+.pick-card.chosen{border-color:#2563eb;background:#eff6ff}
+.pick-card h3{font-size:1rem;color:#1e3a5f;margin:0}
+.pick-card .meta{font-size:.78rem;color:#64748b}
+.pick-card .spine{font-size:.82rem;color:#334155}
+.pick-card .pickbtn{margin-top:auto;padding:8px 14px;border:2px solid #2563eb;background:#2563eb;color:#fff;border-radius:8px;font-weight:700;cursor:pointer}
+.pick-card.chosen .pickbtn{background:#fff;color:#2563eb}
+.assume-card{background:#fff;border:1px solid #cbd5e1;border-left:4px solid #0f766e;border-radius:10px;padding:14px 18px;margin:14px 0}
+.assume-card::before{content:"YOUR CARD — these numbers are yours alone";display:block;font-size:.62rem;font-weight:800;letter-spacing:.09em;color:#0f766e;margin-bottom:6px}
+.assume-conv{margin:10px 0 0 18px;font-size:.86rem;color:#334155}
+.assume-conv li{margin:4px 0}
+#assume-host:empty{display:none}
+.budget{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+.budget span{background:#f1f5f9;border-radius:20px;padding:4px 12px;font-size:.78rem;color:#334155}
+.q566{display:inline-block;font-size:.66rem;font-weight:800;letter-spacing:.08em;color:#7c3aed;background:#f5f3ff;border-radius:6px;padding:2px 7px;margin-left:6px;vertical-align:middle}
+.xinline{font-weight:700;margin-left:6px}
+.xinline.ok{color:#059669}.xinline.warn{color:#b45309}.xinline.no{color:#b91c1c}
+.xrow.no .mark{color:#b91c1c}.xrow.idle .mark{color:#94a3b8}
+.scope-empty{color:#64748b;font-size:.88rem}
+.report-note code{background:#f1f5f9;border-radius:4px;padding:1px 5px;font-size:.85em}
+table.ladder td.ok{color:#065f46;font-weight:600}
+.given{font-weight:700;color:#0f766e}
+.given:empty::before{content:"…";color:#94a3b8}
+.prob-head .givens{display:flex;flex-wrap:wrap;gap:6px 14px;margin:8px 0 2px;font-size:.84rem;color:#1e3a5f}
+.prob-head .givens span{background:#fff;border:1px solid #dbe3ee;border-radius:6px;padding:3px 9px;white-space:normal}
+.prob-head .givens span b{color:#0f172a}
+.prob-head .ph-body{font-size:.86rem;color:#475569;line-height:1.55}
+.prob-head .ph-link{font-size:.78rem;color:#64748b;margin:6px 0 0}
+/* Tab 1: the questions, generated from the prompt */
+.kq{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:18px 22px;margin-bottom:14px;font-size:.92rem;line-height:1.6;color:#1e293b}
+.kq h1{font-size:1.25rem;color:#1e3a5f;margin:0 0 10px}
+.kq h2{font-size:1.02rem;color:#1e3a5f;margin:18px 0 8px;border-bottom:1px solid #f1f5f9;padding-bottom:4px}
+.kq h3{font-size:.95rem;color:#334155;margin:14px 0 6px}
+.kq p{margin:8px 0}
+.kq ul,.kq ol{margin:6px 0 10px 24px}
+.kq li{margin:3px 0}
+.kq table{width:100%;border-collapse:collapse;font-size:.86rem;margin:8px 0}
+.kq th,.kq td{border:1px solid #e2e8f0;padding:5px 10px;text-align:left;vertical-align:top}
+.kq th{background:#f1f5f9;color:#334155}
+.kq code{background:#f1f5f9;border-radius:4px;padding:1px 5px;font-size:.88em}
+.kq .step{border-left:4px solid #2563eb;background:#f8fafc;border-radius:0 8px 8px 0;padding:10px 14px;margin:12px 0}
+.kq .step>p:first-child{margin-top:0}
+.kq .fc{margin-top:6px}
+.kq .fc>p{font-weight:700;color:#7c3aed;font-size:.8rem;letter-spacing:.04em;text-transform:uppercase;margin:4px 0 2px}
+.kq .fc li{margin:2px 0}
+.kq .mathjax,.kq .math{overflow-x:auto}
+.kq .q-prelude{font-size:.86rem;color:#475569}
+.kq .lecture{font-style:italic;color:#475569;font-size:.86rem}
+.k-card{margin:4px 0 10px}
+.k-card .k-card-lead{font-size:.8rem;color:#64748b;margin:0 0 2px}
+.k-card .givens{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.84rem;color:#1e3a5f}
+.k-card .givens span{background:#fff;border:1px solid #dbe3ee;border-radius:6px;padding:3px 9px}
+.k-card .givens span b{color:#0f172a}
+/* Tab 0: the AI policy, spliced in from the prompt, one tick box per part; the papers wait for all three */
+.ai-policy p{margin:8px 0}
+.ai-policy .ai-lead{font-size:.84rem;color:#475569;margin-top:0}
+.ai-policy .ai-part,.ai-policy .ai-nots li{border-left:3px solid #cbd5e1;padding:2px 0 8px 12px;margin:10px 0}
+.ai-policy .ai-nots{list-style:none;margin:4px 0 8px;padding:0}
+.ai-ack{display:flex;align-items:center;gap:8px;width:fit-content;margin-top:8px;padding:6px 12px;border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc;font-size:.84rem;font-weight:600;color:#334155;cursor:pointer;user-select:none}
+.ai-ack input{width:18px;height:18px;margin:0;cursor:pointer;accent-color:#059669}
+.ai-ack.on{border-color:#059669;background:#ecfdf5;color:#065f46}
+.ai-ack:has(input:disabled){cursor:default}
+.ai-policy .ai-done{color:#065f46;font-size:.88rem;margin:12px 0 0}
+.ai-gate-note{margin:14px 0;padding:14px 18px;border:2px dashed #cbd5e1;border-radius:12px;text-align:center;color:#64748b;font-size:.9rem;background:#fff}
+#after-ai[hidden],.ai-gate-note[hidden]{display:none!important}
+/* Tab 1: the paper and the questions, as two PDFs */
+.pdf-pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin:12px 0}
+.pdf-btn{display:flex;align-items:center;gap:12px;padding:14px 16px;border:2px solid #2563eb;border-radius:12px;background:#eff6ff;color:#1e3a5f;text-decoration:none}
+.pdf-btn:hover{background:#dbeafe}
+.pdf-btn .pdf-ico{font-size:1.8rem;line-height:1}
+.pdf-btn strong{display:block;font-size:.98rem}
+.pdf-btn small{display:block;font-size:.78rem;color:#475569;margin-top:2px}
+.jump-lead{font-size:.82rem;color:#64748b;margin:10px 0 4px}
+.jumps{display:flex;flex-wrap:wrap;gap:6px}
+.jumps .jump{font-size:.8rem;font-weight:700;color:#1e3a5f;background:#fff;border:1px solid #cbd5e1;border-radius:8px;padding:4px 10px;text-decoration:none}
+.jumps .jump small{font-weight:400;color:#64748b}
+.jumps .jump:hover{border-color:#2563eb}
+.jumps .jump.flash{border-color:#7c3aed;background:#f5f3ff;box-shadow:0 0 0 3px #ddd6fe}
+
+/* ════ RESPONSIVE ════ */
+@media (max-width: 640px){
+  header{padding:14px 12px} header h1{font-size:1.15rem} header .subtitle{font-size:.75rem}
+  .tab-bar{padding:0 6px;top:88px} .tab-btn{padding:10px 8px;font-size:.72rem}
+  main{padding:10px 8px;max-width:100%}
+  .id-rail{padding:6px 8px;gap:6px}
+  .id-rail input[type=text]{width:118px}
+  .background-section{padding:14px 14px}
+  .qrow input[type=text]{width:110px}
+  .ctrl{padding:12px} .canvas-wrap{padding:8px} .stats{padding:10px;font-size:.76rem}
+}
+</style>
+<!-- ══ no-copy guard ══════════════════════════════════════════════════════════
+     Canonical source. Paste this block verbatim into the <head> of every
+     student-facing course page, and pass it to pandoc-built pages with
+     `--include-in-header scripts/nocopy-header.html`. Edit it HERE, then
+     re-sync the copies (`python3 scripts/sync_nocopy.py --check`).
+
+     What it does: course text cannot be selected, copied, cut, dragged out,
+     right-click-saved, or printed. Fields the student types into stay fully
+     editable and pasteable — students still paste numbers and notes.
+
+     Why: bulk-pasting a gated question into a chatbot should be a decision,
+     not a reflex. Honest limit — this is friction, not encryption. View
+     Source, devtools, "Save page as", a screen reader, or a phone camera all
+     still reach the text; per-student data is what actually makes the answer
+     unshareable. Screen readers are unaffected: `user-select` does not touch
+     the accessibility tree, and no ARIA is hidden here.
+-->
+<style id="nocopy-css">
+html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;
+  -webkit-touch-callout:none}
+input,textarea,select,option,[contenteditable="true"]{
+  -webkit-user-select:text !important;-moz-user-select:text !important;
+  -ms-user-select:text !important;user-select:text !important}
+::selection{background:transparent}
+input::selection,textarea::selection{background:#bfdbfe}
+@media print{
+  html,body{visibility:hidden !important}
+  body::after{visibility:visible !important;display:block;position:fixed;top:38%;left:0;right:0;
+    padding:0 12%;text-align:center;color:#111;
+    font:600 13pt/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    content:"This page is not printable. Work through it in the browser — your dataset is generated live."}
+}
+</style>
+<script id="nocopy-js">
+(function(){
+  'use strict';
+  /* Anything you type into stays live; everything else is inert. */
+  function editable(el){
+    return !!el && (el.tagName==='INPUT'||el.tagName==='TEXTAREA'||el.isContentEditable===true);
+  }
+  function inEditable(node){
+    var n = (node && node.nodeType===1) ? node : (node && node.parentElement);
+    while(n){ if(editable(n)) return true; n = n.parentElement; }
+    return false;
+  }
+  /* Capture phase: the event is stopped before it reaches element-level
+     handlers, which is also what kills the MathJax right-click menu (it
+     offers "Show Math As → TeX Commands", i.e. copyable source). */
+  ['contextmenu','selectstart','dragstart','copy','cut'].forEach(function(ev){
+    document.addEventListener(ev, function(e){
+      if(editable(e.target)) return;
+      if(e.clipboardData){ try{ e.clipboardData.setData('text/plain',''); }catch(_){} }
+      e.preventDefault(); e.stopPropagation();
+    }, true);
+  });
+  document.addEventListener('keydown', function(e){
+    if(editable(e.target)) return;          /* Ctrl+A / Ctrl+C inside a field is fine */
+    var k = (e.key||'').toLowerCase();
+    if((e.ctrlKey||e.metaKey) && (k==='c'||k==='x'||k==='a'||k==='p'||k==='s')){
+      e.preventDefault(); e.stopPropagation();
+    }
+  }, true);
+  /* Backstop for selections that arrive without a selectstart (caret
+     browsing, programmatic select-all, some Firefox paths). */
+  document.addEventListener('selectionchange', function(){
+    var s = document.getSelection();
+    if(!s || s.isCollapsed || s.rangeCount===0) return;
+    if(inEditable(s.anchorNode)) return;
+    s.removeAllRanges();
+  });
+})();
+</script>
+<!-- ══ end no-copy guard ══════════════════════════════════════════════════ -->
+</head>
+<body>
+
+<div class="id-rail">
+  <span class="id-status" id="id-status"><strong>Sign in with your UA NetID</strong> (right) first — your card and your export come from it. Reading the questions on Tab 1 needs no sign-in.</span>
+  <span class="save-dot" id="save-dot"></span>
+  <span class="cloud-dot" id="cloud-dot" title="Cloud autosave status">☁ —</span>
+  <button id="cloud-google" hidden>Sign in with UA NetID</button>
+  <span class="cloud-user" id="cloud-user" hidden></span>
+  <span class="tool-dock">
+    <button class="tool-btn" id="tool-notes" title="Equation sheet — every law, when it applies (drag, resize, it remembers where you left it)">📓 Notes</button>
+    <button class="tool-btn" id="tool-calc" title="Scientific calculator — variables, ans, k_B and N_A, copyable results">🧮 Calc</button>
+  </span>
+</div>
+
+<header>
+  <h1>Read, Use, Relate</h1>
+  <p class="subtitle">Report 2 — one recent paper, lecture’s relations, your own numbers · BME/AME 466·566</p>
+</header>
+
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="o">0. Pick your paper</button>
+  <button class="tab-btn" data-tab="k">1. Paper &amp; questions</button>
+  <button class="tab-btn" data-tab="q">2. Your numbers<span class="tabprog" id="prog-q"></span></button>
+  <button class="tab-btn" data-tab="t6">3. Map &amp; Export<span class="tabprog" id="prog-t6"></span></button>
+</div>
+
+<main>
+
+
+
+<!-- ══════════ TAB O: PICK YOUR PAPER ══════════ -->
+<section id="tab-o" class="tab-content active">
+  <div class="background-section">
+    <h2>Three papers, one way of reading</h2>
+    <p>Choose <strong>one</strong> recent paper and do three things with it. <strong>Review</strong> it: say what was asked and found, how, and what the study could not reach. <strong>Use</strong> relations from lecture on a few numbers you read out of the paper. <strong>Relate</strong> the two: say what your numbers add to the paper’s conclusion.</p>
+    <p>The calculations are short, and each is a relation you have already used. The work is in the reading: every step starts from a number you can only get by opening the paper and finding the right curve, table row or sentence. <strong>Your written report</strong> (one PDF, two to three pages) carries the marks; <strong>this module</strong> gives you your card and records your numbers.</p>
+    <p><strong>Budget about six hours</strong>, spread across the four weeks you have:</p>
+    <div class="budget"><span>📄 read the paper · ~2 h</span><span>📖 Part 1 · Review · ~1 h</span><span>🔢 Part 2 · Use · ~1.5 h</span><span>✍️ Part 3 · Relate · ~1 h</span><span>🗂 the module and the PDF · ~30 min</span><span>566 only: the fourth step · ~30 min</span></div>
+    <div class="insight"><strong>Sign in with your UA NetID</strong> (top right) first: your card and your export come from it. Signed out, the card shows sample values and export is blocked.</div>
+  </div>
+
+  <div class="background-section ai-policy" id="ai-policy">
+    <h2>What you may and may not do with AI</h2>
+    <p class="ai-lead">Read each of the three parts below and tick its box. The three papers appear once all three are ticked.</p>
+    <div class="ai-part">
+<p><strong>You may</strong> use AI as a tutor: to fill gaps in your own knowledge and to help you understand a concept. That is fair use. If you used AI this way, end your report with a short section headed <strong>AI use</strong>, one line for each thing you asked:</p>
+<p><em>“I asked ___, and my key takeaway was ___.”</em></p>
+<p>If you did not use AI, leave the section out. Its lines do not count toward any word or page limit.</p>
+<label class="ai-ack"><input type="checkbox" data-ack="tutor"> I have read this.</label>
+    </div>
+    <p><strong>You may not</strong></p>
+    <ul class="ai-nots">
+<li>put the questions from this report into an AI tool to have it solve them; <label class="ai-ack"><input type="checkbox" data-ack="questions"> I have read this.</label></li>
+<li>paste or transcribe AI-generated prose, in any way, to answer any question. <label class="ai-ack"><input type="checkbox" data-ack="prose"> I have read this.</label></li>
+    </ul>
+    <p class="ai-done" id="ai-done" hidden></p>
+  </div>
+
+  <!-- The papers stay hidden until every AI-policy box above is ticked (shell_c.js renderAiGate). -->
+  <p class="ai-gate-note" id="ai-gate-note">🔒 The three papers appear here once you have ticked all three boxes above.</p>
+  <div id="after-ai" hidden>
+  <div class="pick-grid" id="pick-grid">
+    <div class="pick-card" id="pick-A" data-opt="A">
+      <h3>A · Zdolsek, Hahn, Sjöberg &amp; Zdolsek (2020)</h3>
+      <div class="meta"><em>Plasma volume expansion and capillary leakage of 20% albumin in burned patients and volunteers.</em> Critical Care 24:191 · 9 pages · <a href="https://doi.org/10.1186/s13054-020-02855-0" target="_blank" rel="noopener">doi:10.1186/s13054-020-02855-0</a> · <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC7199306/" target="_blank" rel="noopener">free full text (PMC)</a></div>
+      <div class="spine"><strong>The question:</strong> burn patients swell. Is it because inflammation makes their capillary walls leak protein?<br><strong>Lecture:</strong> Module 8, the exchange — Starling’s balance at a capillary wall (eq. 8.2.2).</div>
+      <button class="pickbtn" data-opt="A">Choose A</button>
+    </div>
+    <div class="pick-card" id="pick-B" data-opt="B">
+      <h3>B · Li, Zhang, Lu, Wang, Zhi, Zhang &amp; Zhou (2022)</h3>
+      <div class="meta"><em>Which frequency of ankle pump exercise should be chosen for the prophylaxis of deep vein thrombosis?</em> Inquiry 59:00469580221105989 · 8 pages · <a href="https://doi.org/10.1177/00469580221105989" target="_blank" rel="noopener">doi:10.1177/00469580221105989</a> · <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC9168852/" target="_blank" rel="noopener">free full text (PMC)</a></div>
+      <div class="spine"><strong>The question:</strong> nurses teach patients to pump their ankles to keep leg-vein blood moving. Which pumping rate should they teach?<br><strong>Lecture:</strong> Module 7, the river — the parabola, the shear at a vein’s wall, and blood’s plug (eqs 7.1.1–7.1.6, 7.3.6).</div>
+      <button class="pickbtn" data-opt="B">Choose B</button>
+    </div>
+    <div class="pick-card" id="pick-C" data-opt="C">
+      <h3>C · Nakao, Yamagata, Adachi, Ishiyama, Kozawa, Nagaishi, Katayose &amp; Taniguchi (2026)</h3>
+      <div class="meta"><em>Velocity-dependent stress changes in the hamstring muscle-tendon complex: a study using human cadavers.</em> Translational Sports Medicine 2026:4876843 · <a href="https://doi.org/10.1155/tsm2/4876843" target="_blank" rel="noopener">doi:10.1155/tsm2/4876843</a> · <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC13096932/" target="_blank" rel="noopener">free full text (PMC)</a></div>
+      <div class="spine"><strong>The question:</strong> hamstrings tear in sprinting, when they are stretched fast. How does the stress in the muscle depend on the speed of the stretch?<br><strong>Lecture:</strong> Module 6, viscoelasticity — the standard linear solid and the stiffness a loading reads (eqs 6.2.5, 6.2.6, §2.7).</div>
+      <button class="pickbtn" data-opt="C">Choose C</button>
+    </div>
+  </div>
+  <p class="report-note" id="pick-note"></p>
+
+  <div id="assume-host"></div>
+
+  <div class="background-section" id="contract-block" hidden>
+    <h2>What you hand in</h2>
+    <p>Two files, both to one D2L dropbox, by <strong>December 9</strong> (D2L is the authority on the time): <strong>your written report</strong> as one PDF (<code>Lastname_Firstname_Section_Report2.pdf</code>, two to three pages, your name, NetID, section and option at the top, every answer labelled with its code, your <strong>AI use</strong> lines last if you used AI as a tutor) and <strong>your results file</strong> <code>REPORT2_&lt;NETID&gt;_&lt;code&gt;.json</code>, exported from Tab 3. Missing either is incomplete. The numbers in your PDF must match your results file.</p>
+    <p><strong>Tab 1</strong> gives you two PDFs: your paper, and its questions. Each question carries its points and a list headed <em>For full credit, your report gives</em>, naming the pieces the grader looks for. <strong>Tab 2</strong> has one box for each number the steps ask for. <strong>Tab 3</strong> shows your numbers, checks whether they agree with each other, and exports the file.</p>
+  </div>
+  </div>
+</section>
+
+
+<!-- ══════════ TAB K: THE PAPER AND THE QUESTIONS — GENERATED by build_report2.py; do not hand-edit ══════════ -->
+<section id="tab-k" class="tab-content">
+  <div class="background-section">
+    <h2>The paper and the questions</h2>
+    <p>Two PDFs for the paper you picked: <strong>the paper</strong> itself, and <strong>its questions, made for your card</strong>, with your own numbers in them. Every question carries its points and a list headed <em>For full credit, your report gives</em>, naming the pieces the grader looks for. Both open in a new tab. The questions can be printed, not copied.</p>
+  </div>
+  <div id="k-nopick" class="background-section"><p>Pick your paper on <strong>Tab 0</strong> to get its two PDFs.</p></div>
+<section class="opt-pane kq" data-opt="A" hidden>
+<h1 class="opt-title">Option A — Zdolsek et al. (2020): the burn patient’s missing pull</h1>
+<div class="k-card" data-opt="A"></div>
+<div class="pdf-pair">
+  <a class="pdf-btn" href="report-02-files/report2-A-paper.pdf?v=bb7f161986" target="_blank" rel="noopener"><span class="pdf-ico">📄</span><span><strong>The paper</strong><small>Zdolsek et al. (2020), Critical Care 24:191 · PDF, 9 pages</small></span></a>
+  <a class="pdf-btn pdf-q" data-opt="A" target="_blank" rel="noopener"><span class="pdf-ico">📝</span><span><strong>The questions — Option A</strong><small class="pdf-q-meta">…</small></span></a>
+</div>
+<p class="jump-lead">Go straight to a question in the PDF:</p>
+<div class="jumps" data-opt="A"></div>
+</section>
+<section class="opt-pane kq" data-opt="B" hidden>
+<h1 class="opt-title">Option B — Li et al. (2022): ankle pumps and the flow in a leg vein</h1>
+<div class="k-card" data-opt="B"></div>
+<div class="pdf-pair">
+  <a class="pdf-btn" href="report-02-files/report2-B-paper.pdf?v=45a9c4ba4b" target="_blank" rel="noopener"><span class="pdf-ico">📄</span><span><strong>The paper</strong><small>Li et al. (2022), Inquiry 59:00469580221105989 · PDF, 8 pages</small></span></a>
+  <a class="pdf-btn pdf-q" data-opt="B" target="_blank" rel="noopener"><span class="pdf-ico">📝</span><span><strong>The questions — Option B</strong><small class="pdf-q-meta">…</small></span></a>
+</div>
+<p class="jump-lead">Go straight to a question in the PDF:</p>
+<div class="jumps" data-opt="B"></div>
+</section>
+<section class="opt-pane kq" data-opt="C" hidden>
+<h1 class="opt-title">Option C — Nakao et al. (2026): the hamstring and the speed of a stretch</h1>
+<div class="k-card" data-opt="C"></div>
+<div class="pdf-pair">
+  <a class="pdf-btn" href="report-02-files/report2-C-paper.pdf?v=238957d9c3" target="_blank" rel="noopener"><span class="pdf-ico">📄</span><span><strong>The paper</strong><small>Nakao et al. (2026), Translational Sports Medicine 2026:4876843 · PDF, 8 pages</small></span></a>
+  <a class="pdf-btn pdf-q" data-opt="C" target="_blank" rel="noopener"><span class="pdf-ico">📝</span><span><strong>The questions — Option C</strong><small class="pdf-q-meta">…</small></span></a>
+</div>
+<p class="jump-lead">Go straight to a question in the PDF:</p>
+<div class="jumps" data-opt="C"></div>
+</section>
+</section>
+
+<!-- ══════════ TAB Q: YOUR NUMBERS (record-only, grouped by step) ══════════ -->
+<section id="tab-q" class="tab-content">
+  <div class="background-section">
+    <h2>Your numbers — recorded, never judged</h2>
+    <p>One box for each number Part 2 asks you to record, grouped by step, with the givens each step needs from your card. <strong>Nothing here is marked right or wrong.</strong> The number you type is saved to your results file; your written report shows the working that produced it.</p>
+    <p>Where two of your own numbers ought to agree, a <strong>cross-check</strong> appears beside the box and again on Tab 3. It never looks at an answer key: it compares your numbers with each other, so it can tell you that something is inconsistent, but not which of the two is wrong.</p>
+    <div class="insight"><strong>Type each number in the unit printed beside its box.</strong> Within a step, a box unlocks when the one before it is recorded. The step marked <span class="q566">566</span> is graded for 566 students and optional for 466.</div>
+  </div>
+  <div id="q-nopick" class="background-section"><p>Pick your paper on <strong>Tab 0</strong> to see its boxes.</p></div>
+  <div class="mission" id="mission-q"><p class="mission-label">YOUR NUMBERS</p></div>
+</section>
+
+
+<!-- ══════════ TAB 6: THE MAP & EXPORT ══════════ -->
+<section id="tab-t6" class="tab-content">
+  <div class="background-section">
+    <h2>The Map — your numbers, and the file you hand in</h2>
+    <p>Everything below is drawn from <strong>your own recorded numbers</strong>. Nothing compares you to an answer key. The cross-checks compare your numbers <em>with each other</em> and with your card: a number you built from two others must agree with them, and when it does, that agreement is the confidence a working scientist relies on.</p>
+  </div>
+  <div class="report-grid">
+    <h3>Your numbers so far</h3>
+    <div id="ladder"></div>
+    <h3>Progress — what your results file contains right now</h3>
+    <div id="progress-grid"></div>
+    <h3>Cross-checks — do your own numbers agree with each other?</h3>
+    <p style="font-size:.82rem;color:#64748b;margin-bottom:6px">These compare <em>your</em> numbers against <em>each other</em> and your card, never against an answer key.</p>
+    <div id="xchecks"></div>
+    <h3>Export</h3>
+    <div class="report-actions">
+      <button id="btn-export">Export results (JSON)</button>
+      <label class="filebtn">Load progress<input type="file" id="btn-import" accept=".json,application/json" style="display:none"></label>
+      <button id="btn-clear">Clear this dataset's work</button>
+    </div>
+    <p class="report-note" id="report-note"></p>
+  </div>
+</section>
+
+<div class="sources">
+  <h2>Sources</h2>
+  <p style="font-size:.82rem;color:#64748b">The three papers, and the measurements behind the lecture numbers on your card.</p>
+  <ol>
+    <li>Zdolsek M, Hahn RG, Sjöberg F, Zdolsek JH (2020). Plasma volume expansion and capillary leakage of 20% albumin in burned patients and volunteers. <em>Critical Care</em> 24:191. <a href="https://doi.org/10.1186/s13054-020-02855-0">doi:10.1186/s13054-020-02855-0</a> — Option A.</li>
+    <li>Li H, Zhang W, Lu Q, Wang J, Zhi Y, Zhang L, Zhou L (2022). Which frequency of ankle pump exercise should be chosen for the prophylaxis of deep vein thrombosis? <em>Inquiry</em> 59:00469580221105989. <a href="https://doi.org/10.1177/00469580221105989">doi:10.1177/00469580221105989</a> — Option B.</li>
+    <li>Nakao G, Yamagata K, Adachi R, Ishiyama K, Kozawa K, Nagaishi K, Katayose M, Taniguchi K (2026). Velocity-dependent stress changes in the hamstring muscle-tendon complex: a study using human cadavers. <em>Translational Sports Medicine</em> 2026:4876843. <a href="https://doi.org/10.1155/tsm2/4876843">doi:10.1155/tsm2/4876843</a> — Option C.</li>
+    <li>Noddeland H (1982). Influence of body posture on transcapillary pressures in human subcutaneous tissue. <em>Scandinavian Journal of Clinical and Laboratory Investigation</em> 42:131. PMID 7134797 — the tissue pressure at the ankle, −0.4 mmHg, and the tissue's oncotic pressure, 10.4–11.1 mmHg; lecture uses 10.8 (Option A's card; Module 8 §2.1).</li>
+    <li>Rippe B, Haraldsson B (1986). <em>Acta Physiologica Scandinavica</em> 127:289. <a href="https://doi.org/10.1111/j.1748-1716.1986.tb07908.x">doi:10.1111/j.1748-1716.1986.tb07908.x</a> — albumin's reflection, 0.87; with Haraldsson &amp; Rippe 1988 (0.92), lecture's 0.9 (Option A's card; Module 8 §2.1).</li>
+    <li>Merrill EW, Gilliland ER, Cokelet G, et&nbsp;al. (1963). Rheology of human blood, near and at zero flow. <em>Biophysical Journal</em> 3:199. PMID 13935042 — blood's yield stress, 1.5–5 mPa at a haematocrit of 0.45, as quoted by Fedosov et al. 2011 (Option B's card; Module 7 §1.3).</li>
+    <li>Fedosov DA, Pan W, Caswell B, Gompper G, Karniadakis GE (2011). Predicting human blood viscosity in silico. <em>PNAS</em> 108:11772–11777. <a href="https://doi.org/10.1073/pnas.1101210108">doi:10.1073/pnas.1101210108</a> — rouleaux and the yield stress (Module 7 §1.4).</li>
+  </ol>
+</div>
+
+</main>
+
+
+<!-- ══════════ 📓 NOTES PANEL: the equation sheet & field guide ══════════
+     A floating context panel (V2.38) — usable beside any tab; drag/resize/
+     collapse, geometry persisted. Static content only (no JS): LaTeX here
+     typesets at page load even while hidden.
+     Report 2's sheet is the prompt's own relations table, generated by
+     build_report2.py; the steps name their relation, so the table says
+     where each one is used. -->
+<div class="cpanel" id="panel-notes" hidden>
+  <div class="cpanel-head"><span class="cpanel-title">📓 Notes — equations &amp; when they apply</span>
+    <span class="cpanel-btns"><button class="cpanel-min" title="Collapse">▁</button><button class="cpanel-x" title="Close">✕</button></span></div>
+  <div class="cpanel-body">
+<!-- ══════════ 📓 NOTES PANEL BODY — Report 2 "Read, Use, Relate" — GENERATED by build_report2.py ══════════
+     The relations table is the prompt's own ("The relations, as lecture wrote them"), so the
+     module and the prompt cannot drift. notesInit() makes each top-level .background-section's
+     first heading a collapse toggle (section 0 open by default). Static content only. -->
+  <div class="background-section">
+    <h2>Notes — the relations this report uses, as lecture wrote them</h2>
+    <p>Every relation a step asks for is here with its lecture number, so you can open the derivation any time. The step names its relation; your written report writes it out, names every symbol, carries the units and shows the arithmetic. Nothing here is graded and nothing is hidden.</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Lecture number</th>
+<th>The relation</th>
+<th>Used in</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>eq. 8.2.2 · Starling</td>
+<td><span class="math inline">\(J_v = L_p\big[(P_c - P_t) - f_r(\Pi_c - \Pi_t)\big]\)</span>; the bracket is the net push, positive out of the blood</td>
+<td>A2, A3</td>
+</tr>
+<tr>
+<td>eq. 8.2.1 · van ’t Hoff</td>
+<td><span class="math inline">\(\Pi = C\,R\,T\)</span>, with <span class="math inline">\(C\)</span> in mol/m³, <span class="math inline">\(R\)</span> = 8.314 J/(mol·K), <span class="math inline">\(T\)</span> in K; 1 mmHg = 133.3 Pa</td>
+<td>A4</td>
+</tr>
+<tr>
+<td>eqs 7.1.2, 7.1.3 · the parabola and its flow</td>
+<td><span class="math inline">\(u(r) = \dfrac{\Delta P}{4\eta L}\,(R^2 - r^2)\)</span>, fastest on the axis; <span class="math inline">\(Q = \dfrac{\pi R^4\,\Delta P}{8\eta L}\)</span>, so the mean speed is <span class="math inline">\(\bar u = u_{max}/2\)</span></td>
+<td>B2</td>
+</tr>
+<tr>
+<td>eq. 7.3.6 · the wall shear rate</td>
+<td><span class="math inline">\(\dot\gamma_w = 8\bar u/D\)</span></td>
+<td>B2, B3</td>
+</tr>
+<tr>
+<td>eq. 7.1.1 · the viscosity law</td>
+<td><span class="math inline">\(\tau = \eta\,\dot\gamma\)</span></td>
+<td>B2</td>
+</tr>
+<tr>
+<td>eq. 7.1.6 · the plug</td>
+<td><span class="math inline">\(r_p/R = \tau_y/\tau_w\)</span></td>
+<td>B2, B3</td>
+</tr>
+<tr>
+<td>eq. 7.2.1 · continuity</td>
+<td><span class="math inline">\(Q = \bar u\,A\)</span></td>
+<td>B4</td>
+</tr>
+<tr>
+<td>eq. 6.2.6 · the single-spring surrogate</td>
+<td><span class="math inline">\(k_{eff}(t) = F(t)/x(t)\)</span>; per area, <span class="math inline">\(E_{eff} = \sigma/\varepsilon\)</span></td>
+<td>C2</td>
+</tr>
+<tr>
+<td>eq. 6.2.5 and §2.7 · the standard linear solid under a steady stretch</td>
+<td><span class="math inline">\(k_{eff}(t) = k_\infty + k_1\,(\tau/t)\,(1 - e^{-t/\tau})\)</span>, with <span class="math inline">\(k_0 = k_1 + k_\infty\)</span></td>
+<td>C2, C3</td>
+</tr>
+<tr>
+<td>eq. 6.2.4 and §2.7 · Kelvin–Voigt under a steady stretch</td>
+<td><span class="math inline">\(k_{eff}(t) = k + \eta/t\)</span></td>
+<td>C4</td>
+</tr>
+</tbody>
+</table>
+<p>Lecture wrote Module 6’s elements for a force and a displacement. Per area and per length they read the same with stress, strain and moduli.</p>
+<hr />
+
+  </div>
+
+  <div class="background-section">
+    <h3>Lecture's numbers — the constants the relations need</h3>
+    <ul class="eqmeta">
+      <li><b>Pressure</b><span>1 mmHg = 133.3 Pa. The card's pressures and the paper's are in mmHg; eq. 8.2.1 gives pascals.</span></li>
+      <li><b>van 't Hoff</b><span>\(R\) = 8.314 J/(mol·K); body temperature 310 K; albumin 66 348 g/mol, so 1 g/L is 0.01507 mol/m³. Lecture's check: 40 g/L gives 1 550 Pa = 11.7 mmHg, against a measured 26.9 mmHg for a healthy plasma (Noddeland 1982) — albumin alone falls nearly half short, because the other proteins pull too, albumin's charge holds extra small ions on its side, and plasma is not an ideal dilute solution.</span></li>
+      <li><b>The leg's tissue side</b><span>\(P_t = -0.4\) mmHg, \(\Pi_t = 10.8\) mmHg (Noddeland 1982), \(f_r = 0.9\) for albumin (Rippe &amp; Haraldsson 1986): a healthy leg's, printed on the card for both groups.</span></li>
+      <li><b>Blood</b><span>viscosity 3–4 mPa·s; yield stress 1.5–5 mPa at a haematocrit of 0.45 (Merrill 1963, as quoted by Fedosov 2011); density 1 060 kg/m³. 1 mPa·s × 1 s⁻¹ = 1 mPa.</span></li>
+      <li><b>Strain</b><span>a fraction in every relation: 10 % is 0.10. The stresses in the paper are kPa; the moduli come out in kPa.</span></li>
+      <li><b>A printed card given wins</b><span>where the card and this sheet disagree, the card is yours and the sheet is lecture's.</span></li>
+    </ul>
+  </div>
+
+  <div class="background-section">
+    <h3>When each relation applies, and when it fails</h3>
+    <ul class="eqmeta">
+      <li><b>Starling (eq. 8.2.2)</b><span>Any wall at its four pressures; the bracket is the push and \(L_p\) only scales it. The push changes along a capillary with \(P_c\), so say where you took it. Fails when: the pull is taken from the bulk tissue — lecture's ledger overstates steady filtration ten to forty times because the pull that acts is set under the glycocalyx; a difference of two pushes, or a ratio, survives that better than either push alone.</span></li>
+      <li><b>van 't Hoff (eq. 8.2.1)</b><span>Dilute, ideal solutions; only the molecules the wall holds back count. Fails when: at plasma's crowding and charge — use it for the order of magnitude and for the direction, and for what a change in albumin does.</span></li>
+      <li><b>The parabola, its mean and the wall shear rate (eqs 7.1.2, 7.1.3, 7.3.6)</b><span>Steady, developed, laminar flow of one fluid in a straight rigid tube: the mean is half the centreline speed and the wall shear rate is \(8\bar u/D\), with \(D\) the diameter. Fails when: the velocity you were given is not the steady centre speed, or was measured after, not during; the vessel has valves, branches or a compliant wall. Then the numbers are estimates, and a report says what that costs.</span></li>
+      <li><b>The viscosity law and the plug (eqs 7.1.1, 7.1.6)</b><span>The wall stress is the viscosity times the wall shear rate; blood's yield stress sets a core that rides without shearing, \(r_p/R = \tau_y/\tau_w\). Lecture's §1.4: any yield stress makes a formal plug, and "large enough to matter" is the useful question — half the radius is a fair line, reached when the wall stress falls to twice the yield stress. Fails when: the plug is a sizable share of the radius; the parabola no longer holds there, and at half a radius the flow is only 17/48 of the parabola's at the same wall stress (§1.3), so the blood would have to be slower still.</span></li>
+      <li><b>Continuity (eq. 7.2.1)</b><span>Steady flow: the same volume per second passes every cross-section of one vessel, and a vein's flow can only grow toward the heart as tributaries join. Fails when: the three measurements were not simultaneous, or the velocity is a peak — then it tests the paper's consistency, not its exactness.</span></li>
+      <li><b>The single-spring surrogate (eq. 6.2.6)</b><span>\(E_{eff} = \sigma/\varepsilon\) is the stiffness a spring would need to give this stress at this strain, at this moment of this loading. It belongs to the experiment: a faster stretch reads a higher one. Fails when: it is quoted as a property of the tissue without its speed and its strain — this tissue is not linear (Fig. 3 of the paper), so every stiffness here is a secant at 10 %.</span></li>
+      <li><b>The standard linear solid under a steady stretch (eq. 6.2.5, §2.7)</b><span>\(E_{eff}(T) = E_\infty + E_1\,(\tau/T)(1 - e^{-T/\tau})\): a stretch much slower than \(\tau\) reads \(E_\infty\), one much faster reads \(E_0 = E_1 + E_\infty\), and nothing goes faster than that — the damper is in series with its spring, so at high speed it has no time to move and both springs carry the load. Fails when: a tissue has a spread of relaxation times rather than one (§2.6), so its stress need not stop at one ceiling; or \(\tau\) is assumed (the paper held nothing), so \(E_1\) and the sprint stress move with it.</span></li>
+      <li><b>Kelvin–Voigt under a steady stretch (eq. 6.2.4, §2.7)</b><span>\(E_{eff}(T) = E + \eta/T\): the damper sits beside the spring, so the stress grows without limit as the stretch gets faster. Two slow tests fit it as well as they fit the standard linear solid; the two elements part company only far beyond the paper's speeds.</span></li>
+    </ul>
+  </div>
+
+  </div>
+</div>
+
+<!-- ══════════ 🧮 CALCULATOR PANEL (V2.39 · UI redesigned V2.40: keypad + graph) ══════════ -->
+<div class="cpanel" id="panel-calc" hidden>
+  <div class="cpanel-head"><span class="cpanel-title">🧮 Calculator</span>
+    <span class="cpanel-btns"><button class="cpanel-min" title="Collapse">▁</button><button class="cpanel-x" title="Close">✕</button></span></div>
+  <div class="cpanel-body cpanel-body-calc"><div class="calc">
+    <div class="calc-modes">
+      <button id="cm-calc" type="button" class="on">🧮 Calc</button>
+      <button id="cm-graph" type="button">📈 Graph</button>
+      <button id="cm-pad" type="button" title="show / hide keypad">⌨</button>
+      <span class="calc-q" title="* to multiply (no implicit multiplication) · ^ = power · 1e-9 scientific notation · declare variables: D = 3.43 · ans = last result · constants: pi e kB NA R g h c · functions: sin cos tan asin acos atan sinh cosh tanh ln log log2 exp sqrt cbrt abs floor ceil round min max pow atan2 · click a history line to reuse it, ⧉ copies a result · Graph face: y = a*x^2 plots live, a = 2 becomes a slider, drag to pan, scroll to zoom, ⌂ resets the view">?</span>
+    </div>
+    <div class="calc-face" id="face-calc">
+      <div class="calc-hist" id="calc-hist"></div>
+      <div class="calc-vars" id="calc-vars"></div>
+      <div class="calc-disp">
+        <div class="calc-disp-row">
+          <input type="text" id="calc-in" placeholder="e.g.  D = 3.43   then   900/(4*D)" autocomplete="off" spellcheck="false" autocapitalize="off">
+          <button id="calc-mode" type="button" title="trig angle mode">DEG</button>
+        </div>
+        <div class="calc-prev" id="calc-prev">&nbsp;</div>
+      </div>
+    </div>
+    <div class="calc-face" id="face-graph" hidden>
+      <div class="graph-wrap">
+        <canvas id="graph-cv"></canvas>
+        <div class="graph-tools">
+          <button id="gz-in" type="button" title="zoom in">＋</button>
+          <button id="gz-out" type="button" title="zoom out">−</button>
+          <button id="gz-home" type="button" title="reset view">⌂</button>
+        </div>
+      </div>
+      <div class="graph-exprs" id="graph-exprs"></div>
+      <button class="graph-add" id="graph-add" type="button">＋ add expression</button>
+    </div>
+    <div class="calc-more" id="calc-more" hidden></div>
+    <div class="calc-pad" id="calc-pad"></div>
+    <p class="calc-hint">Type or tap — <b>*</b> to multiply · <b>D = 3.43</b> declares a variable · <b>1e-9</b> · <b>ans</b> = last result · hover <b>?</b> for everything else.</p>
+  </div></div>
+</div>
+
+<footer>
+  BME/AME 466/566 Biomechanics · University of Arizona · McGhee Lab interactive module — Report 2.<br>
+  Privacy: your dataset is assigned from your UA NetID when you sign in, and your progress (answers, tables, runs and time-on-page — never a grade) autosaves to this browser and to the course cloud under your account, readable only by you and the instructor. Until you sign in, nothing you do leaves this browser. Turn-in is the exported JSON plus your written PDF on D2L.<br>
+  Text here is not selectable — that is deliberate, not a bug. The questions are yours to work through; the boxes you type into work normally.
+</footer>
+
+<script>
+/* ════════════════════════════════════════════════════════════════
+   READ, USE, RELATE — Report 2, one recent paper and lecture's relations.
+   Tab 0 picks the paper and prints the student's card; Tab 1 is the prompt's
+   questions, generated from the prompt; Tab 2 records the numbers; Tab 3
+   maps them, cross-checks them against each other, and exports. No bench.
+   The SEEDING CONTRACT below is GENERATED by scripts/report2_keygen.py
+   (--emit-js) — parity vectors frozen 2026-11-11.
+   UNITS are printed beside every box.
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── palette ── */
+const COL = {
+  particle:'#7c3aed', trail:'#c4b5fd', boundary:'#ef4444',
+  msd:'#1e3a5f', fitline:'#ef4444', floor:'#f59e0b',
+  data:'#2563eb', drift:'#ef4444', curve:'#2563eb', cross:'#ef4444',
+  cell:'#dcfce7', cellEdge:'#059669', lig:'#7c3aed', fit:'#ef4444',
+  diff1:'#2563eb', diff2:'#7c3aed', motor:'#ef4444',
+  good:'#10b981', bad:'#ef4444', warn:'#f59e0b',
+  grid:'#e2e8f0', axis:'#64748b', text:'#1e293b'
+};
+
+/* ── math / canvas / DOM helpers (house pattern) ── */
+function gaussOf(rng){ let u=0,v=0; while(u===0)u=rng(); while(v===0)v=rng(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+function fmt(v,d){ if(!isFinite(v))return '—'; const a=Math.abs(v);
+  if(a>=1000)return v.toLocaleString('en-US',{maximumFractionDigits:d===undefined?0:d});
+  if(a>=1)return v.toFixed(d===undefined?2:d);
+  if(a>=0.001||a===0)return v.toFixed(d===undefined?3:d);
+  return v.toExponential(d===undefined?2:d); }
+function niceTicks(lo,hi,n){ if(hi<=lo)return [lo]; const range=hi-lo, rough=range/Math.max(n,1),
+  mag=Math.pow(10,Math.floor(Math.log10(rough))); let step;
+  if(rough/mag<1.5)step=mag; else if(rough/mag<3.5)step=2*mag; else if(rough/mag<7.5)step=5*mag; else step=10*mag;
+  const t=[]; let x=Math.ceil(lo/step)*step; while(x<=hi+step*1e-3){t.push(x);x+=step;} return t; }
+function clamp(v,a,b){ return v<a?a:(v>b?b:v); }
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+/* result-card precision: 4 significant figures, so a faithful transcription
+   always lands inside the 2 % validation tolerance */
+function sig4(v){ if(!isFinite(v))return '—'; if(v===0)return '0';
+  const a=Math.abs(v); if(a>=1e5||a<1e-4) return v.toPrecision(4);
+  return String(parseFloat(v.toPrecision(4))); }
+function setupCanvas(canvas){ if(!canvas)return null; const dpr=window.devicePixelRatio||1; const rect=canvas.getBoundingClientRect();
+  const w=rect.width||canvas.width; const h=w*(canvas.height/canvas.width);
+  canvas.width=w*dpr; canvas.height=h*dpr; canvas.style.width=w+'px'; canvas.style.height=h+'px';
+  const ctx=canvas.getContext('2d'); ctx.scale(dpr,dpr); ctx.clearRect(0,0,w,h); return {ctx,w,h}; }
+class Chart{
+  constructor(ctx,w,h,m){ this.ctx=ctx;this.W=w;this.H=h;this.m=m||{l:58,r:18,t:14,b:42};
+    this.pw=w-this.m.l-this.m.r; this.ph=h-this.m.t-this.m.b; }
+  setRange(a,b,c,d){ this.xMin=a;this.xMax=b;this.yMin=c;this.yMax=d; }
+  toX(v){ return this.m.l+(v-this.xMin)/(this.xMax-this.xMin)*this.pw; }
+  toY(v){ return this.m.t+this.ph-(v-this.yMin)/(this.yMax-this.yMin)*this.ph; }
+  grid(xt,yt){ const c=this.ctx; c.save();c.strokeStyle=COL.grid;c.lineWidth=1;c.setLineDash([3,3]);
+    for(const t of xt){const x=this.toX(t);c.beginPath();c.moveTo(x,this.m.t);c.lineTo(x,this.m.t+this.ph);c.stroke();}
+    for(const t of yt){const y=this.toY(t);c.beginPath();c.moveTo(this.m.l,y);c.lineTo(this.m.l+this.pw,y);c.stroke();}
+    c.restore(); }
+  axes(xl,yl,xt,yt,dx,dy,xfmt,yfmt){ const c=this.ctx; c.save();c.strokeStyle=COL.axis;c.lineWidth=1.5;c.setLineDash([]);
+    c.beginPath();c.moveTo(this.m.l,this.m.t);c.lineTo(this.m.l,this.m.t+this.ph);c.lineTo(this.m.l+this.pw,this.m.t+this.ph);c.stroke();
+    c.fillStyle=COL.axis;c.font='11px sans-serif';c.textAlign='center';c.textBaseline='top';
+    for(const t of xt){c.fillText(xfmt?xfmt(t):fmt(t,dx===undefined?0:dx),this.toX(t),this.m.t+this.ph+6);}
+    c.textAlign='right';c.textBaseline='middle';
+    for(const t of yt){c.fillText(yfmt?yfmt(t):fmt(t,dy===undefined?1:dy),this.m.l-6,this.toY(t));}
+    c.fillStyle=COL.text;c.font='12px sans-serif';c.textAlign='center';c.textBaseline='top';
+    c.fillText(xl,this.m.l+this.pw/2,this.m.t+this.ph+22);
+    c.save();c.translate(13,this.m.t+this.ph/2);c.rotate(-Math.PI/2);c.textBaseline='middle';c.fillText(yl,0,0);c.restore();
+    c.restore(); }
+  hLine(yv,color,dash){ const c=this.ctx,y=this.toY(yv); c.save();c.strokeStyle=color;c.lineWidth=1.2;if(dash)c.setLineDash(dash);
+    c.beginPath();c.moveTo(this.m.l,y);c.lineTo(this.m.l+this.pw,y);c.stroke();c.restore(); }
+  vLine(xv,color,dash){ const c=this.ctx,x=this.toX(xv); c.save();c.strokeStyle=color;c.lineWidth=1.2;if(dash)c.setLineDash(dash);
+    c.beginPath();c.moveTo(x,this.m.t);c.lineTo(x,this.m.t+this.ph);c.stroke();c.restore(); }
+  legend(items,x,y){ const c=this.ctx;c.save();c.font='11px sans-serif';let cx=x;
+    for(const it of items){c.fillStyle=it.color;c.fillRect(cx,y-5,12,10);c.fillStyle=COL.text;cx+=16;
+      c.textAlign='left';c.textBaseline='middle';c.fillText(it.label,cx,y);cx+=c.measureText(it.label).width+14;}c.restore(); }
+}
+function drawLine(ctx,pts,color,lw,dash){ if(pts.length<2)return; ctx.save();ctx.strokeStyle=color;ctx.lineWidth=lw||2;
+  if(dash)ctx.setLineDash(dash); ctx.beginPath();ctx.moveTo(pts[0][0],pts[0][1]);
+  for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i][0],pts[i][1]); ctx.stroke();ctx.restore(); }
+function setStat(id,rows,fresh){ const el=document.getElementById(id); if(!el)return;
+  el.className='stats'+(fresh?' fresh':'');
+  el.innerHTML=(rows.title?`<h4>${rows.title}</h4>`:'')+ (rows.rows||rows).map(r=>`<div class="stat-row${r.hi?' highlight':''}"><span class="label">${r.k}</span><span class="value">${r.v}</span></div>`).join(''); }
+function setVerdict(id,cls,title,body){ const el=document.getElementById(id); if(!el)return;
+  el.className='val-verdict '+cls; el.innerHTML='<strong>'+title+'</strong>'+body; }
+function lsqFit(xs,ys){ const n=xs.length; if(n<2)return null; let sx=0,sy=0,sxx=0,sxy=0;
+  for(let i=0;i<n;i++){sx+=xs[i];sy+=ys[i];sxx+=xs[i]*xs[i];sxy+=xs[i]*ys[i];}
+  const den=n*sxx-sx*sx; if(Math.abs(den)<1e-12)return null;
+  const m=(n*sxy-sx*sy)/den, b=(sy-m*sx)/n; return {m,b}; }
+function lsqThroughOrigin(xs,ys){ let sxy=0,sxx=0; for(let i=0;i<xs.length;i++){sxy+=xs[i]*ys[i];sxx+=xs[i]*xs[i];}
+  return sxx>0? sxy/sxx : null; }
+/* Plot-corner hook — intentionally EMPTY in the student build. The
+   instructor build file (report-02-read-use-relate-demo.html, generated by
+   scripts/make_demo_report2.py) swaps in a watermark here. */
+function demoMark(ctx,w,h){}
+
+/* ── seeding contract ── */
+/* ── seeding contract ── */
+/* ════════════════════════════════════════════════════════════════
+   SEEDING CONTRACT — GENERATED by `python3 courses/BME466/scripts/report2_keygen.py --emit-js`.
+   Do NOT hand-edit: edit the Python and re-emit.  DRAW ORDER IS FROZEN.
+   Report 2 has no bench: every given is printed (the card) and every reading
+   comes from the paper.  The export carries answers only.
+   ════════════════════════════════════════════════════════════════ */
+const SALT_PARAM = 'BME466-F26-REPORT2|';
+const SALT_CODE  = 'BME466-F26-REPORT2-CODE|';
+const SALT_NOISE = 'BME466-F26-REPORT2-NOISE|';
+const SALT_FILE  = 'BME466-F26-REPORT2-FILE|';
+const SCHEMA_ID  = 'bme466-report2-v1';
+const HW_TAG     = 'REPORT2';
+const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+const LAT_A_PA = [33,34,35,36];
+const LAT_A_PV = [14,15,16];
+const LAT_A_T = [1,2,3,4,5];
+const LAT_B_VEIN = [0,1,2];
+const LAT_B_EX = [0,1];
+const LAT_B_ETA = [3,3.5,4];
+const LAT_B_TAUY = [1.5,2.5,3.5,5];
+const LAT_C_MUS = [0,1,2,3];
+const LAT_C_TAU = [3,3.5,4,4.5,5,5.5,6,7];
+const DEMO_PARAMS = {a_Pa:35, a_Pv:15, a_t:1, b_vein:0, b_ex:1, b_eta:3.5, b_tauy:5, c_mus:3, c_tau:6};
+const DEMO_CODE = 'DEMO00';
+const PT=-0.4, PIT=10.8, FR=0.9, EPS=0.1;   /* printed on the card and in the prompt */
+const VEINS=["popliteal", "femoral", "external iliac"];
+const EXERCISES=["traditional (3 a minute)", "selected (30 a minute)"];
+const MUSCLES=["biceps femoris long head (BFlh)", "semitendinosus (ST)", "semimembranosus (SM)", "the average of the three (the dashed line)"];
+function normalizeSid(sid){ let out='';
+  for(const ch of String(sid).toLowerCase()){
+    if((ch>='a'&&ch<='z')||(ch>='0'&&ch<='9')) out+=ch; }
+  return out; }
+function fnv1a32(s){ let h=0x811c9dc5;
+  for(const ch of String(s)){ h^=ch.charCodeAt(0)&0xff; h=Math.imul(h,16777619)>>>0; }
+  return h>>>0; }
+function mulberry32(a){ return function(){ a=(a+0x6D2B79F5)|0;
+  let t=Math.imul(a^(a>>>15),1|a);
+  t=(t+Math.imul(t^(t>>>7),61|t))^t;
+  return ((t^(t>>>14))>>>0)/4294967296; }; }
+function crock(v,n){ let out='';
+  for(let i=n-1;i>=0;i--) out+=CROCKFORD[(v>>>(5*i))&31];
+  return out; }
+function datasetCode(sid){ return crock(fnv1a32(SALT_CODE+normalizeSid(sid)),6); }
+function drawParams(sid){ /* DRAW ORDER IS FROZEN */
+  const rng=mulberry32(fnv1a32(SALT_PARAM+normalizeSid(sid))); const p={};
+  p.a_Pa=LAT_A_PA[Math.floor(rng()*LAT_A_PA.length)];
+  p.a_Pv=LAT_A_PV[Math.floor(rng()*LAT_A_PV.length)];
+  p.a_t=LAT_A_T[Math.floor(rng()*LAT_A_T.length)];
+  p.b_vein=LAT_B_VEIN[Math.floor(rng()*LAT_B_VEIN.length)];
+  p.b_ex=LAT_B_EX[Math.floor(rng()*LAT_B_EX.length)];
+  p.b_eta=LAT_B_ETA[Math.floor(rng()*LAT_B_ETA.length)];
+  p.b_tauy=LAT_B_TAUY[Math.floor(rng()*LAT_B_TAUY.length)];
+  p.c_mus=LAT_C_MUS[Math.floor(rng()*LAT_C_MUS.length)];
+  p.c_tau=LAT_C_TAU[Math.floor(rng()*LAT_C_TAU.length)];
+  return p; }
+const FIELD_ORDER = ['option','a_pic_b','a_pic_v','a_rise','a_push_v','a_push_b','a_dpush','a_push2','a_share','a_alb','a_vh','a_vhshare','b_D0','b_u0','b_D1','b_u1','b_ubar','b_gw','b_tw','b_plug','b_gw1','b_fshear','b_slow','b_Qp','b_Qf','b_Qe','c_s20','c_s300','c_T20','c_T300','c_E20','c_E300','c_g','c_E1','c_E0','c_fac','c_Tsp','c_ssp','c_pct','c_Ekv','c_eta','c_skv'];
+const FIELD_UNIT = {'option':"choice",'a_pic_b':"mmHg",'a_pic_v':"mmHg",'a_rise':"mmHg",'a_push_v':"mmHg",'a_push_b':"mmHg",'a_dpush':"mmHg",'a_push2':"mmHg",'a_share':"%",'a_alb':"g/L",'a_vh':"mmHg",'a_vhshare':"%",'b_D0':"cm",'b_u0':"cm/s",'b_D1':"cm",'b_u1':"cm/s",'b_ubar':"cm/s",'b_gw':"1/s",'b_tw':"mPa",'b_plug':"%",'b_gw1':"1/s",'b_fshear':"-",'b_slow':"-",'b_Qp':"mL/s",'b_Qf':"mL/s",'b_Qe':"mL/s",'c_s20':"kPa",'c_s300':"kPa",'c_T20':"s",'c_T300':"s",'c_E20':"kPa",'c_E300':"kPa",'c_g':"-",'c_E1':"kPa",'c_E0':"kPa",'c_fac':"-",'c_Tsp':"ms",'c_ssp':"kPa",'c_pct':"%",'c_Ekv':"kPa",'c_eta':"kPa·s",'c_skv':"kPa"};
+const CHOICE_OPTIONS = {
+  'option':["A — Zdolsek et al. 2020 (burn patients)", "B — Li et al. 2022 (ankle pumps)", "C — Nakao et al. 2026 (the hamstring)"],
+};
+const FIELDS_566 = ['a_alb','a_vh','a_vhshare','b_Qp','b_Qf','b_Qe','c_Ekv','c_eta','c_skv'];
+function fileChecksum(sid,mode,code,answers){
+  const parts=[SCHEMA_ID,HW_TAG,normalizeSid(sid),mode,code];
+  for(const name of FIELD_ORDER){ const v=answers[name];
+    parts.push(name+'='+(v==null?'':String(v))); }
+  return (fnv1a32(SALT_FILE+parts.join('|'))>>>0).toString(16).padStart(8,'0'); }
+/* frozen parity vectors — checked at load; failure = contract broken */
+const SELFTEST = [
+  {sid:'wildcat',code:'EKVKNQ',checksum:'53d2783e',params:{a_Pa:33,a_Pv:16,a_t:4,b_vein:2,b_ex:1,b_eta:4,b_tauy:2.5,c_mus:2,c_tau:6}},
+  {sid:'abc123',code:'6ZRQ65',checksum:'3e4255d2',params:{a_Pa:35,a_Pv:14,a_t:4,b_vein:1,b_ex:0,b_eta:4,b_tauy:2.5,c_mus:1,c_tau:4}},
+  {sid:'gabrieldeclercq',code:'5RFYXA',checksum:'a03244b8',params:{a_Pa:35,a_Pv:16,a_t:2,b_vein:1,b_ex:0,b_eta:3.5,b_tauy:1.5,c_mus:2,c_tau:4}},
+  {sid:'xy123456789',code:'C82T79',checksum:'531e3ceb',params:{a_Pa:35,a_Pv:14,a_t:4,b_vein:2,b_ex:0,b_eta:3.5,b_tauy:5,c_mus:1,c_tau:4.5}},
+  {sid:'mcgheealex',code:'FVTB5C',checksum:'2454c231',params:{a_Pa:33,a_Pv:15,a_t:2,b_vein:2,b_ex:0,b_eta:3.5,b_tauy:1.5,c_mus:3,c_tau:3.5}},
+  {sid:'netid42',code:'DX72Y3',checksum:'eff2c031',params:{a_Pa:36,a_Pv:16,a_t:4,b_vein:1,b_ex:1,b_eta:4,b_tauy:1.5,c_mus:1,c_tau:5.5}},
+  {sid:'aa',code:'AY86KQ',checksum:'7ee52e80',params:{a_Pa:34,a_Pv:14,a_t:4,b_vein:1,b_ex:0,b_eta:3,b_tauy:1.5,c_mus:3,c_tau:5}},
+];
+(function(){ let bad=0; for(const v of SELFTEST){ const p=drawParams(v.sid), c=datasetCode(v.sid);
+  for(const k of Object.keys(v.params)) if(p[k]!==v.params[k]){ bad++; console.error('SEEDING PARITY BROKEN:',v.sid,k,p[k],'!=',v.params[k]); }
+  if(c!==v.code){ bad++; console.error('SEEDING PARITY BROKEN (code):',v.sid,c,'!=',v.code); }
+  const chk=fileChecksum(v.sid,'homework',c,{option:'1',b_ubar:'6.53'});
+  if(chk!==v.checksum){ bad++; console.error('CHECKSUM PARITY BROKEN:',v.sid,chk,'!=',v.checksum); } }
+  if(bad) console.error('SEEDING PARITY BROKEN — '+bad+' mismatch(es); do not trust this dataset.');
+})();
+/* The student build carries no truth formulas and no readings: this is the only `derived`. */
+function derived(p){ return {}; }
+/* ── end seeding contract ── */
+
+/* ════════ state (the results file builds here in the background) ════════
+   One store for all three options: choosing a different paper on Tab 0 must
+   never reseed the card or throw away a recorded number, so the option is
+   just another recorded answer. */
+const ST = { sid:'', norm:'', mode:'homework', demo:true,
+  params:Object.assign({},DEMO_PARAMS), code:DEMO_CODE, noiseSeed:fnv1a32('DEMO-NOISE'),
+  d:derived(DEMO_PARAMS),
+  answers:{}, passed:{}, attempts:{},
+  tables:{}, runs:{},
+  events:{generated_at:null,checks:0,exports:0,saves:0,seconds:0} };
+
+/* ════════ questions & gates ════════
+   Report 2: every box is RECORDED, never judged. Boxes are grouped by the step of
+   Part 2 they belong to (CONTRACT §3); within a step a box unlocks when the one
+   before it is recorded. The steps' full wording and their full-credit lists are
+   on Tab 1, generated from the prompt, so this file only labels the boxes. */
+function answered(id){ return ST.answers[id]!=null && ST.answers[id]!==''; }
+const GATES={ none:()=>null };
+const P=(k,d)=>fmt(ST.params[k],d);
+function choiceOpts(id){ return (typeof CHOICE_OPTIONS!=='undefined'&&CHOICE_OPTIONS[id])?CHOICE_OPTIONS[id]:['A','B','C']; }
+function givens(list){ return '<p class="givens">'+list.map(([lbl,val])=>'<span>'+lbl+' <b>'+val+'</b></span>').join('')+'</p>'; }
+const QSPEC={
+  A:[
+   {id:'a_pic_b', unit:'mmHg', prob:'a1', text:'<strong>The colloid osmotic pressure measured in the burn patients before the infusion</strong> — lecture’s Π<sub>c</sub>, the pull. The Results text prints it.'},
+   {id:'a_pic_v', unit:'mmHg', prob:'a1', text:'<strong>The same, in the volunteers.</strong>'},
+   {id:'a_rise', unit:'mmHg', prob:'a1', text:()=>'<strong>How far the burn patients’ pull had risen at your assigned time, '+P('a_t',0)+' h</strong>, read off Fig. 2C — the burn patients’ symbol, not the volunteers’.'},
+   {id:'a_push_v', unit:'mmHg', prob:'a2', text:'<strong>The net push at the middle of your capillary, for a volunteer</strong> (eq. 8.2.2).'},
+   {id:'a_push_b', unit:'mmHg', prob:'a2', text:'<strong>The same, for a burn patient.</strong>'},
+   {id:'a_dpush', unit:'mmHg', prob:'a2', text:'<strong>Their difference</strong>, burn patient minus volunteer.'},
+   {id:'a_push2', unit:'mmHg', prob:'a3', text:'<strong>The burn patient’s push after the infusion</strong>, with the rise you read added to their pull.'},
+   {id:'a_share', unit:'%', prob:'a3', text:'<strong>The share of the gap between the burn patient’s push and the volunteer’s that the infusion closed.</strong>'},
+   {id:'a_alb', unit:'g/L', prob:'a4', text:'<strong>The burn patients’ plasma albumin before the infusion</strong>, from Table 1 (Fig. 1B shows the same).'},
+   {id:'a_vh', unit:'mmHg', prob:'a4', text:'<strong>The pull that albumin alone would give</strong> (eq. 8.2.1, at 310 K, albumin 66 348 g/mol).'},
+   {id:'a_vhshare', unit:'%', prob:'a4', text:'<strong>Its share of the pull the authors measured</strong> in the burn patients.'}
+  ],
+  B:[
+   {id:'b_D0', unit:'cm', prob:'b1', text:()=>'<strong>Your vein’s diameter at rest</strong> — the '+VEINS[ST.params.b_vein]+' vein.'},
+   {id:'b_u0', unit:'cm/s', prob:'b1', text:'<strong>Its velocity at rest</strong>, as the paper reports it.'},
+   {id:'b_D1', unit:'cm', prob:'b1', text:()=>'<strong>Its diameter after your assigned exercise</strong> — '+EXERCISES[ST.params.b_ex]+'.'},
+   {id:'b_u1', unit:'cm/s', prob:'b1', text:'<strong>Its velocity after that exercise.</strong>'},
+   {id:'b_ubar', unit:'cm/s', prob:'b2', text:'<strong>The mean speed at rest</strong>, treating the paper’s velocity as the centre of a steady parabola (eq. 7.1.3).'},
+   {id:'b_gw', unit:'s⁻¹', prob:'b2', text:'<strong>The shear rate at the wall at rest</strong> (eq. 7.3.6).'},
+   {id:'b_tw', unit:'mPa', prob:'b2', text:'<strong>The stress at the wall at rest</strong> (eq. 7.1.1), in millipascals.'},
+   {id:'b_plug', unit:'%', prob:'b2', text:'<strong>The plug’s share of the radius at rest</strong> (eq. 7.1.6), in per cent.'},
+   {id:'b_gw1', unit:'s⁻¹', prob:'b3', text:'<strong>The shear rate at the wall after the exercise.</strong>'},
+   {id:'b_fshear', unit:'– (after ÷ rest)', prob:'b3', text:'<strong>The factor by which the exercise changed the wall shear rate.</strong>'},
+   {id:'b_slow', unit:'– (times lower)', prob:'b3', text:'<strong>By what factor the wall stress would have to fall</strong>, at the resting diameter, for the plug to fill half the radius.'},
+   {id:'b_Qp', unit:'mL/s', prob:'b4', text:'<strong>The flow at rest in the popliteal vein</strong> (eq. 7.2.1).'},
+   {id:'b_Qf', unit:'mL/s', prob:'b4', text:'<strong>In the femoral vein.</strong>'},
+   {id:'b_Qe', unit:'mL/s', prob:'b4', text:'<strong>In the external iliac vein.</strong>'}
+  ],
+  C:[
+   {id:'c_s20', unit:'kPa', prob:'c1', text:()=>'<strong>Your muscle’s stress at 10 % strain at the slowest speed, 20 mm/min</strong>, from Fig. 4 — '+MUSCLES[ST.params.c_mus]+'.'},
+   {id:'c_s300', unit:'kPa', prob:'c1', text:'<strong>The same at the fastest speed, 300 mm/min.</strong>'},
+   {id:'c_T20', unit:'s', prob:'c1', text:'<strong>The time the slowest stretch took to reach 10 % strain</strong>, from the strain rate in the Methods.'},
+   {id:'c_T300', unit:'s', prob:'c1', text:'<strong>The time the fastest stretch took.</strong>'},
+   {id:'c_E20', unit:'kPa', prob:'c2', text:'<strong>The single spring’s stiffness at the slowest speed</strong> (eq. 6.2.6). This is your E<sub>∞</sub>.'},
+   {id:'c_E300', unit:'kPa', prob:'c2', text:'<strong>The single spring’s stiffness at the fastest speed.</strong>'},
+   {id:'c_g', unit:'– (no unit)', prob:'c2', text:()=>'<strong>The value of (τ/T)(1 − e<sup>−T/τ</sup>) for your fastest test</strong>, with your card’s τ = '+P('c_tau',0)+' s.'},
+   {id:'c_E1', unit:'kPa', prob:'c2', text:'<strong>The arm’s spring, E<sub>1</sub></strong> (eq. 6.2.5 under a steady stretch, §2.7).'},
+   {id:'c_E0', unit:'kPa', prob:'c2', text:'<strong>The instantaneous stiffness, E<sub>0</sub> = E<sub>1</sub> + E<sub>∞</sub>.</strong>'},
+   {id:'c_fac', unit:'– (times slower)', prob:'c3', text:'<strong>How many times slower the paper’s fastest test was than a hamstring lengthening in a sprint</strong> — the paper’s own number.'},
+   {id:'c_Tsp', unit:'ms', prob:'c3', text:'<strong>The time a sprint takes to stretch the muscle by 10 %</strong>, in milliseconds.'},
+   {id:'c_ssp', unit:'kPa', prob:'c3', text:'<strong>The stress the element predicts at 10 % strain in a sprint.</strong>'},
+   {id:'c_pct', unit:'%', prob:'c3', text:'<strong>How many per cent above your fastest reading that is.</strong>'},
+   {id:'c_Ekv', unit:'kPa', prob:'c4', text:'<strong>Kelvin–Voigt’s spring, E</strong>, made to pass through your two stiffnesses.'},
+   {id:'c_eta', unit:'kPa·s', prob:'c4', text:'<strong>Its damper, η.</strong>'},
+   {id:'c_skv', unit:'kPa', prob:'c4', text:'<strong>The stress it predicts at 10 % strain in a sprint.</strong>'}
+  ]
+};
+const G566={a4:1,b4:1,c4:1};
+function cardStrip(o){
+  const p=ST.params;
+  if(o==='A') return givens([['your capillary',P('a_Pa',0)+' mmHg arterial end · '+P('a_Pv',0)+' mmHg venous end'],
+    ['P<sub>t</sub>',fmt(PT,1)+' mmHg'],['Π<sub>t</sub>',fmt(PIT,1)+' mmHg'],['f<sub>r</sub>',fmt(FR,1)],['your assigned time',P('a_t',0)+' h']]);
+  if(o==='B') return givens([['your vein',VEINS[p.b_vein]],['your exercise',EXERCISES[p.b_ex]],
+    ['your blood’s viscosity η',P('b_eta',1)+' mPa·s'],['its yield stress τ<sub>y</sub>',P('b_tauy',1)+' mPa']]);
+  if(o==='C') return givens([['your muscle',MUSCLES[p.c_mus]],['your relaxation time τ',P('c_tau',0)+' s (an assumption)'],['strain','10 %']]);
+  return '';
+}
+const PROBLEM_HEADS={
+  a1:{title:'A1 · Read it', html:()=>'The two pulls are in the Results text; the rise is a point on Fig. 2C (burn patients, at '+P('a_t',0)+' h).'},
+  a2:{title:'A2 · Use it: the push on water', html:()=>'Starling’s balance (eq. 8.2.2) at the middle of your capillary: the mean of '+P('a_Pa',0)+' and '+P('a_Pv',0)+' mmHg. Each group’s measured pull; everything else from your card.'+cardStrip('A')},
+  a3:{title:'A3 · Change one thing: the infusion', html:()=>'Add the rise you read to the burn patients’ pull and compute their push again.'},
+  a4:{title:'A4 · How much of the pull is albumin?', html:()=>'Van ’t Hoff (eq. 8.2.1) on the burn patients’ albumin before the infusion. Lecture: 40 g/L gave 11.7 of the measured 26.9 mmHg.'},
+  b1:{title:'B1 · Read it', html:()=>'Fig. 2 or Table 2: your vein at rest and after your exercise. One label in the figure does not match the name the text uses.'+cardStrip('B')},
+  b2:{title:'B2 · Use it', html:()=>'Your vein at rest as lecture’s steady parabola, with the paper’s velocity at its centre. Your blood: η = '+P('b_eta',1)+' mPa·s, τ<sub>y</sub> = '+P('b_tauy',1)+' mPa.'},
+  b3:{title:'B3 · Change one thing: the speed', html:()=>'(a) the exercise’s factor on the wall shear rate; (b) lecture’s §1.4 asked when a plug is “large enough to matter”: half the radius is a fair line. By what factor would the wall stress have to fall to reach it?'},
+  b4:{title:'B4 · Continuity', html:()=>'All three veins at rest, from Table 2. Blood from the popliteal vein passes through the femoral vein and then the external iliac.'},
+  c1:{title:'C1 · Read it', html:()=>'Fig. 4, your muscle’s bars (or the dashed line for the average) at 20 and 300 mm/min; the strain rates are in the Methods.'+cardStrip('C')},
+  c2:{title:'C2 · Use it', html:()=>'Take the slowest test as the equilibrium spring, E<sub>∞</sub> (a fair approximation; the exact two-speed solve is also accepted). §2.7: E<sub>eff</sub>(T) = E<sub>∞</sub> + E<sub>1</sub>(τ/T)(1 − e<sup>−T/τ</sup>), with your τ = '+P('c_tau',0)+' s.'},
+  c3:{title:'C3 · Change one thing: a sprint', html:()=>'A stretch far shorter than τ reads the instantaneous stiffness E<sub>0</sub>.'},
+  c4:{title:'C4 · A second element', html:()=>'§2.7: Kelvin–Voigt under the same loading, E<sub>eff</sub>(T) = E + η/T, through your two stiffnesses of C2(a).'}
+};
+function currentOption(){ const o=ST.answers.option; return o==='0'?'A':o==='1'?'B':o==='2'?'C':null; }
+function activeQuestions(tab){ if(tab!=='q') return []; const o=currentOption();
+  return o?QSPEC[o].map(q=>Object.assign({},q,{gate:GATES.none,options:q.type==='choice'?choiceOpts(q.id):undefined})):[]; }
+const MISSION_LABELS={q:'YOUR NUMBERS — RECORDED, NEVER JUDGED · YOUR WRITTEN REPORT SHOWS THE WORKING'};
+function qGroup(q){ return q.prob||''; }
+function qState(tab,i){ const qs=activeQuestions(tab), q=qs[i];
+  for(let j=0;j<i;j++) if(qGroup(qs[j])===qGroup(q) && !answered(qs[j].id)) return 'locked';
+  return answered(q.id)?'answered':'active'; }
+
+/* ════════ no instrument in Report 2 — the run loop is a stub the shell may still call ════════ */
+let RUN=null;
+function stopRun(){ RUN=null; }
+function animLoop(){}
+function startRun(run){ void run; }
+
+/* ════════════════════════════════════════════════════════════════
+   CONTEXT PANELS (V2.38) — floating 📓 Notes + 🧮 Calculator.
+   Fixed-position panels usable beside ANY tab: drag by the header,
+   resize from the corner (CSS resize + ResizeObserver), collapse to
+   the title bar, close entirely — and every panel reopens at exactly
+   the size and position it last had (localStorage, clamped to the
+   viewport). On phones (≤700px) panels become bottom sheets instead.
+   The calculator is a real expression parser (no eval): variables,
+   ans, DEG/RAD trig, scientific notation, course constants; history
+   and variables persist. Results are copyable by design (⧉ uses the
+   async clipboard API — the sanctioned copy path under the guard).
+   ════════════════════════════════════════════════════════════════ */
+const TOOLS_LS='bme466report2v1|tools';
+let TOOLS={panels:{}, vars:{}, hist:[], deg:true, ans:null};
+(function loadTools(){ try{ const s=JSON.parse(localStorage.getItem(TOOLS_LS)||'null');
+  if(s&&typeof s==='object'){ TOOLS=Object.assign(TOOLS,s);
+    TOOLS.panels=TOOLS.panels||{}; TOOLS.vars=TOOLS.vars||{}; TOOLS.hist=TOOLS.hist||[];
+    if(TOOLS.deg===undefined)TOOLS.deg=true; } }catch(e){} })();
+let toolsT=null;
+function saveTools(){ clearTimeout(toolsT); toolsT=setTimeout(()=>{ try{
+  localStorage.setItem(TOOLS_LS,JSON.stringify(TOOLS)); }catch(e){} },250); }
+
+const PANEL_DEFS={ notes:{w:480,h:Math.min(640,Math.round(window.innerHeight*0.62)||520), x:null, y:56},
+                   calc:{w:360,h:600, x:24, y:80} };
+function isMobileView(){ return window.innerWidth<=700; }
+function panelSt(k){ TOOLS.panels[k]=TOOLS.panels[k]||{}; return TOOLS.panels[k]; }
+let panelZ=210;
+function bringFront(el){ panelZ+=1; if(panelZ>290)panelZ=211; el.style.zIndex=panelZ; }
+function applyPanelGeom(k){ const el=document.getElementById('panel-'+k); if(!el)return;
+  if(isMobileView()){ el.style.left=el.style.top=el.style.width=el.style.height=''; return; }
+  const st=panelSt(k), d=PANEL_DEFS[k];
+  let w=Math.min(st.w||d.w, window.innerWidth-16), h=Math.min(st.h||d.h, window.innerHeight-16);
+  let x=(st.x!=null)?st.x:((d.x!=null)?d.x:window.innerWidth-w-24);
+  let y=(st.y!=null)?st.y:d.y;
+  x=Math.max(4,Math.min(x,window.innerWidth-70)); y=Math.max(0,Math.min(y,window.innerHeight-44));
+  el.style.left=x+'px'; el.style.top=y+'px'; el.style.width=w+'px';
+  el.style.height=st.min?'auto':(h+'px');
+}
+function applyPanelMin(k){ const el=document.getElementById('panel-'+k); if(!el)return;
+  const st=panelSt(k);
+  el.classList.toggle('min',!!st.min);
+  const mb=el.querySelector('.cpanel-min'); if(mb){ mb.textContent=st.min?'▣':'▁'; mb.title=st.min?'Expand':'Collapse'; }
+  if(!isMobileView()) el.style.height=st.min?'auto':((Math.min(st.h||PANEL_DEFS[k].h,window.innerHeight-16))+'px');
+}
+function setPanelOpen(k,open){ const el=document.getElementById('panel-'+k), b=document.getElementById('tool-'+k);
+  if(!el)return; panelSt(k).open=!!open; saveTools();
+  el.hidden=!open; if(b)b.classList.toggle('on',!!open);
+  if(open){ applyPanelGeom(k); applyPanelMin(k); bringFront(el); } }
+function watchPanel(k){ const el=document.getElementById('panel-'+k); if(!el)return;
+  const head=el.querySelector('.cpanel-head');
+  head.addEventListener('pointerdown',e=>{
+    if(e.target.closest('button')||isMobileView())return;
+    const st=panelSt(k), r=el.getBoundingClientRect();
+    const ox=e.clientX-r.left, oy=e.clientY-r.top;
+    const move=ev=>{ let x=ev.clientX-ox, y=ev.clientY-oy;
+      x=Math.max(4,Math.min(x,window.innerWidth-70)); y=Math.max(0,Math.min(y,window.innerHeight-44));
+      el.style.left=x+'px'; el.style.top=y+'px'; st.x=Math.round(x); st.y=Math.round(y); };
+    const up=()=>{ document.removeEventListener('pointermove',move); document.removeEventListener('pointerup',up); saveTools(); };
+    document.addEventListener('pointermove',move); document.addEventListener('pointerup',up);
+    bringFront(el); e.preventDefault();
+  });
+  el.addEventListener('pointerdown',()=>bringFront(el));
+  if(window.ResizeObserver){ const ro=new ResizeObserver(()=>{
+    if(el.hidden||isMobileView()||el.classList.contains('min'))return;
+    const r=el.getBoundingClientRect(); if(!r.width||!r.height)return;
+    const st=panelSt(k);
+    if(Math.abs((st.w||0)-r.width)>1.5||Math.abs((st.h||0)-r.height)>1.5){
+      st.w=Math.round(r.width); st.h=Math.round(r.height); saveTools(); }
+  }); ro.observe(el); }
+  const mb=el.querySelector('.cpanel-min');
+  if(mb) mb.addEventListener('click',()=>{ const st=panelSt(k); st.min=!st.min; applyPanelMin(k); saveTools(); });
+  const xb=el.querySelector('.cpanel-x');
+  if(xb) xb.addEventListener('click',()=>setPanelOpen(k,false));
+}
+
+/* ── calculator engine (no eval) — V2.40: parse-once → compiled closure, shared by
+   the keypad REPL and the Desmos-style graph face. A closure takes a `scope` object
+   (e.g. {x:2.1}) whose names win over TOOLS.vars, which win over CALC_CONST. ── */
+const CALC_CONST={pi:Math.PI, e:Math.E, kB:1.380649e-23, NA:6.02214076e23,
+                  R:8.314462618, g:9.80665, h:6.62607015e-34, c:299792458};
+function degIn(x){ return TOOLS.deg?x*Math.PI/180:x; }
+function degOut(x){ return TOOLS.deg?x*180/Math.PI:x; }
+const CALC_FN={
+  sin:x=>Math.sin(degIn(x)), cos:x=>Math.cos(degIn(x)), tan:x=>Math.tan(degIn(x)),
+  asin:x=>degOut(Math.asin(x)), acos:x=>degOut(Math.acos(x)), atan:x=>degOut(Math.atan(x)),
+  atan2:(y,x)=>degOut(Math.atan2(y,x)),
+  sinh:Math.sinh, cosh:Math.cosh, tanh:Math.tanh,
+  ln:Math.log, log:Math.log10, log2:Math.log2, exp:Math.exp,
+  sqrt:Math.sqrt, cbrt:Math.cbrt, abs:Math.abs, floor:Math.floor, ceil:Math.ceil, round:Math.round,
+  min:Math.min, max:Math.max, pow:Math.pow };
+const CALC_ARGN={min:2,max:2,pow:2,atan2:2};
+function calcTokens(src){
+  const toks=[]; let i=0;
+  const isd=c=>c>='0'&&c<='9', isa=c=>/[A-Za-z_]/.test(c);
+  while(i<src.length){
+    const ch=src[i];
+    if(ch===' '||ch==='\t'){ i++; continue; }
+    if(isd(ch)||(ch==='.'&&isd(src[i+1]))){
+      let j=i; while(j<src.length&&(isd(src[j])||src[j]==='.'))j++;
+      if((src[j]==='e'||src[j]==='E')&&(isd(src[j+1])||((src[j+1]==='+'||src[j+1]==='-')&&isd(src[j+2])))){
+        j++; if(src[j]==='+'||src[j]==='-')j++; while(j<src.length&&isd(src[j]))j++; }
+      const s=src.slice(i,j), v=parseFloat(s);
+      if(!isFinite(v)) throw new Error('bad number “'+s+'”');
+      toks.push({t:'num',v}); i=j; continue; }
+    if(isa(ch)){ let j=i; while(j<src.length&&/[A-Za-z0-9_]/.test(src[j]))j++;
+      toks.push({t:'id',v:src.slice(i,j)}); i=j; continue; }
+    if(ch==='π'){ toks.push({t:'id',v:'pi'}); i++; continue; }
+    if(ch==='√'){ toks.push({t:'id',v:'sqrt'}); i++; continue; }
+    if(ch==='×'){ toks.push({t:'*'}); i++; continue; }
+    if(ch==='÷'){ toks.push({t:'/'}); i++; continue; }
+    if(ch==='−'){ toks.push({t:'-'}); i++; continue; }
+    if('+-*/%^(),='.includes(ch)){ toks.push({t:ch}); i++; continue; }
+    throw new Error('unexpected “'+ch+'”');
+  }
+  return toks;
+}
+function calcCompile(src){
+  const toks=calcTokens(src); let p=0;
+  const peek=()=>toks[p], eat=t=>{ if(!toks[p]||toks[p].t!==t) throw new Error('expected “'+t+'”'); return toks[p++]; };
+  let assign=null;
+  if(toks.length>=2&&toks[0].t==='id'&&toks[1].t==='='){
+    const name=toks[0].v;
+    if(CALC_FN[name]||(name in CALC_CONST)||name==='ans') throw new Error('“'+name+'” is reserved');
+    assign=name; p=2;
+    if(p>=toks.length) throw new Error('nothing after “=”');
+  }
+  function expr(){ let f=term();
+    while(peek()&&(peek().t==='+'||peek().t==='-')){ const op=toks[p++].t, r=term(), l=f;
+      f=(op==='+')?(s=>l(s)+r(s)):(s=>l(s)-r(s)); }
+    return f; }
+  function term(){ let f=unary();
+    while(peek()&&(peek().t==='*'||peek().t==='/'||peek().t==='%')){ const op=toks[p++].t, r=unary(), l=f;
+      f=(op==='*')?(s=>l(s)*r(s)):((op==='/')?(s=>l(s)/r(s)):(s=>l(s)%r(s))); }
+    return f; }
+  function unary(){ if(peek()&&peek().t==='-'){ p++; const u=unary(); return s=>-u(s); }
+    if(peek()&&peek().t==='+'){ p++; return unary(); }
+    return power(); }
+  function power(){ const b=primary();
+    if(peek()&&peek().t==='^'){ p++; const e2=unary(); return s=>Math.pow(b(s),e2(s)); }
+    return b; }
+  function primary(){
+    const tk=peek(); if(!tk) throw new Error('expression ended early');
+    if(tk.t==='num'){ p++; const v=tk.v; return ()=>v; }
+    if(tk.t==='('){ p++; const f=expr(); eat(')'); return f; }
+    if(tk.t==='id'){ p++;
+      const name=tk.v;
+      if(peek()&&peek().t==='('){
+        const fn=CALC_FN[name]; if(!fn) throw new Error('unknown function “'+name+'”');
+        p++; const args=[expr()];
+        while(peek()&&peek().t===','){ p++; args.push(expr()); }
+        eat(')');
+        const need=CALC_ARGN[name]||1;
+        if(args.length!==need) throw new Error(name+'() takes '+need+' argument'+(need>1?'s':''));
+        if(args.length===1){ const a=args[0]; return s=>fn(a(s)); }
+        const a0=args[0], a1=args[1]; return s=>fn(a0(s),a1(s));
+      }
+      return s=>{
+        if(s&&(name in s)) return s[name];
+        if(name==='ans'){ if(TOOLS.ans==null) throw new Error('no previous result yet'); return TOOLS.ans; }
+        if(name in CALC_CONST) return CALC_CONST[name];
+        if(name in TOOLS.vars) return TOOLS.vars[name];
+        throw new Error('unknown name “'+name+'” — declare it first (e.g. '+name+' = 3.4)');
+      };
+    }
+    throw new Error('unexpected “'+(tk.v||tk.t)+'”');
+  }
+  const f=expr();
+  if(p<toks.length) throw new Error('unexpected “'+(toks[p].v||toks[p].t)+'”');
+  return {fn:f, assign};
+}
+function calcEval(src,dry){
+  const c=calcCompile(src);
+  const v=c.fn(null);
+  if(!isFinite(v)) throw new Error(Number.isNaN(v)?'undefined result — check the domain (e.g. sqrt of a negative)':'infinite result — check for division by zero');
+  if(!dry){ if(c.assign) TOOLS.vars[c.assign]=v; TOOLS.ans=v; }
+  return {v,assign:c.assign};
+}
+function calcFmt(v){
+  if(v===0)return '0';
+  const a=Math.abs(v);
+  if(a>=1e7||a<1e-4){
+    let s=v.toExponential(6);
+    s=s.replace(/(\.\d*?)0+e/,'$1e').replace(/\.e/,'e');
+    return s;
+  }
+  let s=v.toPrecision(8);
+  if(s.indexOf('e')<0&&s.indexOf('.')>=0) s=s.replace(/0+$/,'').replace(/\.$/,'');
+  return s;
+}
+function calcEsc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+/* ── keypad: one pad, two targets (REPL input / focused graph row) ── */
+let PAD2=false, PADMORE=false, lastGIn=null;
+function padTarget(){
+  if(TOOLS.calcMode==='g'){
+    if(lastGIn&&document.contains(lastGIn)) return lastGIn;
+    const ins=document.querySelectorAll('#graph-exprs .gin');
+    return ins[ins.length-1]||null;
+  }
+  return document.getElementById('calc-in');
+}
+function calcInsert(txt){ const inp=padTarget(); if(!inp)return;
+  const s=inp.selectionStart!=null?inp.selectionStart:inp.value.length, e=inp.selectionEnd!=null?inp.selectionEnd:s;
+  inp.value=inp.value.slice(0,s)+txt+inp.value.slice(e);
+  const pos=s+txt.length;
+  inp.focus(); try{ inp.setSelectionRange(pos,pos); }catch(_){}
+  inp.dispatchEvent(new Event('input',{bubbles:true}));
+}
+function padBackspace(){ const inp=padTarget(); if(!inp)return;
+  const s=inp.selectionStart, e=inp.selectionEnd, v=inp.value;
+  if(s==null){ inp.value=v.slice(0,-1); }
+  else if(e>s){ inp.value=v.slice(0,s)+v.slice(e); try{inp.setSelectionRange(s,s);}catch(_){ } }
+  else if(s>0){ inp.value=v.slice(0,s-1)+v.slice(s); try{inp.setSelectionRange(s-1,s-1);}catch(_){ } }
+  inp.focus();
+  inp.dispatchEvent(new Event('input',{bubbles:true}));
+}
+const PAD=[
+ {p:'2nd',k:'2nd',cls:'kf'},{p:'sin',i:'sin(',s:['sin⁻¹','asin(']},{p:'cos',i:'cos(',s:['cos⁻¹','acos(']},{p:'tan',i:'tan(',s:['tan⁻¹','atan(']},{p:'π',i:'pi',s:['e','e']},
+ {p:'ln',i:'ln(',s:['eˣ','exp(']},{p:'log',i:'log(',s:['log₂','log2(']},{p:'√',i:'sqrt(',s:['∛','cbrt(']},{p:'x²',i:'^2',s:['x³','^3']},{p:'^',i:'^',s:['mod','%']},
+ {p:'7',i:'7',cls:'kd'},{p:'8',i:'8',cls:'kd'},{p:'9',i:'9',cls:'kd'},{p:'(',i:'('},{p:')',i:')'},
+ {p:'4',i:'4',cls:'kd'},{p:'5',i:'5',cls:'kd'},{p:'6',i:'6',cls:'kd'},{p:'×',i:'*'},{p:'÷',i:'/'},
+ {p:'1',i:'1',cls:'kd'},{p:'2',i:'2',cls:'kd'},{p:'3',i:'3',cls:'kd'},{p:'+',i:'+'},{p:'−',i:'-'},
+ {p:'0',i:'0',cls:'kd'},{p:'.',i:'.',cls:'kd'},{p:'EXP',i:'e',s:[',',',']},{p:'ans',i:'ans',gx:1},{p:'=',k:'eq',cls:'keq'},
+ {p:'AC',k:'ac',cls:'kf'},{p:'⌫',k:'bs',cls:'kf'},{p:'kB',i:'kB',s:['R','R']},{p:'NA',i:'NA',s:['h','h']},{p:'⋯',k:'more',cls:'kf'}
+];
+const PAD_MORE=[['R','R'],['g','g'],['h','h'],['c','c'],['x =','x = '],['min','min('],['max','max('],['pow','pow('],['atan2','atan2(']];
+function padLabels(){
+  document.querySelectorAll('#calc-pad button[data-i]').forEach(b=>{
+    const d=PAD[+b.dataset.i];
+    let lab=d.p;
+    if(d.gx&&TOOLS.calcMode==='g') lab='x';
+    else if(PAD2&&d.s) lab=d.s[0];
+    b.textContent=lab;
+    if(d.k==='2nd') b.classList.toggle('kon',PAD2);
+    if(d.k==='more') b.classList.toggle('kon',PADMORE);
+  });
+}
+function padPress(d){
+  if(d.k==='2nd'){ PAD2=!PAD2; padLabels(); return; }
+  if(d.k==='more'){ PADMORE=!PADMORE;
+    const m=document.getElementById('calc-more'); if(m)m.hidden=!PADMORE; padLabels(); return; }
+  if(d.k==='ac'){ const t=padTarget(); if(t){ t.value=''; t.focus(); t.dispatchEvent(new Event('input',{bubbles:true})); } return; }
+  if(d.k==='bs'){ padBackspace(); return; }
+  if(d.k==='eq'){ if(TOOLS.calcMode==='g') calcInsert('='); else calcGo(); return; }
+  let ins=d.i;
+  if(d.gx&&TOOLS.calcMode==='g') ins='x';
+  else if(PAD2&&d.s) ins=d.s[1];
+  calcInsert(ins);
+  if(PAD2){ PAD2=false; padLabels(); }   /* one-shot 2nd, like a real calculator */
+}
+function padBuild(){
+  const pad=document.getElementById('calc-pad'); if(!pad)return;
+  pad.innerHTML=PAD.map((d,i)=>'<button type="button" data-i="'+i+'"'+(d.cls?' class="'+d.cls+'"':'')+'></button>').join('');
+  pad.addEventListener('pointerdown',e=>{ if(e.target.closest('button'))e.preventDefault(); });  /* keep focus in the input */
+  pad.querySelectorAll('button[data-i]').forEach(b=>b.addEventListener('click',()=>padPress(PAD[+b.dataset.i])));
+  const more=document.getElementById('calc-more');
+  if(more){ more.innerHTML=PAD_MORE.map((m,i)=>'<button type="button" data-i="'+i+'">'+m[0]+'</button>').join('');
+    more.addEventListener('pointerdown',e=>{ if(e.target.closest('button'))e.preventDefault(); });
+    more.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>calcInsert(PAD_MORE[+b.dataset.i][1]))); }
+  padLabels();
+}
+
+/* ── REPL face ── */
+function calcRenderVars(){ const host=document.getElementById('calc-vars'); if(!host)return;
+  const names=Object.keys(TOOLS.vars);
+  host.innerHTML=(names.length
+    ? names.map(n=>'<span class="vchip" data-n="'+n+'">'+n+' = '+calcFmt(TOOLS.vars[n])+'<span class="vdel" data-n="'+n+'" title="delete '+n+'">✕</span></span>').join('')
+      +'<button class="vclear" id="calc-vclear">clear all</button>'
+    : '<span style="color:#94a3b8">no variables yet — try:&nbsp; <b>D = 3.43</b></span>');
+  host.querySelectorAll('.vchip').forEach(cEl=>cEl.addEventListener('click',e=>{
+    if(e.target.classList.contains('vdel'))return; calcInsert(cEl.dataset.n); }));
+  host.querySelectorAll('.vdel').forEach(d=>d.addEventListener('click',e=>{ e.stopPropagation();
+    delete TOOLS.vars[d.dataset.n]; saveTools(); calcRenderVars(); gDrawSoon(); }));
+  const vc=document.getElementById('calc-vclear');
+  if(vc)vc.addEventListener('click',()=>{ TOOLS.vars={}; saveTools(); calcRenderVars(); gDrawSoon(); });
+}
+function calcRenderHist(){ const host=document.getElementById('calc-hist'); if(!host)return;
+  host.innerHTML=TOOLS.hist.map((h,i)=>'<div class="calc-row" data-i="'+i+'"><span class="ce">'+calcEsc(h.e)+'</span><span class="'+(h.err?'cerr':'cr')+'">= '+calcEsc(h.r)+'</span>'+(h.err?'':'<button class="ccopy" data-i="'+i+'" title="copy result">⧉</button>')+'</div>').join('')
+    ||'<div style="color:#94a3b8">results appear here — click a line to reuse it</div>';
+  host.querySelectorAll('.calc-row').forEach(r=>r.addEventListener('click',e=>{
+    if(e.target.classList.contains('ccopy'))return;
+    const h=TOOLS.hist[+r.dataset.i]; if(!h)return;
+    const inp=document.getElementById('calc-in'); inp.value=h.e; inp.focus(); calcPreview(); }));
+  host.querySelectorAll('.ccopy').forEach(b=>b.addEventListener('click',()=>{
+    const h=TOOLS.hist[+b.dataset.i]; if(!h)return;
+    const val=h.r.indexOf('= ')>=0?h.r.slice(h.r.indexOf('= ')+2):h.r;   /* strip "name = " on assignments */
+    if(navigator.clipboard&&navigator.clipboard.writeText)
+      navigator.clipboard.writeText(val).then(()=>{ b.textContent='✓'; setTimeout(()=>{b.textContent='⧉';},1200); },()=>{});
+  }));
+  host.scrollTop=host.scrollHeight;
+}
+function calcPreview(){ const el=document.getElementById('calc-prev'), inp=document.getElementById('calc-in');
+  if(!el||!inp)return;
+  const src=(inp.value||'').trim();
+  if(!src){ el.innerHTML='&nbsp;'; el.classList.remove('perr'); return; }
+  try{ const out=calcEval(src,true);   /* dry run: never commits ans or the variable */
+    el.textContent=(out.assign?out.assign+' = ':'= ')+calcFmt(out.v); el.classList.remove('perr'); }
+  catch(err){ const m=String(err.message||'');
+    if(m.indexOf('undefined result')===0||m.indexOf('infinite result')===0){ el.textContent=m; el.classList.add('perr'); }
+    else { el.innerHTML='&nbsp;'; el.classList.remove('perr'); } }
+}
+function calcGo(){ const inp=document.getElementById('calc-in'); if(!inp)return;
+  const src=(inp.value||'').trim(); if(!src)return;
+  let row;
+  try{ const out=calcEval(src); row={e:src, r:(out.assign?out.assign+' = ':'')+calcFmt(out.v)}; inp.value=''; }
+  catch(err){ row={e:src, r:err.message, err:1}; }
+  TOOLS.hist.push(row); if(TOOLS.hist.length>80)TOOLS.hist=TOOLS.hist.slice(-80);
+  saveTools(); calcRenderHist(); calcRenderVars(); calcPreview(); gDrawSoon();
+}
+
+/* ── graph face (Desmos-style: live curves, sliders, pan/zoom) ── */
+const GCOLORS=['#2563eb','#dc2626','#059669','#9333ea','#ea580c','#0891b2'];
+const GCURVE_RE=/^\s*(?:y|[A-Za-z_]\w*\s*\(\s*x\s*\))\s*=\s*(.+)$/;
+const GASSIGN_RE=/^\s*([A-Za-z_]\w*)\s*=\s*(.+)$/;
+const GNUM_RE=/^\s*[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?\s*$/;
+function gstate(){ TOOLS.graph=TOOLS.graph||{};
+  if(!Array.isArray(TOOLS.graph.exprs)||!TOOLS.graph.exprs.length)
+    TOOLS.graph.exprs=[{src:'y = x^2',on:true,c:0}];
+  return TOOLS.graph; }
+let GW=null, gRaf=0, gTypeT=null;
+function gcv(){ return document.getElementById('graph-cv'); }
+function gwin(){
+  if(!GW){ const g=gstate();
+    if(g.win&&isFinite(g.win.x0)&&g.win.x1>g.win.x0&&g.win.y1>g.win.y0) GW=Object.assign({},g.win);
+    else { const cv=gcv(); const ar=cv&&cv.clientWidth?cv.clientHeight/cv.clientWidth:0.69;
+      GW={x0:-10,x1:10,y0:-10*ar,y1:10*ar}; } }
+  return GW; }
+function gSaveWin(){ gstate().win=Object.assign({},GW); saveTools(); }
+function gDrawSoon(){ if(gRaf)return; gRaf=requestAnimationFrame(()=>{ gRaf=0; graphDraw(); }); }
+function niceStep(raw){ if(!isFinite(raw)||raw<=0)return 1;
+  const p=Math.pow(10,Math.floor(Math.log10(raw))), m=raw/p;
+  return (m<1.5?1:m<3.5?2:m<7.5?5:10)*p; }
+function gFmt(v){ if(Math.abs(v)<1e-12)return'0';
+  const a=Math.abs(v);
+  if(a>=1e5||a<1e-3) return v.toExponential(0).replace('e+','e');
+  return String(parseFloat(v.toPrecision(6))); }
+function gZoom(f,gx,gy){ const w=gwin();
+  w.x0=gx+(w.x0-gx)*f; w.x1=gx+(w.x1-gx)*f;
+  w.y0=gy+(w.y0-gy)*f; w.y1=gy+(w.y1-gy)*f; }
+function syncSliderUI(el,row,slider){
+  const r=el.querySelector('.gsr'), mn=el.querySelector('.gmin'), mx=el.querySelector('.gmax');
+  if(!r)return;
+  if(row.min==null||!isFinite(row.min))row.min=Math.min(-10,Math.floor(slider.v));
+  if(row.max==null||!isFinite(row.max)||row.max<=row.min)row.max=Math.max(10,Math.ceil(slider.v));
+  if(document.activeElement!==mn) mn.value=row.min;
+  if(document.activeElement!==mx) mx.value=row.max;
+  r.min=row.min; r.max=row.max; r.step=(row.max-row.min)/200||0.05;
+  if(document.activeElement!==r) r.value=slider.v;
+}
+function drawCurve(ctx,fn,gscope,w,W,H,X,Y,color){
+  const N=Math.min(500,Math.max(120,Math.round(W)));
+  const sc=Object.create(gscope);
+  ctx.strokeStyle=color; ctx.lineWidth=2; ctx.lineJoin='round'; ctx.beginPath();
+  let pen=false, prevOff=0;   /* prevOff: -1 below window, +1 above, 0 inside */
+  try{
+    for(let i=0;i<=N;i++){
+      sc.x=w.x0+(w.x1-w.x0)*i/N;
+      let y=fn(sc);
+      if(!isFinite(y)){ pen=false; prevOff=0; continue; }
+      const off=y>w.y1?1:(y<w.y0?-1:0);
+      if(pen&&off&&prevOff&&off!==prevOff){ pen=false; }   /* jumped clean across → asymptote */
+      const py=Math.max(-2*H,Math.min(3*H,Y(y)));
+      if(!pen){ ctx.moveTo(X(sc.x),py); pen=true; } else ctx.lineTo(X(sc.x),py);
+      prevOff=off;
+    }
+  }catch(_){ return false; }
+  ctx.stroke(); return true;
+}
+function graphDraw(){
+  const cv=gcv(); if(!cv)return;
+  const face=document.getElementById('face-graph'); if(!face||face.hidden)return;
+  const W=cv.clientWidth, H=cv.clientHeight; if(!W||!H)return;
+  const dpr=window.devicePixelRatio||1;
+  if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr)){ cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr); }
+  const ctx=cv.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
+  const w=gwin();
+  const X=x=>(x-w.x0)/(w.x1-w.x0)*W, Y=y=>H-(y-w.y0)/(w.y1-w.y0)*H;
+  ctx.clearRect(0,0,W,H);
+  /* grid + labels */
+  const sx=niceStep((w.x1-w.x0)/6), sy=niceStep((w.y1-w.y0)/5);
+  const ylab=Math.max(12,Math.min(H-5,Y(0)+12)), xlab=Math.max(4,Math.min(W-38,X(0)+4));
+  ctx.font='10px system-ui'; ctx.lineWidth=1;
+  for(let x=Math.ceil(w.x0/sx-1e-9)*sx; x<=w.x1+1e-9; x+=sx){
+    const px=X(x); ctx.strokeStyle='#eef2f7';
+    ctx.beginPath(); ctx.moveTo(px,0); ctx.lineTo(px,H); ctx.stroke();
+    if(Math.abs(x)>sx/2){ ctx.fillStyle='#94a3b8'; ctx.fillText(gFmt(x),px+2,ylab); } }
+  for(let y=Math.ceil(w.y0/sy-1e-9)*sy; y<=w.y1+1e-9; y+=sy){
+    const py=Y(y); ctx.strokeStyle='#eef2f7';
+    ctx.beginPath(); ctx.moveTo(0,py); ctx.lineTo(W,py); ctx.stroke();
+    if(Math.abs(y)>sy/2){ ctx.fillStyle='#94a3b8'; ctx.fillText(gFmt(y),xlab,py-2); } }
+  ctx.strokeStyle='#cbd5e1'; ctx.lineWidth=1.4;
+  if(w.x0<0&&w.x1>0){ ctx.beginPath(); ctx.moveTo(X(0),0); ctx.lineTo(X(0),H); ctx.stroke(); }
+  if(w.y0<0&&w.y1>0){ ctx.beginPath(); ctx.moveTo(0,Y(0)); ctx.lineTo(W,Y(0)); ctx.stroke(); }
+  /* rows, top to bottom: assignments build a shared scope, curves sample it */
+  const g=gstate(), rows=document.querySelectorAll('#graph-exprs .gexpr');
+  const gscope={}; let assigned=false;
+  g.exprs.forEach((row,i)=>{
+    const el=rows[i], src=(row.src||'').trim();
+    let err=false, slider=null, curveFn=null;
+    if(src){ try{
+      const mc=src.match(GCURVE_RE);
+      if(mc){ curveFn=calcCompile(mc[1]).fn; }
+      else{ const ma=src.match(GASSIGN_RE);
+        if(ma){ const cc=calcCompile(src);
+          const v=cc.fn(gscope);
+          if(!isFinite(v)) throw new Error('not finite');
+          TOOLS.vars[cc.assign]=v; gscope[cc.assign]=v; assigned=true;
+          if(GNUM_RE.test(ma[2])) slider={name:cc.assign,v:v};
+        } else curveFn=calcCompile(src).fn;
+      }
+    }catch(_){ err=true; } }
+    if(el){ el.classList.toggle('gerr',err);
+      el.classList.toggle('goff',row.on===false);
+      const sl=el.querySelector('.gsl');
+      if(sl){ sl.hidden=!slider; if(slider) syncSliderUI(el,row,slider); } }
+    if(curveFn&&row.on!==false&&!err)
+      drawCurve(ctx,curveFn,gscope,w,W,H,X,Y,GCOLORS[(row.c||0)%GCOLORS.length]);
+  });
+  if(assigned){ saveTools(); calcRenderVars(); }
+}
+function renderGraphRows(){
+  const host=document.getElementById('graph-exprs'); if(!host)return;
+  const g=gstate();
+  host.innerHTML='';
+  g.exprs.forEach((row,i)=>{
+    const div=document.createElement('div'); div.className='gexpr'+(row.on===false?' goff':'');
+    div.style.setProperty('--c',GCOLORS[(row.c||0)%GCOLORS.length]);
+    div.innerHTML='<button class="gdot" type="button" title="show / hide"></button>'
+      +'<input class="gin" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="y = 4*D*x   ·   a = 2 (slider)   ·   1/x" value="'+calcEsc(row.src||'')+'">'
+      +'<button class="gx" type="button" title="remove">✕</button>'
+      +'<div class="gsl" hidden><input type="range" class="gsr"><input class="gsn gmin" title="slider min"><input class="gsn gmax" title="slider max"></div>';
+    const gin=div.querySelector('.gin');
+    gin.addEventListener('focus',()=>{ lastGIn=gin; });
+    gin.addEventListener('input',()=>{ row.src=gin.value; saveTools();
+      clearTimeout(gTypeT); gTypeT=setTimeout(gDrawSoon,120); });
+    gin.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); gDrawSoon(); } });
+    div.querySelector('.gdot').addEventListener('click',()=>{ row.on=row.on===false; saveTools(); gDrawSoon(); });
+    div.querySelector('.gx').addEventListener('click',()=>{ g.exprs.splice(i,1);
+      if(!g.exprs.length)g.exprs.push({src:'',on:true,c:0});
+      lastGIn=null; saveTools(); renderGraphRows(); gDrawSoon(); });
+    const r=div.querySelector('.gsr');
+    r.addEventListener('input',()=>{ const m=(row.src||'').match(GASSIGN_RE); if(!m)return;
+      row.src=m[1]+' = '+parseFloat((+r.value).toPrecision(6));
+      if(document.activeElement!==gin) gin.value=row.src;
+      saveTools(); gDrawSoon(); });
+    div.querySelector('.gmin').addEventListener('change',function(){ row.min=parseFloat(this.value); saveTools(); gDrawSoon(); });
+    div.querySelector('.gmax').addEventListener('change',function(){ row.max=parseFloat(this.value); saveTools(); gDrawSoon(); });
+    host.appendChild(div);
+  });
+}
+function graphInit(){
+  const cv=gcv(); if(!cv)return;
+  const add=document.getElementById('graph-add');
+  if(add)add.addEventListener('click',()=>{ const g=gstate();
+    g.exprs.push({src:'',on:true,c:g.exprs.length%GCOLORS.length});
+    saveTools(); renderGraphRows(); gDrawSoon();
+    const ins=document.querySelectorAll('#graph-exprs .gin'); const last=ins[ins.length-1];
+    if(last){ last.focus(); lastGIn=last; } });
+  const zin=document.getElementById('gz-in'), zout=document.getElementById('gz-out'), zh=document.getElementById('gz-home');
+  const gcenter=()=>{ const w=gwin(); return [(w.x0+w.x1)/2,(w.y0+w.y1)/2]; };
+  if(zin)zin.addEventListener('click',()=>{ const c=gcenter(); gZoom(0.8,c[0],c[1]); gSaveWin(); gDrawSoon(); });
+  if(zout)zout.addEventListener('click',()=>{ const c=gcenter(); gZoom(1.25,c[0],c[1]); gSaveWin(); gDrawSoon(); });
+  if(zh)zh.addEventListener('click',()=>{ GW=null; gstate().win=null; saveTools(); gDrawSoon(); });
+  const ptrs=new Map();
+  cv.addEventListener('pointerdown',e=>{ try{cv.setPointerCapture(e.pointerId);}catch(_){}
+    ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY}); e.preventDefault(); });
+  cv.addEventListener('pointermove',e=>{ if(!ptrs.has(e.pointerId))return;
+    const w=gwin(), r=cv.getBoundingClientRect();
+    if(ptrs.size===1){ const pt=ptrs.get(e.pointerId);
+      const dx=(e.clientX-pt.x)/r.width*(w.x1-w.x0), dy=(e.clientY-pt.y)/r.height*(w.y1-w.y0);
+      w.x0-=dx; w.x1-=dx; w.y0+=dy; w.y1+=dy;
+      ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY}); gDrawSoon(); }
+    else if(ptrs.size===2){ const ids=[...ptrs.keys()];
+      const a=ptrs.get(ids[0]), b=ptrs.get(ids[1]);
+      const d0=Math.hypot(a.x-b.x,a.y-b.y);
+      ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+      const a2=ptrs.get(ids[0]), b2=ptrs.get(ids[1]);
+      const d1=Math.hypot(a2.x-b2.x,a2.y-b2.y);
+      if(d0>4&&d1>4){ const mx=(a2.x+b2.x)/2-r.left, my=(a2.y+b2.y)/2-r.top;
+        const gx=w.x0+mx/r.width*(w.x1-w.x0), gy=w.y1-my/r.height*(w.y1-w.y0);
+        gZoom(d0/d1,gx,gy); gDrawSoon(); } }
+  });
+  const drop=e=>{ if(ptrs.has(e.pointerId)){ ptrs.delete(e.pointerId); gSaveWin(); } };
+  cv.addEventListener('pointerup',drop); cv.addEventListener('pointercancel',drop);
+  cv.addEventListener('wheel',e=>{ e.preventDefault();
+    const w=gwin(), r=cv.getBoundingClientRect();
+    const gx=w.x0+(e.clientX-r.left)/r.width*(w.x1-w.x0);
+    const gy=w.y1-(e.clientY-r.top)/r.height*(w.y1-w.y0);
+    gZoom(e.deltaY>0?1.12:1/1.12,gx,gy); gSaveWin(); gDrawSoon(); },{passive:false});
+  if(window.ResizeObserver) new ResizeObserver(()=>gDrawSoon()).observe(cv);
+  renderGraphRows();
+}
+
+/* ── mode switch + init ── */
+function applyPadVis(){ const pad=document.getElementById('calc-pad'); if(!pad)return;
+  const key=TOOLS.calcMode==='g'?'g':'c', show=!!TOOLS.pad[key];
+  pad.hidden=!show;
+  const more=document.getElementById('calc-more'); if(more)more.hidden=!show||!PADMORE;
+  const pb=document.getElementById('cm-pad'); if(pb)pb.classList.toggle('on',show);
+}
+function setCalcMode(m){
+  TOOLS.calcMode=(m==='g')?'g':'c'; saveTools();
+  const g=TOOLS.calcMode==='g';
+  const fc=document.getElementById('face-calc'), fg=document.getElementById('face-graph');
+  if(fc)fc.hidden=g; if(fg)fg.hidden=!g;
+  const bc=document.getElementById('cm-calc'), bg=document.getElementById('cm-graph');
+  if(bc)bc.classList.toggle('on',!g); if(bg)bg.classList.toggle('on',g);
+  applyPadVis(); padLabels();
+  if(g) gDrawSoon();
+}
+function notesInit(){
+  const secs=document.querySelectorAll('#panel-notes .cpanel-body > .background-section');
+  TOOLS.notesSec=TOOLS.notesSec||{};
+  secs.forEach((sec,i)=>{
+    const hd=sec.querySelector('h2,h3'); if(!hd)return;
+    hd.classList.add('nsec-h');
+    const car=document.createElement('span'); car.className='nsec-car'; hd.prepend(car);
+    const open=(TOOLS.notesSec[i]!==undefined)?!!TOOLS.notesSec[i]:(i===0);
+    sec.classList.toggle('nsec-closed',!open); car.textContent=open?'▾ ':'▸ ';
+    hd.addEventListener('click',()=>{
+      const closed=sec.classList.toggle('nsec-closed');
+      car.textContent=closed?'▸ ':'▾ ';
+      TOOLS.notesSec[i]=!closed; saveTools();
+    });
+  });
+}
+function calcInit(){
+  const pad=document.getElementById('calc-pad'); if(!pad)return;
+  TOOLS.calcMode=(TOOLS.calcMode==='g')?'g':'c';
+  TOOLS.pad=TOOLS.pad||{c:true,g:false};
+  padBuild();
+  document.getElementById('cm-calc').addEventListener('click',()=>setCalcMode('c'));
+  document.getElementById('cm-graph').addEventListener('click',()=>setCalcMode('g'));
+  document.getElementById('cm-pad').addEventListener('click',()=>{
+    const k=TOOLS.calcMode==='g'?'g':'c'; TOOLS.pad[k]=!TOOLS.pad[k]; saveTools(); applyPadVis(); });
+  const md=document.getElementById('calc-mode');
+  md.textContent=TOOLS.deg?'DEG':'RAD';
+  md.addEventListener('click',()=>{ TOOLS.deg=!TOOLS.deg; saveTools();
+    md.textContent=TOOLS.deg?'DEG':'RAD'; calcPreview(); gDrawSoon(); });
+  const inp=document.getElementById('calc-in');
+  inp.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); calcGo(); } });
+  inp.addEventListener('input',calcPreview);
+  graphInit();
+  calcRenderHist(); calcRenderVars();
+  setCalcMode(TOOLS.calcMode);
+}
+(function initPanels(){
+  ['notes','calc'].forEach(k=>{
+    watchPanel(k);
+    const b=document.getElementById('tool-'+k);
+    if(b)b.addEventListener('click',()=>{ const el=document.getElementById('panel-'+k);
+      setPanelOpen(k, el?el.hidden:false); });
+    if(panelSt(k).open) setPanelOpen(k,true);
+  });
+  window.addEventListener('resize',()=>{ ['notes','calc'].forEach(k=>{
+    const el=document.getElementById('panel-'+k); if(el&&!el.hidden){ applyPanelGeom(k); applyPanelMin(k); } }); });
+  notesInit();
+  calcInit();
+})();
+
+/* ════════════════════════════════════════════════════════════════════════
+   shell_a.js — Tab 2 (Your numbers) and Tab 3 (Map & Export) rendering.
+   Mission cards, recording, the ladder, the progress grid, and the
+   truth-free cross-checks of CONTRACT §5.
+
+   NOTHING in this file knows a reading or a truth. Every cross-check compares
+   two of the STUDENT'S OWN numbers, or one of them against their printed card.
+   The tolerances are MEASURED by harness_xchecks.mjs (ten honest students per
+   option, rounding as students do); a check that fires on honest work fails it.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* a recorded answer as a number ('' and null become NaN, commas tolerated) */
+function A_(id){ const v=ST.answers[id];
+  if(v==null||v==='') return NaN;
+  const x=parseFloat(String(v).replace(/,/g,'').trim()); return isFinite(x)?x:NaN; }
+
+/* ════════ Tab 2 · mission cards ════════ */
+function tabQuestionCounts(tab){ const qs=activeQuestions(tab);
+  return [qs.filter(q=>answered(q.id)).length, qs.length]; }
+function qBody(q){ return typeof q.text==='function'?q.text():q.text; }
+function renderMission(tab){
+  if(tab!=='q') return;
+  const host=document.getElementById('mission-q'); if(!host) return;
+  const nopick=document.getElementById('q-nopick');
+  const qs=activeQuestions(tab);
+  if(nopick) nopick.hidden=qs.length>0;
+  if(!qs.length){ host.innerHTML=''; return; }
+  let html=(ST.demo?'<div class="insight"><strong>You are signed out.</strong> These boxes use the sample card, and what you type here stays on this computer under it: it does not move to your own card when you sign in. Sign in with your UA NetID first.</div>':'')+
+    '<p class="mission-label">'+(MISSION_LABELS[tab]||'YOUR NUMBERS')+'</p>';
+  let lastProb=null;
+  qs.forEach((q,i)=>{
+    if(q.prob&&q.prob!==lastProb){ lastProb=q.prob; const ph=PROBLEM_HEADS[q.prob];
+      if(ph){ const is566=!!G566[q.prob];
+        html+='<div class="prob-head"><h3>'+ph.title+(is566?' <span class="q566">566</span>':'')+'</h3>'+
+              '<div class="ph-body">'+ph.html()+'</div>'+
+              '<p class="ph-link">The step in full, with its full-credit list: <a href="#" class="to-k" data-step="'+q.prob+'">Tab 1</a>.</p></div>'; } }
+    const state=qState(tab,i);
+    const group=qs.filter(x=>qGroup(x)===qGroup(q));
+    const n=group.length, k=group.indexOf(group.find(x=>x.id===q.id))+1;
+    if(state==='locked'){
+      html+='<div class="qcard locked"><span class="qnum">BOX '+k+' OF '+n+'</span>'+
+        '<p class="qtext lock-msg">🔒 Unlocks when the box before it in this step is recorded.</p></div>';
+      return; }
+    const val=ST.answers[q.id]!=null?ST.answers[q.id]:'';
+    html+='<div class="qcard '+state+'"><span class="qnum">BOX '+k+' OF '+n+
+          (state==='answered'?' — RECORDED':'')+'</span><p class="qtext">'+qBody(q)+'</p>';
+    if(q.type==='choice'){
+      html+='<div class="qchoices">';
+      (q.options||[]).forEach((opt,kk)=>{
+        html+='<button class="choice-btn'+(String(val)===String(kk)?' chosen':'')+'" id="opt-'+q.id+'-'+kk+'">'+
+              String.fromCharCode(65+kk)+'. '+esc(opt)+'</button>'; });
+      html+='</div><p class="qstatus'+(state==='answered'?' rec':'')+'" id="qs-'+q.id+'">'+
+            (state==='answered'?'Recorded into your results file ✓ — you can change it any time.':'')+'</p></div>';
+    } else {
+      html+='<div class="qrow"><input type="text" id="ans-'+q.id+'" value="'+esc(String(val))+'" autocomplete="off" inputmode="decimal">'+
+            '<span class="unit">'+q.unit+'</span>'+
+            '<button class="qsubmit" id="sub-'+q.id+'">'+(state==='answered'?'Update':'Record')+'</button>'+
+            '<span class="qstatus" id="qs-'+q.id+'">'+(state==='answered'?crossCheckNote(q.id):'')+'</span></div></div>';
+    }
+  });
+  host.innerHTML=html;
+  qs.forEach(q=>{
+    if(q.type==='choice'){
+      (q.options||[]).forEach((_o,kk)=>{ const b=document.getElementById('opt-'+q.id+'-'+kk);
+        if(b) b.addEventListener('click',()=>submitChoice(tab,q,kk)); });
+    } else {
+      const btn=document.getElementById('sub-'+q.id), inp=document.getElementById('ans-'+q.id);
+      if(btn) btn.addEventListener('click',()=>submitAnswer(tab,q));
+      if(inp) inp.addEventListener('keydown',e=>{ if(e.key==='Enter') submitAnswer(tab,q); });
+    }
+  });
+  host.querySelectorAll('a.to-k').forEach(a=>a.addEventListener('click',e=>{ e.preventDefault(); gotoStep(a.dataset.step); }));
+}
+function submitChoice(tab,q,k){
+  ST.attempts[q.id]=(ST.attempts[q.id]||0)+1;
+  ST.answers[q.id]=String(k);
+  ST.events.checks++;
+  const st=document.getElementById('qs-'+q.id);
+  if(st){ st.className='qstatus rec'; st.textContent='Recorded into your results file ✓ — you can change it any time.'; }
+  document.querySelectorAll('[id^="opt-'+q.id+'-"]').forEach((b,i)=>b.classList.toggle('chosen',i===k));
+  saveLocal(); updateProg();
+  setTimeout(()=>renderMission(tab),1400);
+  refreshTab('t6');
+}
+/* A box takes a plain number only. parseFloat alone would take "4.5 mmHg" (the grader
+   could not read it back) and "6,4" (a decimal comma, silently 64). Thousands
+   separators ("1,860") are allowed and stripped. */
+const NUM_RE=/^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$/;
+function cleanNumber(raw){
+  let s=String(raw).trim().replace(/\s+/g,'');
+  if(/^[+-]?\d{1,3}(,\d{3})+(\.\d+)?$/.test(s)) s=s.replace(/,/g,'');
+  return NUM_RE.test(s)?s:null;
+}
+function submitAnswer(tab,q){
+  const inp=document.getElementById('ans-'+q.id); if(!inp) return;
+  const st=document.getElementById('qs-'+q.id);
+  const raw=cleanNumber(inp.value);
+  if(raw==null){ if(st){ st.className='qstatus no';
+    st.textContent='Type the number only, with a decimal point (e.g. 3.2 or 4.5e-3); the unit is printed beside the box.'; } return; }
+  ST.attempts[q.id]=(ST.attempts[q.id]||0)+1;
+  ST.answers[q.id]=raw;
+  ST.events.checks++;
+  if(st){ st.className='qstatus rec';
+    st.innerHTML='Recorded ✓ — you can update it any time.'+crossCheckNote(q.id); }
+  saveLocal(); updateProg();
+  setTimeout(()=>renderMission(tab),1400);
+  refreshTab('t6');
+}
+
+/* ════════ truth-free cross-checks (CONTRACT §5) ════════
+   Each returns {state,txt,fields}. `fields[0]` is the box whose recording shows
+   the check inline on Tab 2. A check that cannot be computed yet says so. */
+const XTOL={ a_diff:3, a_new:2, a_share:6, a_vh:3,
+  b_mean:2, b_stress:2, b_plug:3, b_factor:2, b_slow:3, b_flow:4,
+  c_E20:2, c_E300:2, c_E0:5, c_ssp:2, c_Tsp:3, c_kv:3 };
+function agreeRow(label,a,b,tolPct,aWhat,bWhat,fields){
+  if(!isFinite(a)||!isFinite(b)||a===0||b===0)
+    return {state:'idle',txt:'<strong>'+label+'</strong> — not yet: '+(isFinite(a)&&a!==0?'':aWhat+' missing. ')+(isFinite(b)&&b!==0?'':bWhat+' missing.'),fields:fields};
+  const d=Math.abs(a/b-1)*100;
+  const st=d<=tolPct?'ok':(d<=2*tolPct?'warn':'no');
+  return {state:st,fields:fields,
+    txt:'<strong>'+label+'</strong> — '+aWhat+': '+sig4(a)+'; '+bWhat+': '+sig4(b)+
+        ' ('+fmt(d,1)+' % apart). '+(st==='ok'?'They agree.':st==='warn'?'Close, but further apart than rounding explains — worth a look.':'These do not agree. One of the two is not what you think it is.')};
+}
+function xchecks(){
+  const out=[], o=currentOption();
+  if(!o) return [{state:'idle',txt:'Pick your paper on Tab 0 — the cross-checks are per paper.',fields:[]}];
+  const is566=true;   /* every check is shown; the 566 ones only once their boxes are filled */
+  void is566;
+  if(o==='A'){
+    out.push(agreeRow('The difference and the two pulls',A_('a_dpush'),FR*(A_('a_pic_v')-A_('a_pic_b')),XTOL.a_diff,
+      'your difference of the two pushes','f<sub>r</sub> × the difference of your two pulls',['a_dpush','a_pic_v','a_pic_b']));
+    out.push(agreeRow('The push after the infusion',A_('a_push2'),A_('a_push_b')-FR*A_('a_rise'),XTOL.a_new,
+      'your new push','your burn patient’s push less f<sub>r</sub> × your rise',['a_push2','a_push_b','a_rise']));
+    out.push(agreeRow('The share of the gap',A_('a_share'),100*A_('a_rise')/(A_('a_pic_v')-A_('a_pic_b')),XTOL.a_share,
+      'your share','your rise over the gap between your two pulls',['a_share','a_rise']));
+    if(answered('a_vh')||answered('a_vhshare'))
+      out.push(agreeRow('Albumin’s share of the pull',A_('a_vhshare'),100*A_('a_vh')/A_('a_pic_b'),XTOL.a_vh,
+        'your share','your van ’t Hoff pull over your measured pull',['a_vhshare','a_vh']));
+  }
+  if(o==='B'){
+    const p=ST.params;
+    out.push(agreeRow('The mean speed and the paper’s velocity',A_('b_ubar'),A_('b_u0')/2,XTOL.b_mean,
+      'your mean speed','half your resting velocity',['b_ubar','b_u0']));
+    out.push(agreeRow('The wall stress and the shear rate',A_('b_tw'),p.b_eta*A_('b_gw'),XTOL.b_stress,
+      'your wall stress','your card’s viscosity × your shear rate',['b_tw','b_gw']));
+    out.push(agreeRow('The plug and the wall stress',A_('b_plug'),100*p.b_tauy/A_('b_tw'),XTOL.b_plug,
+      'your plug share','your card’s yield stress over your wall stress',['b_plug','b_tw']));
+    out.push(agreeRow('The exercise’s factor',A_('b_fshear'),(A_('b_u1')/A_('b_D1'))/(A_('b_u0')/A_('b_D0')),XTOL.b_factor,
+      'your factor','your two velocities over your two diameters',['b_fshear','b_gw1']));
+    out.push(agreeRow('How far the wall stress must fall',A_('b_slow'),50/A_('b_plug'),XTOL.b_slow,
+      'your factor','half the radius over your plug share',['b_slow']));
+    const own=['b_Qp','b_Qf','b_Qe'][p.b_vein];
+    if(answered(own))
+      out.push(agreeRow('Your own vein’s flow',A_(own),A_('b_ubar')*Math.PI*Math.pow(A_('b_D0'),2)/4,XTOL.b_flow,
+        'your flow in the '+VEINS[p.b_vein]+' vein','your mean speed × the area of your diameter',[own]));
+  }
+  if(o==='C'){
+    out.push(agreeRow('One spring, slow',A_('c_E20'),A_('c_s20')/EPS,XTOL.c_E20,
+      'your stiffness','your stress over 10 % strain',['c_E20','c_s20']));
+    out.push(agreeRow('One spring, fast',A_('c_E300'),A_('c_s300')/EPS,XTOL.c_E300,
+      'your stiffness','your stress over 10 % strain',['c_E300','c_s300']));
+    out.push(agreeRow('The two springs add',A_('c_E0'),A_('c_E1')+A_('c_E20'),XTOL.c_E0,
+      'your E<sub>0</sub>','your E<sub>1</sub> + your E<sub>∞</sub>',['c_E0','c_E1']));
+    out.push(agreeRow('The sprint’s clock',A_('c_Tsp'),1000*A_('c_T300')/A_('c_fac'),XTOL.c_Tsp,
+      'your sprint time','your fastest test’s time over the paper’s factor',['c_Tsp','c_fac']));
+    out.push(agreeRow('The sprint stress and E<sub>0</sub>',A_('c_ssp'),A_('c_E0')*EPS,XTOL.c_ssp,
+      'your sprint stress','your E<sub>0</sub> × 10 % strain',['c_ssp','c_E0']));
+    if(answered('c_Ekv')||answered('c_eta')){
+      out.push(agreeRow('Kelvin–Voigt through your slow point',A_('c_Ekv')+A_('c_eta')/A_('c_T20'),A_('c_E20'),XTOL.c_kv,
+        'your E + η/T at 20 mm/min','your slow stiffness',['c_Ekv','c_eta']));
+      out.push(agreeRow('Kelvin–Voigt through your fast point',A_('c_Ekv')+A_('c_eta')/A_('c_T300'),A_('c_E300'),XTOL.c_kv,
+        'your E + η/T at 300 mm/min','your fast stiffness',['c_eta','c_Ekv']));
+    }
+  }
+  return out;
+}
+function crossCheckNote(id){
+  const hits=xchecks().filter(r=>r.fields&&r.fields.indexOf(id)===0&&r.state!=='idle');
+  if(!hits.length) return '';
+  const r=hits[0];
+  return ' <span class="xinline '+r.state+'">'+(r.state==='ok'?'✓ cross-check agrees':
+    r.state==='warn'?'! cross-check is close':'✗ cross-check disagrees')+' — see Tab 3.</span>';
+}
+
+/* ════════ Tab 3 · the map ════════ */
+const LADDER={
+  A:[['A1 · pull, burn patients','a_pic_b','mmHg'],['A1 · pull, volunteers','a_pic_v','mmHg'],['A1 · rise at your time','a_rise','mmHg'],
+     ['A2 · push, volunteer','a_push_v','mmHg'],['A2 · push, burn patient','a_push_b','mmHg'],['A2 · their difference','a_dpush','mmHg'],
+     ['A3 · push after the infusion','a_push2','mmHg'],['A3 · share of the gap closed','a_share','%'],
+     ['A4 · albumin (566)','a_alb','g/L'],['A4 · van ’t Hoff pull (566)','a_vh','mmHg'],['A4 · its share (566)','a_vhshare','%']],
+  B:[['B1 · diameter at rest','b_D0','cm'],['B1 · velocity at rest','b_u0','cm/s'],['B1 · diameter after','b_D1','cm'],['B1 · velocity after','b_u1','cm/s'],
+     ['B2 · mean speed','b_ubar','cm/s'],['B2 · wall shear rate','b_gw','s⁻¹'],['B2 · wall stress','b_tw','mPa'],['B2 · plug share','b_plug','%'],
+     ['B3 · wall shear rate after','b_gw1','s⁻¹'],['B3 · the exercise’s factor','b_fshear',''],['B3 · wall-stress factor to a half-radius plug','b_slow',''],
+     ['B4 · flow, popliteal (566)','b_Qp','mL/s'],['B4 · flow, femoral (566)','b_Qf','mL/s'],['B4 · flow, external iliac (566)','b_Qe','mL/s']],
+  C:[['C1 · stress, 20 mm/min','c_s20','kPa'],['C1 · stress, 300 mm/min','c_s300','kPa'],['C1 · time, slowest','c_T20','s'],['C1 · time, fastest','c_T300','s'],
+     ['C2 · E<sub>∞</sub> (slow spring)','c_E20','kPa'],['C2 · fast spring','c_E300','kPa'],['C2 · the rate factor','c_g',''],['C2 · E<sub>1</sub>','c_E1','kPa'],['C2 · E<sub>0</sub>','c_E0','kPa'],
+     ['C3 · the paper’s factor','c_fac',''],['C3 · sprint time','c_Tsp','ms'],['C3 · sprint stress','c_ssp','kPa'],['C3 · above the fastest test','c_pct','%'],
+     ['C4 · Kelvin–Voigt E (566)','c_Ekv','kPa'],['C4 · Kelvin–Voigt η (566)','c_eta','kPa·s'],['C4 · its sprint stress (566)','c_skv','kPa']]
+};
+function drawT6(){
+  const host=document.getElementById('ladder');
+  if(host){
+    const o=currentOption();
+    if(!o) host.innerHTML='<p class="scope-empty">Pick your paper on Tab 0 and your numbers appear here as you record them.</p>';
+    else {
+      const rows=LADDER[o].map(([lbl,id,unit])=>{ const v=A_(id);
+        return '<tr><td>'+lbl+'</td><td class="'+(isFinite(v)?'ok':'todo')+'">'+
+               (isFinite(v)?sig4(v)+' '+unit:'—')+'</td></tr>'; }).join('');
+      host.innerHTML='<table class="prog ladder"><tr><th>What you recorded</th><th>Your value</th></tr>'+rows+'</table>';
+    }
+  }
+  renderProgress();
+}
+function renderProgress(){
+  const host=document.getElementById('progress-grid'); if(!host) return;
+  const o=currentOption();
+  let html='<table class="prog"><tr><th>Part</th><th>Boxes recorded</th><th>Status</th></tr>';
+  if(!o){ html+='<tr><td colspan="3" class="todo">No paper picked yet — choose one on Tab 0.</td></tr>'; }
+  else {
+    const qs=activeQuestions('q');
+    for(const step of ['1','2','3','4']){
+      const key=o.toLowerCase()+step; const mine=qs.filter(q=>q.prob===key); if(!mine.length) continue;
+      const a=mine.filter(q=>answered(q.id)).length; const g=!!G566[key];
+      html+='<tr><td>'+PROBLEM_HEADS[key].title+(g?' <span class="q566">566</span>':'')+'</td><td>'+a+'/'+mine.length+
+            '</td><td class="'+(a>=mine.length?'ok':'todo')+'">'+(a>=mine.length?'✓ complete':(g?'graded for 566 · optional for 466':'in progress'))+'</td></tr>';
+    }
+    html+='<tr><td>Parts 1 and 3, and the working for Part 2</td><td>—</td><td class="todo">in your written report (PDF) · the full-credit lists are on Tab 1</td></tr>';
+  }
+  host.innerHTML=html+'</table>';
+  renderXChecks();
+  updateReportNote();
+}
+function renderXChecks(){
+  const host=document.getElementById('xchecks'); if(!host) return;
+  const rows=xchecks();
+  host.innerHTML='<div class="xcheck">'+rows.map(r=>
+    '<div class="xrow '+r.state+'"><span class="mark">'+
+    (r.state==='ok'?'✓':r.state==='warn'?'!':r.state==='no'?'✗':'·')+
+    '</span><span class="txt">'+r.txt+'</span></div>').join('')+'</div>';
+}
+function updateProg(){
+  const o=currentOption();
+  const qs=activeQuestions('q');
+  const core=qs.filter(q=>!G566[q.prob]);
+  const eq=document.getElementById('prog-q');
+  if(eq){ const a=core.filter(q=>answered(q.id)).length;
+    eq.textContent=core.length?a+'/'+core.length:''; eq.className='tabprog'+(core.length&&a>=core.length?' done':''); }
+  const e6=document.getElementById('prog-t6');
+  if(e6){ if(!o){ e6.textContent=''; e6.className='tabprog'; }
+    else { const ok=xchecks().filter(r=>r.state==='ok').length, n=xchecks().filter(r=>r.state!=='idle').length;
+      e6.textContent=n?ok+'/'+n+' ✓':''; e6.className='tabprog'+(n&&ok>=n?' done':''); } }
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   shell_b.js — dataset assignment, persistence, export and import.
+
+   The dataset comes from the signed-in UA NetID (the local part of the
+   address): there is no code to type, and no dataset code is ever shown on
+   screen — it survives only in the export filename, which is what ties a
+   submitted file to a student. `?ds=<netid>` is a STAFF PREVIEW hook for QA
+   and office hours: it regenerates any student's card, with export AND cloud
+   save disabled, and a real sign-in always overrides it.
+
+   Identity (CONTRACT §1) is NOT restated here — SCHEMA_ID, HW_TAG and the
+   salts come from the generated seed.js, so this file cannot drift from the
+   keygen.
+   ════════════════════════════════════════════════════════════════════════ */
+let AUTH_NETID=null;
+const QS_DS=(function(){ try{ return (new URLSearchParams(location.search).get('ds')||'').trim(); }
+  catch(e){ return ''; } })();
+
+function blankState(){
+  ST.answers={}; ST.passed={}; ST.attempts={};
+  ST.events={generated_at:new Date().toISOString(),checks:0,exports:0,saves:0,seconds:0};
+}
+function renderAll(){
+  renderAiGate();
+  applyOption();
+  renderMission('q');
+  updateProg();
+  refreshActiveTab();
+  refreshTab('t6');
+}
+function setDataset(sidRaw){
+  const norm=normalizeSid(sidRaw||'');
+  if(!norm){
+    ST.sid=''; ST.norm=''; ST.demo=true;
+    ST.params=Object.assign({},DEMO_PARAMS); ST.code=DEMO_CODE;
+    ST.noiseSeed=fnv1a32('DEMO-NOISE');
+  } else {
+    ST.sid=String(sidRaw).trim(); ST.norm=norm; ST.demo=false;
+    ST.params=drawParams(sidRaw); ST.code=datasetCode(sidRaw);
+    ST.noiseSeed=fnv1a32(SALT_NOISE+norm);
+  }
+  ST.d=derived(ST.params);
+  /* AI-policy ticks made on this visit before signing in follow the student into their card
+     (held in memory only: the next save records them; nothing is pushed before the cloud is read) */
+  const carryAck=(AI_ACK_THIS_VISIT&&ST.events&&ST.events.ai_ack)?Object.assign({},ST.events.ai_ack):null;
+  blankState(); loadLocal();
+  if(carryAck&&!AI_ACKS.every(k=>!!(ST.events.ai_ack||{})[k])) ST.events.ai_ack=Object.assign({},carryAck,ST.events.ai_ack||{});
+  updateRail(); renderAssume(); renderAll();
+  try{ if(typeof Cloud!=='undefined'&&Cloud) Cloud.onDataset(ST.demo?null:ST.norm); }catch(e){}
+}
+function isPreview(){ return !ST.demo && (!AUTH_NETID || normalizeSid(AUTH_NETID)!==ST.norm); }
+function updateRail(){
+  const el=document.getElementById('id-status'); if(!el) return;
+  if(ST.demo) el.innerHTML='<strong>Sign in with your UA NetID</strong> (right) first — your card and your export come from it. Reading the questions on Tab 1 needs no sign-in.';
+  else if(isPreview()) el.innerHTML='<strong>Staff preview</strong> of '+esc(ST.norm)+' — export and cloud save are disabled in preview.';
+  else el.innerHTML='Signed in — <strong>your card is loaded</strong> and your work saves automatically. Export from Tab 3 when you are done.';
+}
+function updateReportNote(){
+  const el=document.getElementById('report-note'); if(!el) return;
+  if(ST.demo) el.innerHTML='<strong>Sign in with your UA NetID</strong> (top bar) before exporting — your card, and therefore your export, comes from it.';
+  else if(isPreview()) el.innerHTML='<strong>Staff preview.</strong> Export is disabled — sign in to work on your own card.';
+  else el.innerHTML='Export produces <strong>REPORT2_'+ST.norm.toUpperCase()+'_'+ST.code+'.json</strong> — upload it to D2L <em>together with</em> your written report PDF (your name, NetID, section and option at the top). Missing either file is an incomplete submission. Your work also autosaves to your account, so you can stop and finish on another computer; the export file is a second, portable save (Load progress).';
+}
+
+/* ════════ persistence ════════ */
+function lsKey(){ return 'bme466report2v1|'+(ST.demo?'demo':ST.norm)+'|homework'; }
+function collectSettings(){ return {option:ST.answers.option!=null?ST.answers.option:null}; }
+function applySettings(s){ void s; }
+let saveT=null;
+function stateString(){ return JSON.stringify({v:1,savedAt:Date.now(),
+  answers:ST.answers,passed:ST.passed,attempts:ST.attempts,
+  events:ST.events,settings:collectSettings()}); }
+function saveLocal(){
+  try{ ST.events.saves++;
+    localStorage.setItem(lsKey(),stateString());
+    const dot=document.getElementById('save-dot');
+    if(dot){ dot.textContent='saved ✓'; clearTimeout(saveT); saveT=setTimeout(()=>{ dot.textContent=''; },1500); }
+  }catch(e){}
+  try{ if(typeof Cloud!=='undefined'&&Cloud) Cloud.onLocalSave(); }catch(e){}
+}
+function localSavedAt(){ try{ const raw=localStorage.getItem(lsKey()); if(!raw) return 0;
+  return JSON.parse(raw).savedAt||0; }catch(e){ return 0; } }
+function absorbState(s){
+  ST.answers=s.answers||{}; ST.passed=s.passed||{}; ST.attempts=s.attempts||{};
+  if(s.events) ST.events=Object.assign(ST.events,s.events);
+  applySettings(s.settings);
+}
+function applyStateString(str){
+  try{ const s=JSON.parse(str); if(!s||s.v!==1) return false;
+    absorbState(s);
+    try{ localStorage.setItem(lsKey(),str); }catch(e){}
+    renderAll(); return true;
+  }catch(e){ return false; }
+}
+function loadLocal(){ try{ const raw=localStorage.getItem(lsKey()); if(!raw) return;
+  const s=JSON.parse(raw); if(s.v!==1) return; absorbState(s); }catch(e){} }
+
+/* ════════ export / import ════════ */
+async function exportResults(){
+  if(ST.demo){ alert('Sign in with your UA NetID first — your card, and therefore your export, comes from it.'); return; }
+  if(isPreview()){ alert('Staff preview — exports are disabled. Sign in to work on your own card.'); return; }
+  if(currentOption()==null){ alert('Pick your paper on Tab 0 first — the export records which paper you answered.'); return; }
+  ST.events.exports++; ST.events.exported_at=new Date().toISOString(); saveLocal();
+  try{ if(typeof Cloud!=='undefined'&&Cloud) Cloud.flush(); }catch(e){}
+  const payload={ schema:SCHEMA_ID, hw:HW_TAG, module:'report-02-read-use-relate',
+    option:currentOption(),
+    sid:ST.sid, sid_norm:ST.norm, mode:'homework', code:ST.code,
+    answers:Object.assign({},ST.answers),
+    attempts:Object.assign({},ST.attempts), passed:Object.assign({},ST.passed),
+    settings:collectSettings(), events:Object.assign({},ST.events) };
+  try{ const wb=window.ML_WHITEBOARD_EXPORT?await window.ML_WHITEBOARD_EXPORT():null;
+       if(wb) payload.whiteboard=wb; }catch(e){ console.warn('whiteboard export skipped',e); }
+  payload.checksum=fileChecksum(ST.sid,'homework',ST.code,payload.answers);
+  const name='REPORT2_'+ST.norm.toUpperCase()+'_'+ST.code+'.json';
+  const blob=new Blob([JSON.stringify(payload,null,1)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+  const el=document.getElementById('report-note');
+  if(el) el.innerHTML='<strong>Exported '+name+'</strong> — upload it to D2L with your written report PDF (your name, NetID, section and option at the top).';
+}
+function importResults(ev){
+  const file=ev.target.files&&ev.target.files[0]; if(!file) return;
+  const rd=new FileReader();
+  rd.onload=()=>{
+    try{
+      const j=JSON.parse(rd.result);
+      if(j.schema!==SCHEMA_ID){ alert('That is not a Report 2 results file.'); return; }
+      if(AUTH_NETID&&normalizeSid(j.sid||'')!==normalizeSid(AUTH_NETID)){
+        alert('That file belongs to "'+(j.sid||'?')+'" but you are signed in as '+AUTH_NETID+
+              '. Sign in with the matching NetID to load it.'); return; }
+      if(!AUTH_NETID) setDataset(j.sid||'');
+      absorbState(j); saveLocal(); renderAll();
+      const el=document.getElementById('report-note');
+      if(el) el.innerHTML='<strong>Progress loaded</strong> for '+esc(j.sid||'?')+'. Carry on where you left off.';
+    }catch(e){ alert('That file could not be read.'); }
+  };
+  rd.readAsText(file);
+  ev.target.value='';
+}
+
+/* ════════ active-time tracking (feeds the usage dashboard) ════════ */
+let secTick=0;
+setInterval(()=>{ if(document.visibilityState==='visible'&&!ST.demo){
+  ST.events.seconds=(ST.events.seconds||0)+15; secTick++;
+  if(secTick%2===0) saveLocal();
+} },15000);
+
+/* ════════════════════════════════════════════════════════════════
+   ML-CLOUD-SAVE v1 — account-keyed progress autosave (adopted V2.47,
+   piloted on HW0 in V2.44; keep the two blocks in step).
+   Students sign in with their UA NetID (Google on arizona.edu) and this
+   module autosaves progress to Firestore doc hwProgress/{assignment}_{uid}.
+   The sign-in also assigns the dataset (seeded from the NetID). Everything
+   fails soft: no SDK / no sign-in / offline → localStorage-only, exactly
+   the pre-cloud behavior. To reuse in another module: copy this block,
+   set CLOUD_CFG.assignment, and call the four hooks
+   (Cloud.init / Cloud.onDataset / Cloud.onLocalSave / Cloud.flush).
+   ════════════════════════════════════════════════════════════════ */
+const CLOUD_CFG = {
+  assignment:'bme466-report2',
+  schema:1,
+  totalQuestions:FIELD_ORDER.length,
+  fb:{ apiKey:'AIzaSyAnkKivjCcjAS8_Lp-R2JSIG4wSDSJBFI0',
+       authDomain:'mcgheelab-f56cc.firebaseapp.com',
+       projectId:'mcgheelab-f56cc' }
+};
+const Cloud=(function(){
+  let app=null,auth=null,db=null,user=null,ready=false;
+  let dirty=false,pushT=null,pulled=false,lastErr='';
+  const DEBOUNCE=4000;
+  function el(id){ return document.getElementById(id); }
+  function setStatus(st,msg){
+    const dot=el('cloud-dot'); if(!dot)return;
+    dot.className='cloud-dot'; dot.onclick=null;
+    const M={
+      off:['☁ —','Cloud save unavailable here (offline or local file) — the export file is your save.'],
+      nosid:['☁ waiting','Signed in — assigning your dataset…'],
+      nouser:['☁ sign in to begin','Sign in with your UA NetID to get your dataset and autosave.'],
+      dirty:['☁ …','Unsaved changes — autosaving shortly.'],
+      saving:['☁ syncing…','Saving to the course cloud…'],
+      synced:['☁ saved','Progress saved to your account.'],
+      offline:['☁ offline — saved here','No connection — work is saved in this browser and will sync when back online.'],
+      error:['☁ error (click to retry)',msg||lastErr||'Cloud save failed — click to retry.']
+    };
+    const m=M[st]||M.off;
+    dot.textContent=m[0]; dot.title=msg||m[1];
+    if(st==='synced')dot.classList.add('ok');
+    if(st==='offline'||st==='dirty')dot.classList.add('warn');
+    if(st==='error'){ dot.classList.add('err'); dot.onclick=()=>{ dirty=true; push(); }; }
+  }
+  function updateUserUI(){
+    const btn=el('cloud-google'), who=el('cloud-user');
+    if(!btn||!who)return;
+    if(!ready){ btn.hidden=true; who.hidden=true; return; }
+    if(user){ btn.hidden=true; who.hidden=false;
+      const em=user.email||'';
+      who.innerHTML='✓ '+esc(user.displayName||em)+' <a href="javascript:void 0" id="cloud-out">sign out</a>';
+      const out=el('cloud-out'); if(out)out.onclick=()=>{ auth.signOut(); };
+      if(em&&!/@arizona\.edu$/i.test(em))
+        setStatus('error','Signed in as '+em+' — cloud save needs your @arizona.edu (NetID) account. Sign out and pick the right account.');
+    } else { btn.hidden=false; who.hidden=true; }
+  }
+  function docRef(){ if(!ready||!user||ST.demo)return null;
+    return db.collection('hwProgress').doc(CLOUD_CFG.assignment+'_'+user.uid); }
+  /* cloud-save only for the signed-in student's OWN dataset — never a staff preview */
+  function active(){ return !!(ready&&user&&!ST.demo&&!isPreview()
+    &&user.email&&/@arizona\.edu$/i.test(user.email)); }
+  function answeredCount(){ return FIELD_ORDER.filter(f=>{const v=ST.answers[f];return v!=null&&v!=='';}).length; }
+  function runCount(){ return 0; }   /* Report 2 has no instrument: nothing is run */
+  function push(){
+    clearTimeout(pushT); pushT=null;
+    if(!active()){ return; }
+    if(!dirty)return;
+    const ref=docRef(); if(!ref)return;
+    dirty=false; setStatus('saving');
+    const now=Date.now();
+    ref.set({
+      schema:CLOUD_CFG.schema, assignment:CLOUD_CFG.assignment,
+      sid_norm:ST.norm, code:ST.code,
+      email:user.email||'', name:user.displayName||'',
+      state:stateString(), clientSavedAt:now,
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
+      answeredCount:answeredCount(), totalQuestions:CLOUD_CFG.totalQuestions,
+      runCount:runCount(), secondsActive:ST.events.seconds||0,
+      lastActiveAt:now
+    }).then(()=>{ if(!dirty)setStatus('synced'); },err=>{
+      dirty=true;
+      const code=(err&&err.code)||'';
+      if(code==='unavailable'||code==='deadline-exceeded'){ setStatus('offline'); }
+      else { lastErr='Cloud save failed ('+code+').'; setStatus('error'); console.warn('[cloud] push',err); }
+    });
+  }
+  function schedulePush(){ if(!active())return; dirty=true; setStatus('dirty');
+    clearTimeout(pushT); pushT=setTimeout(push,DEBOUNCE); }
+  function pull(){
+    if(!active()){ return; }
+    const ref=docRef(); if(!ref)return;
+    setStatus('saving','Checking the cloud for saved progress…');
+    ref.get().then(snap=>{
+      pulled=true;
+      if(!snap.exists){ dirty=true; push(); return; }
+      const d=snap.data()||{};
+      const localAt=localSavedAt(), remoteAt=d.clientSavedAt||0;
+      const localEmpty=answeredCount()===0&&runCount()===0;
+      if(d.state&&(localEmpty||remoteAt>localAt+2000)){
+        let apply=localEmpty;
+        if(!apply) apply=confirm('The cloud has newer progress (saved '+new Date(remoteAt).toLocaleString()+', likely from another computer).\n\nOK = load the cloud copy here.\nCancel = keep this computer\'s copy and overwrite the cloud.');
+        if(apply&&applyStateString(d.state)){
+          setStatus('synced','Restored your cloud save from '+new Date(remoteAt).toLocaleString()+'.');
+          if(d.sid_norm&&d.sid_norm!==ST.norm)
+            console.warn('[cloud] doc was saved under a different dataset seed:',d.sid_norm);
+          return;
+        }
+      }
+      dirty=true; push();
+    },err=>{
+      const code=(err&&err.code)||'';
+      if(code==='unavailable'){ setStatus('offline'); }
+      else { lastErr='Could not read the cloud save ('+code+').'; setStatus('error'); console.warn('[cloud] pull',err); }
+    });
+  }
+  function signIn(){
+    if(!ready)return;
+    const provider=new firebase.auth.GoogleAuthProvider();
+    provider.setCustomParameters({prompt:'select_account', hd:'arizona.edu'});
+    auth.signInWithPopup(provider).catch(err=>{
+      const code=(err&&err.code)||'';
+      if(code==='auth/popup-blocked') setStatus('error','Your browser blocked the sign-in popup — allow popups for this site and try again.');
+      else if(code!=='auth/popup-closed-by-user'&&code!=='auth/cancelled-popup-request'){
+        setStatus('error','Sign-in failed ('+code+').'); console.warn('[cloud] signIn',err); }
+    });
+  }
+  function init(){
+    try{
+      if(typeof firebase==='undefined'||!firebase.initializeApp){ setStatus('off','Cloud save unavailable here (offline or local file) — the export file is your save.'); return; }
+      app=firebase.apps&&firebase.apps.length?firebase.app():firebase.initializeApp(CLOUD_CFG.fb);
+      auth=firebase.auth(); db=firebase.firestore(); ready=true;
+      auth.onAuthStateChanged(async u=>{ user=u; pulled=false; updateUserUI();
+        const em=(u&&u.email)||'';
+        if(u&&/@arizona\.edu$/i.test(em)){
+          /* the NetID IS the dataset: assign it automatically */
+          AUTH_NETID=em.split('@')[0];
+          /* class admins may carry ?ds=<netid> through sign-in to preview a
+             student's numbers (isPreview() then blocks export + cloud-save);
+             for everyone else the sign-in always wins over ?ds. */
+          if(QS_DS&&normalizeSid(QS_DS)!==normalizeSid(AUTH_NETID)){
+            let staff=false;
+            try{ const sn=await db.collection('schedules').doc('bme466').get();
+              const list=(sn.exists&&sn.data().classAdminEmails)||[];
+              staff=list.map(x=>String(x||'').toLowerCase()).includes(em.toLowerCase());
+            }catch(e){}
+            if(staff){ setDataset(QS_DS); return; }
+          }
+          if(normalizeSid(AUTH_NETID)!==ST.norm) setDataset(AUTH_NETID);   // → onDataset → pull
+          else onDataset(ST.norm);
+          return;
+        }
+        AUTH_NETID=null;
+        if(u){ /* signed in with a non-arizona account — no dataset for it */
+          setDataset(QS_DS); return;                 // updateUserUI already shows the fix
+        }
+        setDataset(QS_DS);                            // signed out → demo (or staff preview)
+        setStatus('nouser'); });
+      const btn=el('cloud-google'); if(btn){ btn.hidden=false; btn.addEventListener('click',signIn); }
+      document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden')flush(); });
+      window.addEventListener('pagehide',flush);
+      setStatus('nouser');
+      updateUserUI();
+    }catch(e){ console.warn('[cloud] init',e); setStatus('off'); }
+  }
+  function onDataset(norm){
+    if(!ready){ return; }
+    pulled=false;
+    if(!norm){ setStatus('nouser'); return; }
+    if(!active()){ setStatus('nouser'); return; }    // staff preview / signed out
+    pull();
+  }
+  function onLocalSave(){ if(active())schedulePush(); }
+  function flush(){ if(active()&&dirty){ push(); } }
+  return {init,onDataset,onLocalSave,flush};
+})();
+/* ══ /ML-CLOUD-SAVE ══ */
+
+/* ════════════════════════════════════════════════════════════════════════
+   shell_c.js — the option picker, the card, Tab 1's question panes, tab
+   dispatch and boot.
+
+   Every option's card is drawn for every student, so switching options never
+   reseeds anything and never discards a recorded number: the pick is just
+   another recorded answer (`option`), and only the chosen option's fields are
+   graded.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* ════════ the card ════════ */
+const ASSUME={
+  A:{ title:'Your card — Option A',
+      lead:'These are the givens your report uses. The two measured pulls, the rise and the albumin are not here: you read them out of the paper.',
+      rows:p=>[
+        {k:'your capillary, arterial end',v:fmt(p.a_Pa,0)+' mmHg',hi:true},
+        {k:'your capillary, venous end',v:fmt(p.a_Pv,0)+' mmHg',hi:true},
+        {k:'your assigned time after the start of the infusion',v:fmt(p.a_t,0)+' h',hi:true},
+        {k:'tissue pressure P_t (lecture, Module 8 §2.1)',v:fmt(PT,1)+' mmHg'},
+        {k:'tissue oncotic pressure Π_t (lecture)',v:fmt(PIT,1)+' mmHg'},
+        {k:'reflection of albumin f_r (lecture)',v:fmt(FR,1)},
+        {k:'for A4 (566): temperature · albumin',v:'310 K · 66 348 g/mol'}],
+      conv:['<strong>The middle of your capillary</strong> is the mean of its two ends. Use it for every push.',
+            'The tissue-side numbers are a healthy leg’s, for both groups. A-T2 asks what that assumption costs.'] },
+  B:{ title:'Your card — Option B',
+      lead:'These are the givens your report uses. The diameters and velocities are not here: you read them out of the paper.',
+      rows:p=>[
+        {k:'your vein',v:VEINS[p.b_vein],hi:true},
+        {k:'your exercise',v:EXERCISES[p.b_ex],hi:true},
+        {k:'your blood’s viscosity η',v:fmt(p.b_eta,1)+' mPa·s',hi:true},
+        {k:'its yield stress τ_y',v:fmt(p.b_tauy,1)+' mPa',hi:true}],
+      conv:['<strong>Sizes:</strong> the paper reports a diameter. Every relation in the Notes says whether it wants R or D.',
+            '<strong>Units:</strong> the wall stress is asked for in mPa; a shear rate in s⁻¹ times a viscosity in mPa·s gives mPa directly.'] },
+  C:{ title:'Your card — Option C',
+      lead:'These are the givens your report uses. The stresses, the strain rates and the sprint factor are not here: you read them out of the paper.',
+      rows:p=>[
+        {k:'your muscle',v:MUSCLES[p.c_mus],hi:true},
+        {k:'your relaxation time τ (an assumption)',v:fmt(p.c_tau,0)+' s',hi:true},
+        {k:'the strain every test reached',v:'10 %'}],
+      conv:['<strong>τ is an assumption.</strong> The paper never held a stretch, so it never measured τ. C-T2 asks what that costs.',
+            '<strong>Strain is a fraction</strong> in every relation: 10 % is 0.10.'] }
+};
+function renderAssume(){
+  const host=document.getElementById('assume-host'); if(!host) return;
+  const o=currentOption();
+  if(!o){ host.innerHTML=''; return; }
+  const A=ASSUME[o], p=ST.params;
+  host.innerHTML='<div class="background-section assume-card">'+
+    '<h2>'+A.title+'</h2><p>'+A.lead+'</p>'+
+    '<div class="stats" id="st-assume"></div>'+
+    '<ul class="assume-conv">'+A.conv.map(c=>'<li>'+c+'</li>').join('')+'</ul>'+
+    (ST.demo?'<div class="insight">These are <strong>sample</strong> values. Sign in and your own card replaces them.</div>':'')+
+    '</div>';
+  setStat('st-assume',{title:'YOUR GIVENS',rows:A.rows(p)});
+  fillGivens();
+}
+/* Every <span class="given" data-p="…"> in Tab 1's panes is filled from the card. */
+function givenText(k){
+  const p=ST.params;
+  switch(k){
+    case 'a_Pa': return fmt(p.a_Pa,0); case 'a_Pv': return fmt(p.a_Pv,0); case 'a_t': return fmt(p.a_t,0);
+    case 'a_Pm': return fmt((p.a_Pa+p.a_Pv)/2,1);
+    case 'b_vein': return VEINS[p.b_vein]; case 'b_ex': return EXERCISES[p.b_ex];
+    case 'b_eta': return fmt(p.b_eta,1); case 'b_tauy': return fmt(p.b_tauy,1);
+    case 'c_mus': return MUSCLES[p.c_mus]; case 'c_tau': return fmt(p.c_tau,0);
+    default: return '—';
+  }
+}
+function fillGivens(root){
+  try{ renderPdfLinks(); }catch(e){ console.error('pdf links',e); }
+  let nodes=[];
+  try{ nodes=(root||document).querySelectorAll('.given[data-p]')||[]; }catch(e){ return; }
+  for(const el of nodes){ el.textContent=givenText(el.dataset.p); }
+  /* Tab 1: each option pane carries the student's card strip under its title */
+  try{ document.querySelectorAll('.k-card[data-opt]').forEach(el=>{
+    el.innerHTML='<p class="k-card-lead">Your card for this paper'+(ST.demo?' (sample values — sign in for your own)':'')+':</p>'+cardStrip(el.dataset.opt); }); }catch(e){}
+}
+
+/* ════════ Tab 1: the questions PDF made for this card ════════
+   One questions PDF per card (scripts/build_report2_pdfs.py): report2-<opt>-<key>.pdf, the key being the card's
+   values joined by "-" (report2_traps.card_key; JavaScript's String(Number) writes them as Python's :g does).
+   R2_PDFS (injected by build_report2.py) gives each card's content hash, pages and the page of every question. */
+const R2_PDFS={"A":{"codes":["a-r1","a-r2","a-r3","a1","a2","a3","a4","a-t1","a-t2"],"q":{"33-14-1":"a6ec81d551|7|4,5,5,5,5,5,5,6,6","33-14-2":"6ee91bb9fb|7|4,5,5,5,5,5,5,6,6","33-14-3":"59457abadf|7|4,5,5,5,5,5,5,6,6","33-14-4":"ccc15b6eeb|7|4,5,5,5,5,5,5,6,6","33-14-5":"0503de64ac|7|4,5,5,5,5,5,5,6,6","33-15-1":"8ecd3ba6ff|7|4,5,5,5,5,5,5,6,6","33-15-2":"6be8a8ac67|7|4,5,5,5,5,5,5,6,6","33-15-3":"2cd2e9c1e2|7|4,5,5,5,5,5,5,6,6","33-15-4":"9bc729b476|7|4,5,5,5,5,5,5,6,6","33-15-5":"30fc49fb51|7|4,5,5,5,5,5,5,6,6","33-16-1":"12f3eb6511|7|4,5,5,5,5,5,5,6,6","33-16-2":"4364c6a25e|7|4,5,5,5,5,5,5,6,6","33-16-3":"13e35a39ff|7|4,5,5,5,5,5,5,6,6","33-16-4":"d895b3dd32|7|4,5,5,5,5,5,5,6,6","33-16-5":"96c9264614|7|4,5,5,5,5,5,5,6,6","34-14-1":"31da163c56|7|4,5,5,5,5,5,5,6,6","34-14-2":"a62885e705|7|4,5,5,5,5,5,5,6,6","34-14-3":"d5d81b80de|7|4,5,5,5,5,5,5,6,6","34-14-4":"490d656118|7|4,5,5,5,5,5,5,6,6","34-14-5":"eeb9fcc42d|7|4,5,5,5,5,5,5,6,6","34-15-1":"f02f4f3b24|7|4,5,5,5,5,5,5,6,6","34-15-2":"1aca18323a|7|4,5,5,5,5,5,5,6,6","34-15-3":"05862adbc9|7|4,5,5,5,5,5,5,6,6","34-15-4":"815e763f5e|7|4,5,5,5,5,5,5,6,6","34-15-5":"f1e74c6810|7|4,5,5,5,5,5,5,6,6","34-16-1":"21cdd2c3a4|7|4,5,5,5,5,5,5,6,6","34-16-2":"41410449c7|7|4,5,5,5,5,5,5,6,6","34-16-3":"c8c405a64f|7|4,5,5,5,5,5,5,6,6","34-16-4":"5bec553edd|7|4,5,5,5,5,5,5,6,6","34-16-5":"6dbe11af59|7|4,5,5,5,5,5,5,6,6","35-14-1":"7a8e7b4b69|7|4,5,5,5,5,5,5,6,6","35-14-2":"b603fcfc75|7|4,5,5,5,5,5,5,6,6","35-14-3":"266a504619|7|4,5,5,5,5,5,5,6,6","35-14-4":"00019cbf03|7|4,5,5,5,5,5,5,6,6","35-14-5":"a5e7ccf2e7|7|4,5,5,5,5,5,5,6,6","35-15-1":"16aa71cace|7|4,5,5,5,5,5,5,6,6","35-15-2":"d33354df16|7|4,5,5,5,5,5,5,6,6","35-15-3":"186635b129|7|4,5,5,5,5,5,5,6,6","35-15-4":"99bdc020b1|7|4,5,5,5,5,5,5,6,6","35-15-5":"0c707d7c74|7|4,5,5,5,5,5,5,6,6","35-16-1":"b500b2a522|7|4,5,5,5,5,5,5,6,6","35-16-2":"615f001e56|7|4,5,5,5,5,5,5,6,6","35-16-3":"1df80b0bc4|7|4,5,5,5,5,5,5,6,6","35-16-4":"9e52a78bbc|7|4,5,5,5,5,5,5,6,6","35-16-5":"8d005077a5|7|4,5,5,5,5,5,5,6,6","36-14-1":"873d55c955|7|4,5,5,5,5,5,5,6,6","36-14-2":"3917664cc7|7|4,5,5,5,5,5,5,6,6","36-14-3":"06d211fd78|7|4,5,5,5,5,5,5,6,6","36-14-4":"cfa23422d0|7|4,5,5,5,5,5,5,6,6","36-14-5":"dab08c26ea|7|4,5,5,5,5,5,5,6,6","36-15-1":"3855a82f11|7|4,5,5,5,5,5,5,6,6","36-15-2":"49eed8c046|7|4,5,5,5,5,5,5,6,6","36-15-3":"d90b9623d1|7|4,5,5,5,5,5,5,6,6","36-15-4":"c005a7c6ca|7|4,5,5,5,5,5,5,6,6","36-15-5":"cc894bacf0|7|4,5,5,5,5,5,5,6,6","36-16-1":"78caafe7a8|7|4,5,5,5,5,5,5,6,6","36-16-2":"36f7749387|7|4,5,5,5,5,5,5,6,6","36-16-3":"9627418fd1|7|4,5,5,5,5,5,5,6,6","36-16-4":"0ddb3ee35f|7|4,5,5,5,5,5,5,6,6","36-16-5":"fa220ef8ac|7|4,5,5,5,5,5,5,6,6"}},"B":{"codes":["b-r1","b-r2","b-r3","b1","b2","b3","b4","b-t1","b-t2"],"q":{"0-0-3-1.5":"68d6fe124a|7|4,5,5,5,5,5,5,6,6","0-0-3-2.5":"3e678da2c0|7|4,5,5,5,5,5,5,6,6","0-0-3-3.5":"326d84aff9|7|4,5,5,5,5,5,5,6,6","0-0-3-5":"1a269fbde7|7|4,5,5,5,5,5,5,6,6","0-0-3.5-1.5":"2a5222619d|7|4,5,5,5,5,5,5,6,6","0-0-3.5-2.5":"a12a4cc6d1|7|4,5,5,5,5,5,5,6,6","0-0-3.5-3.5":"3d37435e4e|7|4,5,5,5,5,5,5,6,6","0-0-3.5-5":"3e59785b78|7|4,5,5,5,5,5,5,6,6","0-0-4-1.5":"e8ea305448|7|4,5,5,5,5,5,5,6,6","0-0-4-2.5":"749da891d4|7|4,5,5,5,5,5,5,6,6","0-0-4-3.5":"5389cbf799|7|4,5,5,5,5,5,5,6,6","0-0-4-5":"c4c5194668|7|4,5,5,5,5,5,5,6,6","0-1-3-1.5":"1ef1aebe84|7|4,5,5,5,5,5,5,6,6","0-1-3-2.5":"bb6aee764b|7|4,5,5,5,5,5,5,6,6","0-1-3-3.5":"5cc3d16400|7|4,5,5,5,5,5,5,6,6","0-1-3-5":"358c90053c|7|4,5,5,5,5,5,5,6,6","0-1-3.5-1.5":"febca4c638|7|4,5,5,5,5,5,5,6,6","0-1-3.5-2.5":"8d05f89ac1|7|4,5,5,5,5,5,5,6,6","0-1-3.5-3.5":"c401fe2e8a|7|4,5,5,5,5,5,5,6,6","0-1-3.5-5":"e62cccb1aa|7|4,5,5,5,5,5,5,6,6","0-1-4-1.5":"9c720070ec|7|4,5,5,5,5,5,5,6,6","0-1-4-2.5":"8d93b92753|7|4,5,5,5,5,5,5,6,6","0-1-4-3.5":"d32d581edb|7|4,5,5,5,5,5,5,6,6","0-1-4-5":"bbe3de196c|7|4,5,5,5,5,5,5,6,6","1-0-3-1.5":"7df2f6f211|7|4,5,5,5,5,5,5,6,6","1-0-3-2.5":"29709520c6|7|4,5,5,5,5,5,5,6,6","1-0-3-3.5":"dc023a4347|7|4,5,5,5,5,5,5,6,6","1-0-3-5":"4762b41a34|7|4,5,5,5,5,5,5,6,6","1-0-3.5-1.5":"f079c824f7|7|4,5,5,5,5,5,5,6,6","1-0-3.5-2.5":"764964994e|7|4,5,5,5,5,5,5,6,6","1-0-3.5-3.5":"d9cc90e544|7|4,5,5,5,5,5,5,6,6","1-0-3.5-5":"116901bb69|7|4,5,5,5,5,5,5,6,6","1-0-4-1.5":"6d5ffa9f5b|7|4,5,5,5,5,5,5,6,6","1-0-4-2.5":"56c7c97ba5|7|4,5,5,5,5,5,5,6,6","1-0-4-3.5":"c0f6c3d7c1|7|4,5,5,5,5,5,5,6,6","1-0-4-5":"2cc5c395c8|7|4,5,5,5,5,5,5,6,6","1-1-3-1.5":"dd02fb4be8|7|4,5,5,5,5,5,5,6,6","1-1-3-2.5":"f3323513e6|7|4,5,5,5,5,5,5,6,6","1-1-3-3.5":"c2456c7e3a|7|4,5,5,5,5,5,5,6,6","1-1-3-5":"9271f8b85e|7|4,5,5,5,5,5,5,6,6","1-1-3.5-1.5":"6aebb9d8f4|7|4,5,5,5,5,5,5,6,6","1-1-3.5-2.5":"864cdf04fa|7|4,5,5,5,5,5,5,6,6","1-1-3.5-3.5":"f6e5ab2f6e|7|4,5,5,5,5,5,5,6,6","1-1-3.5-5":"2a43ac00b8|7|4,5,5,5,5,5,5,6,6","1-1-4-1.5":"a8e9a65734|7|4,5,5,5,5,5,5,6,6","1-1-4-2.5":"03d87585d7|7|4,5,5,5,5,5,5,6,6","1-1-4-3.5":"ef7f668bb9|7|4,5,5,5,5,5,5,6,6","1-1-4-5":"9191aae05a|7|4,5,5,5,5,5,5,6,6","2-0-3-1.5":"12205b08cd|7|4,5,5,5,5,5,5,6,6","2-0-3-2.5":"9b4e2b6bfb|7|4,5,5,5,5,5,5,6,6","2-0-3-3.5":"d0f9fb9a3e|7|4,5,5,5,5,5,5,6,6","2-0-3-5":"44960c710a|7|4,5,5,5,5,5,5,6,6","2-0-3.5-1.5":"aea4eb22b8|7|4,5,5,5,5,5,5,6,6","2-0-3.5-2.5":"b7c308d6aa|7|4,5,5,5,5,5,5,6,6","2-0-3.5-3.5":"8eeafc32b7|7|4,5,5,5,5,5,5,6,6","2-0-3.5-5":"2c46764ad7|7|4,5,5,5,5,5,5,6,6","2-0-4-1.5":"a566717dd5|7|4,5,5,5,5,5,5,6,6","2-0-4-2.5":"33fe8d01b9|7|4,5,5,5,5,5,5,6,6","2-0-4-3.5":"f80280054b|7|4,5,5,5,5,5,5,6,6","2-0-4-5":"4759d9ea47|7|4,5,5,5,5,5,5,6,6","2-1-3-1.5":"6bd1c20ba9|7|4,5,5,5,5,5,5,6,6","2-1-3-2.5":"225c68ca15|7|4,5,5,5,5,5,5,6,6","2-1-3-3.5":"64b76f4d9c|7|4,5,5,5,5,5,5,6,6","2-1-3-5":"853b966b66|7|4,5,5,5,5,5,5,6,6","2-1-3.5-1.5":"079864f3da|7|4,5,5,5,5,5,5,6,6","2-1-3.5-2.5":"b2bfb3d5aa|7|4,5,5,5,5,5,5,6,6","2-1-3.5-3.5":"4953523d3b|7|4,5,5,5,5,5,5,6,6","2-1-3.5-5":"1ac564d202|7|4,5,5,5,5,5,5,6,6","2-1-4-1.5":"bdc07af7f3|7|4,5,5,5,5,5,5,6,6","2-1-4-2.5":"a6e7b1e214|7|4,5,5,5,5,5,5,6,6","2-1-4-3.5":"b20fcf7c80|7|4,5,5,5,5,5,5,6,6","2-1-4-5":"cf3647d6ae|7|4,5,5,5,5,5,5,6,6"}},"C":{"codes":["c-r1","c-r2","c-r3","c1","c2","c3","c4","c-t1","c-t2"],"q":{"0-3":"21db12c632|7|4,5,5,5,5,5,6,6,6","0-3.5":"6ddff7f308|7|4,5,5,5,5,5,6,6,6","0-4":"612dc647cc|7|4,5,5,5,5,5,6,6,6","0-4.5":"adaf385b89|7|4,5,5,5,5,5,6,6,6","0-5":"d1cc0d2f59|7|4,5,5,5,5,5,6,6,6","0-5.5":"7b101a3483|7|4,5,5,5,5,5,6,6,6","0-6":"b8f2765c28|7|4,5,5,5,5,5,6,6,6","0-7":"202a0c2634|7|4,5,5,5,5,5,6,6,6","1-3":"7316d8546b|7|4,5,5,5,5,5,6,6,6","1-3.5":"834cba7a44|7|4,5,5,5,5,5,6,6,6","1-4":"0648ee9ead|7|4,5,5,5,5,5,6,6,6","1-4.5":"3eddb6ea4c|7|4,5,5,5,5,5,6,6,6","1-5":"5a62f3ffd5|7|4,5,5,5,5,5,6,6,6","1-5.5":"e70e566f11|7|4,5,5,5,5,5,6,6,6","1-6":"33f0669de8|7|4,5,5,5,5,5,6,6,6","1-7":"2ddd702d58|7|4,5,5,5,5,5,6,6,6","2-3":"3c9032b2e5|7|4,5,5,5,5,5,6,6,6","2-3.5":"4e3c24885c|7|4,5,5,5,5,5,6,6,6","2-4":"a9db2c9c84|7|4,5,5,5,5,5,6,6,6","2-4.5":"44ccda5d92|7|4,5,5,5,5,5,6,6,6","2-5":"fce965dc5d|7|4,5,5,5,5,5,6,6,6","2-5.5":"d50d3423e6|7|4,5,5,5,5,5,6,6,6","2-6":"ec226a1076|7|4,5,5,5,5,5,6,6,6","2-7":"0b06521168|7|4,5,5,5,5,5,6,6,6","3-3":"d7775d0f87|7|4,5,5,5,5,5,6,6,6","3-3.5":"e0b53ba3a7|7|4,5,5,5,5,5,6,6,6","3-4":"c37d72d023|7|4,5,5,5,5,5,6,6,6","3-4.5":"3c63a53f35|7|4,5,5,5,5,5,6,6,6","3-5":"0f664b28ee|7|4,5,5,5,5,5,6,6,6","3-5.5":"9b4fd7d14e|7|4,5,5,5,5,5,6,6,6","3-6":"c0e064de77|7|4,5,5,5,5,5,6,6,6","3-7":"be2850dc2d|7|4,5,5,5,5,5,6,6,6"}}};
+function pdfKey(o,p){
+  const v=o==='A'?[p.a_Pa,p.a_Pv,p.a_t]:o==='B'?[p.b_vein,p.b_ex,p.b_eta,p.b_tauy]:[p.c_mus,p.c_tau];
+  return v.map(x=>String(Number(x))).join('-'); }
+function renderPdfLinks(){
+  if(!R2_PDFS) return;
+  ['A','B','C'].forEach(o=>{
+    const ent=R2_PDFS[o], btn=document.querySelector('.pdf-q[data-opt="'+o+'"]'),
+          jumps=document.querySelector('.jumps[data-opt="'+o+'"]');
+    if(!ent||!btn||!jumps) return;
+    const meta=btn.querySelector('.pdf-q-meta'), key=pdfKey(o,ST.params), q=ent.q[key];
+    if(!q){ btn.removeAttribute('href'); if(meta) meta.textContent='Not found for this card. Tell your instructor.';
+            jumps.innerHTML=''; return; }
+    const [hash,pages,steps]=q.split('|'), pg=steps.split(','),
+          url='report-02-files/report2-'+o+'-'+key+'.pdf?v='+hash;
+    btn.href=url;
+    if(meta) meta.textContent='PDF, '+pages+' pages · made for your card'+(ST.demo?' (the sample card until you sign in)':'')+' · print it, or keep it open beside this page';
+    jumps.innerHTML=ent.codes.map((c,i)=>'<a class="jump" id="step-'+c+'" href="'+url+'#page='+pg[i]+'" target="_blank" rel="noopener">'+
+      c.toUpperCase()+(/^[abc]4$/.test(c)?' (566)':'')+' <small>p. '+pg[i]+'</small></a>').join('');
+  });
+}
+
+/* ════════ the AI policy gate ════════
+   Tab 0's AI section has one box per part (build_report2.py AI_ACKS). The
+   papers (#after-ai) stay hidden until all three are ticked. Each tick is
+   recorded with its time in ST.events.ai_ack, so it saves with the student's
+   work, follows them to the cloud and travels in the exported results file
+   (outside the checksum, which binds the answers only). Once all three are
+   ticked the boxes lock. */
+const AI_ACKS=['tutor','questions','prose'];
+let AI_ACK_THIS_VISIT=false;   /* ticked on this page load: carried into the student's card at sign-in */
+function aiAck(){ return (ST.events&&ST.events.ai_ack)||{}; }
+function aiAcked(){ const a=aiAck(); return AI_ACKS.every(k=>!!a[k]); }
+function renderAiGate(){
+  const a=aiAck(), done=aiAcked();
+  document.querySelectorAll('.ai-ack input[data-ack]').forEach(cb=>{
+    cb.checked=!!a[cb.dataset.ack]; cb.disabled=done;
+    const lab=cb.closest('.ai-ack'); if(lab) lab.classList.toggle('on',cb.checked); });
+  const g=document.getElementById('after-ai'); if(g) g.hidden=!done;
+  const n=document.getElementById('ai-gate-note'); if(n) n.hidden=done;
+  const d=document.getElementById('ai-done');
+  if(d){ d.hidden=!done;
+    if(done){ const t=AI_ACKS.map(k=>a[k]).sort().pop();
+      let when=''; try{ when=new Date(t).toLocaleString([], {dateStyle:'medium',timeStyle:'short'}); }catch(e){ when=String(t); }
+      d.innerHTML='✓ <strong>All three read</strong> ('+esc(when)+'). Your results file records this. The papers are below.'; } }
+}
+function onAiTick(cb){
+  const a=Object.assign({},aiAck());
+  if(cb.checked) a[cb.dataset.ack]=new Date().toISOString(); else delete a[cb.dataset.ack];
+  ST.events.ai_ack=a; AI_ACK_THIS_VISIT=true;
+  saveLocal(); renderAiGate();
+  if(aiAcked()){ const g=document.getElementById('pick-grid');
+    if(g){ try{ g.scrollIntoView({behavior:'smooth',block:'start'}); }catch(e){} } }
+}
+
+/* ════════ option picking ════════ */
+function applyOption(){
+  const o=currentOption();
+  document.querySelectorAll('.opt-pane').forEach(el=>{ el.hidden=(el.dataset.opt!==o); });
+  const kn=document.getElementById('k-nopick'); if(kn) kn.hidden=!!o;
+  const cb=document.getElementById('contract-block'); if(cb) cb.hidden=!o;
+  document.querySelectorAll('.pick-card').forEach(c=>c.classList.toggle('chosen',c.dataset.opt===o));
+  document.querySelectorAll('.pickbtn').forEach(b=>{ b.textContent=(b.dataset.opt===o)?'Chosen ✓':'Choose '+b.dataset.opt; });
+  fillGivens();
+}
+function pickOption(opt){
+  const idx={A:'0',B:'1',C:'2'}[opt]; if(idx==null) return;
+  const had=currentOption();
+  if(had&&had!==opt){
+    if(!confirm('Switch to Option '+opt+'?\n\nYour recorded numbers for Option '+had+
+                ' stay saved — nothing is lost — but only the paper you have chosen is graded, and your written report must answer THIS paper’s questions.')) return;
+  }
+  ST.answers.option=idx;
+  saveLocal();
+  applyOption(); renderAssume(); renderMission('q'); updateProg();
+  const note=document.getElementById('pick-note');
+  if(note) note.innerHTML='<strong>Option '+opt+' chosen.</strong> Your card is below; Tab 1 has this paper and its questions as two PDFs, and Tab 2 its boxes. You can change this later — your numbers are kept either way.';
+  refreshActiveTab(); refreshTab('t6');
+}
+function gotoStep(step){
+  const btn=document.querySelector('.tab-btn[data-tab="k"]'); if(btn) btn.click();
+  const el=document.getElementById('step-'+step);   /* Tab 1's jump link to that question's page in the PDF */
+  if(el){ try{ el.scrollIntoView({behavior:'smooth',block:'center'}); }catch(e){ el.scrollIntoView(); }
+    el.classList.add('flash'); setTimeout(()=>el.classList.remove('flash'),1600); }
+}
+
+/* ════════ dispatch ════════ */
+let activeTab='o';
+const DRAW={ o:renderAssume, k:fillGivens, q:null, t6:drawT6 };
+function refreshActiveTab(){ const f=DRAW[activeTab];
+  if(f){ try{ f(); }catch(e){ console.error('draw '+activeTab,e); } } }
+function refreshTab(tab){
+  if(tab===activeTab){ refreshActiveTab(); return; }
+  if(tab==='t6'){ try{ drawT6(); }catch(e){} }
+}
+
+/* ════════ wiring ════════ */
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(s=>s.classList.remove('active'));
+    btn.classList.add('active'); activeTab=btn.dataset.tab;
+    const sec=document.getElementById('tab-'+activeTab); if(sec) sec.classList.add('active');
+    if(activeTab==='q') renderMission('q');
+    refreshActiveTab();
+  });
+});
+document.querySelectorAll('.pickbtn').forEach(b=>b.addEventListener('click',()=>pickOption(b.dataset.opt)));
+document.querySelectorAll('.ai-ack input[data-ack]').forEach(cb=>cb.addEventListener('change',()=>onAiTick(cb)));
+(function(){
+  const ex=document.getElementById('btn-export'); if(ex) ex.addEventListener('click',exportResults);
+  const im=document.getElementById('btn-import'); if(im) im.addEventListener('change',importResults);
+  const cl=document.getElementById('btn-clear');
+  if(cl) cl.addEventListener('click',()=>{
+    if(!confirm('Erase ALL work for this card (every recorded number and your choice of paper) on this computer?')) return;
+    try{ localStorage.removeItem(lsKey()); }catch(e){}
+    blankState(); renderAssume(); renderAll(); saveLocal();
+    try{ if(typeof Cloud!=='undefined'&&Cloud) Cloud.flush(); }catch(e){}
+  });
+})();
+window.addEventListener('resize',()=>refreshActiveTab());
+
+/* ════════ boot ════════ */
+setDataset(QS_DS);
+window.addEventListener('load',()=>{ try{ if(typeof Cloud!=='undefined'&&Cloud) Cloud.init(); }catch(e){} });
+
+</script>
+</body>
+</html>
