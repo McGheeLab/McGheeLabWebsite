@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.106] — 2026-11-23 — Scientia: Shift held while resizing goes a grid cell at a time, as Shift held while moving does: a component's edge and corner, an HTML page's and a PDF's grip, a table's height
+
+Gabe, 23 Nov: "Expanding and holding Shift key should also expand grid block by grid block."
+
+App only.
+
+### Changed
+- **Resizing with Shift held:** while you drag, a component's right edge or corner grip goes a grid cell at a time, as a Shift+drag moves it (V3.992). So do an HTML page's grip, a PDF's or document's grip (width and height), and a table's or plot's height. The cell is Settings → Moving around the paper → *A component settles to*. Shrinking stops at the least size in whole cells (a component: 252 px for 240).
+- **Without Shift:** free while dragging, as before. The HTML page's and the PDF's grips now settle to the chosen cell when you let go, like a component; before, they always used 14 px.
+- **Settings → Moving around the paper:** the preview's box has a right edge, and Shift+drag on it grows the box a cell at a time. The description, the setting and the caption say so.
+
+### Tests
+| Test | Result |
+|---|---|
+| `v106_t`, lab and plain builds (real mouse drags, Shift held or not):<br>- without Shift the edge follows the pointer and settles to a cell when let go;<br>- with Shift: a component's edge grows a cell at a time, and shrinks to 252 px;<br>- Two cells chosen: 28 px at a time;<br>- a table's height; an HTML page's and a PDF's grip (width and height);<br>- the preview's edge; the words in Settings; `FEAT.audit()` empty | 17/17 · 17/17 |
+
+
 ## [V4.105] — 2026-11-20 — Scientia: search says an experiment note's stage and run — the quick list (Planning, Run, Analysis in its column; "Run 2" as a chip), the Atlas and the note pickers ("30 kPa series — Analysis · Run 2"); Settings → Experiment series → In search, the stage and run
 
 Gabe, 20 Nov: "the search function should show if the experiment note is planning, run, or analysis, and shows the run on it too."
