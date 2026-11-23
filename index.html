@@ -220,9 +220,13 @@
     <!-- Hero with background video at ~20% opacity; mission overlays -->
     <section class="hero" aria-label="Lab hero">
       <div class="video-wrap" aria-hidden="true">
-        <video id="heroVideo" autoplay muted loop playsinline preload="metadata" poster="https://picsum.photos/1600/900?seed=lab">
-          <!-- Drop a hero.mp4 next to these files to customize -->
-          <source src="Videos/Deposit In Lls Video.webm" type="video/webm" />
+        <video id="heroVideo" autoplay muted loop playsinline preload="metadata" poster="Videos/hero-poster.jpg">
+          <!-- V3.990: a seamless 16 s loop — a close side view of a steel needle extruding cell-laden granular ink
+               into a dyed microgel bath (a liquid-like solid); the bath yields round the needle and re-jams behind
+               it, and the printed cells spread, crawl and pull granules together. Made by scripts/hero_video/
+               (physical simulation → Blender → ffmpeg); see scripts/hero_video/README.md. -->
+          <source src="Videos/hero-lls-print.webm" type="video/webm" />
+          <source src="Videos/hero-lls-print.mp4" type="video/mp4" />
         </video>
         <div class="video-scrim"></div>
       </div>
