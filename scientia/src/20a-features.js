@@ -242,21 +242,26 @@ const PV = {
       PV.cap('The ◎ window opens on ' + m + ' min' + ([15, 25, 45, 50, 60, 90, 120].includes(m) ? '' : ' (set by hand last time)') + '.')]; } });
 
   // 20 Nov (Gabe: "Search for other features like these that could get some easy customization"): the numbers of moving around a note, in 10-paper.js (PTUNE)
-  D({ id: 'paper', group: 'canvas', core: true, label: 'Moving around the paper', isNew: true, desc: 'Ctrl+wheel (or a pinch) zooms at the pointer — as fast as you like and as far in as you like; a component you move or resize settles on the grid (Shift+drag moves it a cell at a time, and the same cell is where it lands when you let go); and a flick of the paper keeps gliding until it slows. The paper below is a real one: zoom it, drag the box, flick it.',
+  D({ id: 'paper', group: 'canvas', core: true, label: 'Moving around the paper', isNew: true, desc: 'Ctrl+wheel (or a pinch) zooms at the pointer — as fast as you like and as far in as you like; a component you move or resize settles on the grid (hold Shift while you drag it or its edge and it moves or grows a cell at a time; the same cell is where it lands when you let go); and a flick of the paper keeps gliding until it slows. The paper below is a real one: zoom it, drag the box or its right edge (with Shift too), flick it.',
     tune: [T('zoom', 'Ctrl+wheel zooms', 'seg', { isNew: true, def: '1', opts: [['0.5', 'Slowly'], ['1', 'As before'], ['2', 'Quickly']], d: 'How far each notch of the wheel goes' }),
       T('maxz', 'Zoom in up to', 'seg', { isNew: true, def: '2', opts: [['2', '200%'], ['3', '300%'], ['4', '400%']] }),
-      T('snap', 'A component settles to', 'seg', { isNew: true, def: '14', opts: [['1', 'No grid'], ['7', 'Half a cell'], ['14', 'One cell'], ['28', 'Two cells']], d: 'Moving and resizing; Shift+drag also moves by it. A cell is the paper’s small square' }),
+      T('snap', 'A component settles to', 'seg', { isNew: true, def: '14', opts: [['1', 'No grid'], ['7', 'Half a cell'], ['14', 'One cell'], ['28', 'Two cells']], d: 'Moving and resizing; with Shift held, a drag moves or resizes by it. A cell is the paper’s small square' }),
       T('glide', 'A flick keeps gliding', 'switch', { isNew: true, def: true, d: 'Off: the paper stops where you let go' })],
     preview: () => {
       const G = PTUNE.snap(), host = h('div.pv-paper'), out = h('span.pv-paper-z', '100%'), P = makePaper(host, { anyWheel: true, view: { x: 24, y: 18, z: 1 }, onView: v => { out.textContent = Math.round(v.z * 100) + '%'; } });
-      const bx = h('div.pv-paper-b.nopan', { style: { left: '28px', top: '28px' } }, 'Run 3 · drag me'), cell = h('span.pv-paper-c');
+      const grip = h('span.pv-paper-rz', { title: 'Drag to resize — hold Shift for a cell at a time' }), bx = h('div.pv-paper-b.nopan', { style: { left: '28px', top: '28px' } }, 'Run 3 · drag me', grip), cell = h('span.pv-paper-c');
       P.world.append(bx);
+      // V4.107: its right edge resizes it, a cell at a time with Shift held, as on a note
+      grip.addEventListener('pointerdown', e => { if (e.button) return; e.preventDefault(); e.stopPropagation(); grip.setPointerCapture(e.pointerId); const sx = e.clientX, w0 = bx.offsetWidth; bx.classList.add('dragging');
+        const mv = ev => { const w = w0 + (ev.clientX - sx) / P.view.z; bx.style.width = (ev.shiftKey ? PTUNE.cells(w, 84) : Math.max(84, Math.round(w))) + 'px'; };
+        const up = () => { grip.removeEventListener('pointermove', mv); grip.removeEventListener('pointerup', up); bx.classList.remove('dragging'); bx.style.width = PTUNE.cells(bx.offsetWidth, 84) + 'px'; };
+        grip.addEventListener('pointermove', mv); grip.addEventListener('pointerup', up); });
       bx.addEventListener('pointerdown', e => { if (e.button) return; e.preventDefault(); bx.setPointerCapture(e.pointerId); const sx = e.clientX, sy = e.clientY, ox = bx.offsetLeft, oy = bx.offsetTop; bx.classList.add('dragging');
         const mv = ev => { let x = ox + (ev.clientX - sx) / P.view.z, y = oy + (ev.clientY - sy) / P.view.z; if (ev.shiftKey) { x = Math.round(x / G) * G; y = Math.round(y / G) * G; } bx.style.left = x + 'px'; bx.style.top = y + 'px'; };
         const up = () => { bx.removeEventListener('pointermove', mv); bx.removeEventListener('pointerup', up); bx.classList.remove('dragging'); bx.style.left = Math.round(bx.offsetLeft / G) * G + 'px'; bx.style.top = Math.round(bx.offsetTop / G) * G + 'px'; };
         bx.addEventListener('pointermove', mv); bx.addEventListener('pointerup', up); });
       host.append(out);
-      return [host, PV.cap('Ctrl+wheel zooms ' + ({ '0.5': 'slowly', '1': 'at the usual pace', '2': 'quickly' }[String(tune('paper', 'zoom'))] || 'at the usual pace') + ', up to ' + Math.round(PTUNE.maxZ() * 100) + '%; the box settles to ' + (G === 1 ? 'wherever you let go' : (G === 14 ? 'one cell' : G === 7 ? 'half a cell' : G === 28 ? 'two cells' : G + ' px')) + '; a flick ' + (PTUNE.glide() ? 'keeps gliding' : 'stops where you let go') + '.')];
+      return [host, PV.cap('Ctrl+wheel zooms ' + ({ '0.5': 'slowly', '1': 'at the usual pace', '2': 'quickly' }[String(tune('paper', 'zoom'))] || 'at the usual pace') + ', up to ' + Math.round(PTUNE.maxZ() * 100) + '%; the box settles to ' + (G === 1 ? 'wherever you let go' : (G === 14 ? 'one cell' : G === 7 ? 'half a cell' : G === 28 ? 'two cells' : G + ' px')) + ', and Shift+drag moves it or its right edge by that; a flick ' + (PTUNE.glide() ? 'keeps gliding' : 'stops where you let go') + '.')];
     } });
 
   /* =============================== Pen & touch =============================== */

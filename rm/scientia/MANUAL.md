@@ -147,7 +147,7 @@ A note has a **header box** (title, type, profile fields, tags, ✎ for note det
 ### Components
 - **Select:** click. Then click again, or press Enter, to type.
 - **Move:** drag by the header. Boxes snap to 14 px and never overlap. Hold **Shift** while dragging to move one grid cell (14 px) at a time — a component, a region by its title, or a lasso selection.
-- **Resize:** drag the right edge or the corner grip — as large as you like, there is no limit. Image panels and slides keep their shape: drag their corner down and they grow both ways; PDFs, HTML pages and tables take any width and height.
+- **Resize:** drag the right edge or the corner grip — as large as you like, there is no limit. Image panels and slides keep their shape: drag their corner down and they grow both ways; PDFs, HTML pages and tables take any width and height. Hold **Shift** while you drag and it grows or shrinks one grid cell at a time, as Shift moves it (the cell is Settings → Moving around the paper → *A component settles to*).
 - **Title:** each component has a title line. **Tab** or **Enter** in the title moves to the text.
 - **Stamp:** each component shows its full date and time (e.g. 16 Oct 2026 14:32). Click the stamp to move it to any date and time.
 - **⋯ menu:** edit, label as a structure, Data, materials & code…, Move to another note…, Delete component…

@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (207 changes — ready to push)
+## Pending (208 changes — ready to push)
+
+- **Resizing (V4.107):** hold Shift while you drag a component's edge, and it grows or shrinks one grid square at a time, the way Shift already moves it. The same holds for a web page's, a PDF's and a table's size handle.
 
 - **Search (V4.106):** an experiment's notes no longer all look alike in search. Each says whether it is the Planning, the Run or the Analysis, and which run (for example "30 kPa series — Analysis · Run 2"), in the search list, the Atlas and when you pick a note.
 
