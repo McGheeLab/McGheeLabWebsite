@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.112] — 2026-11-23 — Scientia: fix — ink folded away in a region is out of the pen's reach: a stroke written where it lay makes new, visible ink (it joined the hidden ink and vanished); the eraser, lasso, fill, loop and dumbbell leave it alone
+
+Gabe, 23 Nov, on "sometimes, the pen won't write on the screen": "It had to do with me collapsing ink components that were inside regions"
+
+App only.
+
+### Fixed
+- **A stroke written where folded ink lay** (or near the last ink, when that was folded away) joined the hidden ink and vanished with it. Now it makes new ink you can see.
+- **The other pen tools no longer reach folded ink:** the eraser and the pen's back (which could erase it away entirely), the lasso, the fill, the pen's loop and the dumbbell. All use `INK.reachable(docId)`, the ink a folded region does not hide (13zf; 13zm, 13zp, 13zv, 13zz2).
+- **Strokes that went missing before** were added to the folded ink: unfolding the region shows them.
+
+### Tests
+| Test | Result |
+|---|---|
+| `v112_t`, lab and plain builds (real pen events):<br>- a region around a card and its ink, folded;<br>- a stroke where the ink was makes new visible ink, and the folded ink keeps its 2 strokes;<br>- the eraser there leaves it (and takes the new stroke);<br>- the lasso selects none of it;<br>- unfolded, it is as it was, and a stroke on it joins it | 11/11 · 11/11; without the fix the stroke joined the hidden ink, and the eraser then removed the hidden ink altogether |
+| `v111_t` · `v104_t` · `v107_t`, lab · plain | 11/11 · 11/11; 19/19 · 19/19; 17/17 · 18/18 |
+
+
 ## [V4.111] — 2026-11-23 — Scientia: the iPad pen — strokes the iPad’s Scribble took are kept for the page where the pen writes ink; the live line is drawn once a frame with every sample kept; the pen writes again on ink lying over a component; a cancelled stroke on an HTML page is kept; #touchlog says why a pen touch did not write
 
 Gabe, 23 Nov: "Get a fix for an iPad pen. As of now, it seems like the pen does not write well. The fix might be universal SVG strokes for all pencil modes. Do research on that and find the best way to tackle this." Then: "sometimes, the pen won't write on the screen"

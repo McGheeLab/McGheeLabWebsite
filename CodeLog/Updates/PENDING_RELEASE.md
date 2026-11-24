@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (212 changes — ready to push)
+## Pending (213 changes — ready to push)
+
+- **Pen and folded regions (V4.112):** fixed — after you folded a region holding handwriting, writing where that handwriting had been seemed to do nothing (the strokes were hidden inside the folded region). Now new writing shows, and the eraser and lasso leave folded handwriting alone.
 
 - **The iPad pen (V4.111):** the pen should no longer skip strokes. The iPad’s handwriting-to-text (Scribble) no longer takes strokes meant as ink, a stroke the iPad cancels on a web page is kept, the line keeps up with fast writing, and the pen writes again on ink that lies over a card. If it still misses, add #touchlog to the address: it says why.
 
