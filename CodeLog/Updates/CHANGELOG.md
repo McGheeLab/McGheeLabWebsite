@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.110] — 2026-11-23 — Scientia: super- and subscripts stay on until you type ^ (or _) again — in a component (10^-12^ → 10⁻¹², x_12_ → x₁₂) and in the equation editor; Settings → Writing in components → Super- and subscripts stay on
+
+Gabe, 23 Nov: "Superscripts or subscripts need to remain in that notation until the user hits that key shortcut again."
+
+App only.
+
+### Changed
+- **In a component:**
+  - after `^2` or `CO_2`, what you type stays raised (lowered) until you type `^` (`_`) again; that key ends it and does not stay in the text;
+  - digits, signs, brackets and the letters Unicode has forms for change; others go in as typed;
+  - the caret going elsewhere (Enter, Esc, the arrows, a click, leaving the text) ends the run too;
+  - a hint by the caret says how to end it;
+  - Backspace right after `^2` still puts back `^2`;
+  - the trigger is unchanged, so `snake_case` never starts a run (`13u-write.js`).
+- **In the equation editor:** a power or subscript stays open after its first digit (MathLive's `smartSuperscript` off). `^` (`_`) again steps out of it (`MATH.branch`, `13h-math.js`).
+
+### Added
+- **Settings → Writing in components → *Super- and subscripts stay on*** (on). Off: one character, as before, in both places. The preview shows `10⁻¹²` and `x₁₂`.
+
+### Tests
+| Test | Result |
+|---|---|
+| `v110_t`, lab and plain builds (typed for real):<br>- `10^-12^ M` → 10⁻¹² M, with the hint meanwhile;<br>- `x_12n_ + 1` → x₁₂ₙ + 1;<br>- `a^2q3^` → a²q³;<br>- the arrows end it (b²3);<br>- ⌫ inside keeps it (c²⁴);<br>- ⌫ after `^2` puts it back (d^25);<br>- `x_1^2^` → x₁², saved;<br>- switch off → e²3;<br>- the equation editor: `x^23` stays in the superscript, `^+1` → `x^{23}+1`; `k_on_+1` → `k_{on}+1`; off → `x^23` one digit;<br>- Settings: the switch (a real click) and the preview; `FEAT.audit()` empty | 19/19 · 19/19 |
+
+
 ## [V4.109] — 2026-11-23 — Scientia: fix — in pen mode, fingers keep panning the note: a touch whose lift never reached the paper (the iPad sends it to the ink stroke the hand rested on, which the pen's next stroke had drawn again) no longer counts as a palm for as long as the note is open
 
 Gabe, 23 Nov: "another bug: after some time on a note canvas, while in pen mode, your fingers stop being able to pan on the note. You have to exit out of the note and re enter it to be able to pan again"

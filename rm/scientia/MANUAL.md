@@ -230,12 +230,13 @@ A slim grey bar lies along the bottom of the window. It shows where you are (pro
 |---|---|
 | Arrows | `-->` →, `<--` ←, `<->` ↔, `=>` ⇒ |
 | Science | `>=` ≥, `<=` ≤, `!=` ≠, `~=` ≈, `+-` ±, `37 deg` 37°, `5 uL` 5 µL, `3x4` 3×4 |
-| Scripts | `^2` ², `^-1` ⁻¹, `CO_2` CO₂ |
+| Scripts | `^2` ², `^-1` ⁻¹, `CO_2` CO₂. What you type next stays raised (or lowered) — `^-12` ⁻¹², `x_12` x₁₂ — until you type `^` (or `_`) again; Enter, Esc, the arrows or a click elsewhere end it too. Settings → Writing in components → *Super- and subscripts stay on* |
 | Typography | `--` –, `---` —, `...` …, curly quotes |
 
 **Equations.** Type `$…$` for an inline equation, or `$$…$$` (or `\(…\)` / `\[…\]`) for a display one.
 - The equation is typeset when you close it. "$5 and $10" stays text.
 - Click an equation to edit it in the editor: LaTeX alongside, an Inline/Display switch, an on-screen ⌨ keyboard, and **?** for shortcuts.
+- **Powers and subscripts in the editor:** `^` opens a superscript and `_` a subscript; what you type stays in it until you press the same key again (or →, or Space).
 - **Wrapping a selection in the editor:** `_` subscript, `^` superscript, `/` fraction, `( [ { |` to wrap, Alt+R root, Alt+B/H/V/D bar/hat/vector/dot, Alt+T text.
 
 **Several selections at once.** Hold **Ctrl** while you select (drag or double-click), in one component or across several. Then:
