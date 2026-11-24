@@ -1529,7 +1529,8 @@
     "scientia/src/13zc-sync.js",
     "scientia/src/13zd-devices.js",
     "scientia/src/21-sync.css",
-    "scientia/src/13zo-install.js"
+    "scientia/src/13zo-install.js",
+    "scientia/src/13zob-offline.js"
    ],
    "related": [
     "scientia.cloud"

@@ -51,6 +51,14 @@ SRC = os.path.join(ROOT, 'scientia')
 WEB = os.path.join(ROOT, 'rm', 'scientia')
 DESKTOP_OUT = os.path.join(SRC, 'scientia.html')
 WEB_OUT = os.path.join(WEB, 'scientia.html')
+# V4.113: the web app's own install identity (Settings → Devices → Keep the notebook on this device, src/13zob-offline.js). Scope / so the lab
+# site's sign-in opens inside the installed app (an iPad Home Screen app keeps its own storage; a page outside its scope would open in a browser sheet
+# whose sign-in the app never sees); id and start_url make it a separate app from the site's own (/manifest.json).
+WEB_MANIFEST = os.path.join(WEB, 'manifest.webmanifest')
+WEB_MANIFEST_TEXT = json.dumps({'id': '/rm/scientia/', 'name': 'Scientia — the McGhee Lab notebook', 'short_name': 'Scientia', 'start_url': '/rm/scientia/scientia.html', 'scope': '/',
+    'display': 'standalone', 'orientation': 'any', 'background_color': '#f4f1ea', 'theme_color': '#1d1d1b', 'description': 'The lab notebook on a paper canvas — works offline, syncs with the lab cloud',
+    'icons': [{'src': '/rm/scientia/icons/icon-192.png', 'sizes': '192x192', 'type': 'image/png', 'purpose': 'any'}, {'src': '/rm/scientia/icons/icon-512.png', 'sizes': '512x512', 'type': 'image/png', 'purpose': 'any'},
+              {'src': '/rm/scientia/icons/icon-maskable-512.png', 'sizes': '512x512', 'type': 'image/png', 'purpose': 'maskable'}]}, indent=1, ensure_ascii=False) + '\n'
 SHIM = os.path.join(WEB, 'cloud-sync.js')
 LAB = os.path.join(WEB, 'lab-mode.js')
 ANCHOR = re.compile(r'<script>\n/\* =+\n   01 · Util')
@@ -319,6 +327,7 @@ def main():
     bundle, bundle_ver = desktop_bundle(desktop, board)
     if not (os.path.exists(BUNDLE) and open(BUNDLE, 'rb').read() == bundle): stale.append(os.path.relpath(BUNDLE, ROOT))
     if not same(WEB_OUT, web): stale.append(os.path.relpath(WEB_OUT, ROOT))
+    if not same(WEB_MANIFEST, WEB_MANIFEST_TEXT): stale.append(os.path.relpath(WEB_MANIFEST, ROOT))
     for name in COPY:
         s, d = os.path.join(SRC, name), os.path.join(WEB, name)
         if os.path.isdir(s):
@@ -332,6 +341,7 @@ def main():
     os.makedirs(WEB, exist_ok=True)
     open(DESKTOP_OUT, 'w', encoding='utf-8').write(desktop)   # build.py wrote the plain app; the desktop's has the lab layer
     open(WEB_OUT, 'w', encoding='utf-8').write(web)
+    open(WEB_MANIFEST, 'w', encoding='utf-8', newline='\n').write(WEB_MANIFEST_TEXT)
     for p in BOARD_OUTS: open(p, 'w', encoding='utf-8').write(board)
     os.makedirs(DESK_DIR, exist_ok=True)
     open(BUNDLE, 'wb').write(bundle); open(BUNDLE_VERSION, 'w', encoding='utf-8', newline='\n').write(bundle_ver)
