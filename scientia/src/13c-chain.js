@@ -69,6 +69,7 @@ const CHAIN = {
   /** The run number to show for a note of an experiment: a run of a series (or a run past the first), else null. */
   runNo(d) {
     if (!d || !d.chain || !CHAIN.seriesOn()) return null; try { if (FEAT.tune('expseries', 'runchip') === false) return null; } catch (e) { }
+    if (Array.isArray(d.synthRuns)) return null;   // V4.103: the series' own Synthesis (15e) covers every run, so it carries none
     const n = d.run || (CHAIN.members(d).find(x => x.run) || {}).run; return n && (d.series || n > 1) ? n : null;
   },
   /** The chip: "Run 3", with the series' name in its tooltip. */
@@ -91,7 +92,7 @@ const CHAIN = {
     let S = [], auto = '';
     const fillThemes = () => th.replaceChildren(h('option', { value: '' }, '— none —'), ...DB.where('themes', t => t.projectId === proj.value && t.status === 'active').map(t => h('option', { value: t.id, selected: t.id === pre.themeId }, t.name)));
     const pickSeries = () => { const s = S.find(x => x.id === ser.value);
-      if (s) { const nx = CHAIN.nextRun(s); name.value = auto = nx.name; hint.textContent = 'Run ' + nx.run + ' of “' + CHAIN.baseOf(s.last.name) + '” — after ' + s.runs.map(r => r.name).join(', ') + '. Its runs share one Synthesis.'; }
+      if (s) { const nx = CHAIN.nextRun(s); name.value = auto = nx.name; hint.textContent = 'Run ' + nx.run + ' of “' + CHAIN.baseOf(s.last.name) + '” — after ' + s.runs.map(r => 'Run ' + r.run).join(', ') + '. Its runs share one Synthesis.'; }   // V4.103: by number (V4.97: every run has the series' name)
       else { if (auto && name.value === auto) name.value = ''; auto = ''; hint.textContent = ''; } };
     const fillSeries = () => { S = CHAIN.seriesOn() ? CHAIN.seriesIn(proj.value || null, proj.value ? th.value || null : null) : [];
       ser.replaceChildren(h('option', { value: '' }, '— No: a new experiment —'), ...S.map(s => h('option', { value: s.id }, s.last.name + (s.runs.length > 1 ? ' · ' + plural(s.runs.length, 'run') : ''))));

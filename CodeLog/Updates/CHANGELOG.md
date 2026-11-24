@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.103] — 2026-11-20 — Scientia: fixes the demonstration takes turned up — a series' runs named by their number again where V4.97 left them all with the series' name (the Continue-a-series hint, the series' Synthesis), the Synthesis without a run chip; Open a component lands on it in a note opened for the first time
+
+Found by the takes for the demonstrations (V4.104). V4.97 gave every run of a series the series' name, and three places still listed the runs by name. And a component opened in a note that had never been opened lost its place.
+
+App only.
+
+### Bug Fixes
+- **+ Experiment → Continue a series:** the hint lists the runs by number ("— after Run 1, Run 2"), not by their names, which are now all the same (`13c-chain.js`).
+- **The series' Synthesis:**
+  - its line reads "it covers Run 1 and Run 2", each a link;
+  - the message when a run joins it reads "Run 2 joins the series' synthesis" (`15e-syntheses.js`).
+- **The series' Synthesis carries no run chip:** `CHAIN.runNo` gives nothing for a note with `synthRuns`, since that note covers every run.
+- **Open a component, in a note never opened before** (a task's Open, a search result…): the component is centred at the zoom set in Settings, as in any other note. Before, the note's first-open fit ran after the landing and ended at the whole-note view (`12-doc.js`: `landOn` marks the pane, `_arrived`, and the fit stands aside).
+
+### Tests
+| Test | Result |
+|---|---|
+| `v102_t`, lab and plain builds:<br>- the hint "Run 3 of “30 kPa series” — after Run 1, Run 2.";<br>- the series' Synthesis: made, no chip;<br>- Run 2 joining it: "Run 2 joins the series' synthesis";<br>- its line "it covers Run 1 and Run 2.";<br>- a run's note still shows "Run 2" | 11/11 · 11/11 |
+| `v97_t` (runs beside the title) | 12/12 |
+| `oc_probe` (a never-opened note of 9 cards → open its last card: 50%, centred), lab and plain builds | before: 76%, off-centre · after: 4/4 · 4/4 |
+| `opencomp_t` (V4.67, Open a component) | 17/17 · 17/17 |
+
+
 ## [V4.102] — 2026-11-23 — BME 466: Module 9 "The Squeeze and the Pull" on the site; HW5's links into it; this checkout brought up to date; course modules out of the emoji gate
 
 Plan: [CodeLog/ClaudesPlan/V4.102_bme466_module9_staged.md](../ClaudesPlan/V4.102_bme466_module9_staged.md). Course repo
