@@ -4,6 +4,33 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.113] — 2026-11-24 — Scientia: the lab notebook kept on this device — it opens and works offline and syncs back to the lab cloud: Settings → Notebook & devices → Keep it on this device (the site's service worker, the notebook's files and sign-in kept, persistent storage), an install manifest, Settings → Features → The notebook on this device
+
+Gabe, 24 Nov: "Look into the most straightforward way to have the lab notebook loaded locally onto a device with sync back to the lab cloud. Research ways of doing it, and let's add it to the settings."
+
+App and build. The lab layer is unchanged.
+
+### Added
+- **Keep the notebook on this device** (`OFFLINE`, `src/13zob-offline.js`): Settings → Notebook & devices → Devices.
+  - **It registers** the site's service worker from the notebook, which the lab layer does not, and the iPad's installed app keeps storage of its own.
+  - **It keeps** the notebook's files in its current cache: the page, its scripts, the whiteboard, the icons, the manifest, and the Firebase sign-in scripts, so an offline launch is still signed in. It keeps them again when a new version takes over.
+  - **It asks** the browser to keep the storage (`storage.persist`).
+  - **The card shows:** opens offline · kept by the browser · installed · signed in · the lab cloud (in step / N changes waiting) · space used. It has *Refresh its files*, *Stop keeping it*, and how to install.
+  - **Installed** (opened from its icon), it keeps itself.
+- **`rm/scientia/manifest.webmanifest`** (written by `scripts/scientia_build.py`): the notebook can be installed (Chrome/Edge Install; Add to Home Screen on the iPad). Scope `/`, so the lab site's sign-in stays inside the installed app.
+- **Settings → Features → This device & sync → *The notebook on this device*:** *Keep it on this device* (this device only), *Keep it when installed*, and a preview.
+
+### Changed
+- **The install banner** on the lab site says "works offline; what you write goes to the lab cloud" instead of "with the computer off" (13zo). In Settings the older install card steps aside for the new one.
+
+### Tests
+| Test | Result |
+|---|---|
+| `v113_t` — the website build served from the repo with the site's `/sw.js`, its lab layer pointed at the local stand-in hub (`scientia_hub_dev.js`, the real merge rules) and signed in as a made-up test user; the Firebase scripts from gstatic:<br>- the card in Settings → Notebook & devices (no second install card);<br>- *Keep it on this device* (a real click): the worker controls the page, and the page, whiteboard, lab layer and the 3 Firebase scripts are kept;<br>- no server and the hub blocked: it opens offline with its note, still signed in;<br>- an edit made then waits, and reaches the hub when it is back;<br>- the manifest (Chrome: id, start_url, scope, standalone, icons) and no installability errors;<br>- Settings → Features; *Stop keeping it* | 13/13 |
+| `v110_t` · `v112_t`, lab · plain; `fw_t34` | 19/19 · 19/19; 11/11 · 11/11; 24/24 |
+| Lab harnesses v3869 · v3880 | 287/287 · 13/13 |
+
+
 ## [V4.112] — 2026-11-23 — Scientia: fix — ink folded away in a region is out of the pen's reach: a stroke written where it lay makes new, visible ink (it joined the hidden ink and vanished); the eraser, lasso, fill, loop and dumbbell leave it alone
 
 Gabe, 23 Nov, on "sometimes, the pen won't write on the screen": "It had to do with me collapsing ink components that were inside regions"

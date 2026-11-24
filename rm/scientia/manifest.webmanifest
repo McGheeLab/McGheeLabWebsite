@@ -1,0 +1,32 @@
+{
+ "id": "/rm/scientia/",
+ "name": "Scientia — the McGhee Lab notebook",
+ "short_name": "Scientia",
+ "start_url": "/rm/scientia/scientia.html",
+ "scope": "/",
+ "display": "standalone",
+ "orientation": "any",
+ "background_color": "#f4f1ea",
+ "theme_color": "#1d1d1b",
+ "description": "The lab notebook on a paper canvas — works offline, syncs with the lab cloud",
+ "icons": [
+  {
+   "src": "/rm/scientia/icons/icon-192.png",
+   "sizes": "192x192",
+   "type": "image/png",
+   "purpose": "any"
+  },
+  {
+   "src": "/rm/scientia/icons/icon-512.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "any"
+  },
+  {
+   "src": "/rm/scientia/icons/icon-maskable-512.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "maskable"
+  }
+ ]
+}
