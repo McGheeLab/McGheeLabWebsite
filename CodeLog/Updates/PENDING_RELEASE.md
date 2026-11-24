@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (211 changes — ready to push)
+## Pending (212 changes — ready to push)
+
+- **The iPad pen (V4.111):** the pen should no longer skip strokes. The iPad’s handwriting-to-text (Scribble) no longer takes strokes meant as ink, a stroke the iPad cancels on a web page is kept, the line keeps up with fast writing, and the pen writes again on ink that lies over a card. If it still misses, add #touchlog to the address: it says why.
 
 - **Super- and subscripts (V4.110):** after typing ^2 or CO_2, what you type next stays raised (or lowered) until you type ^ (or _) again — 10⁻¹², x₁₂. The same in the equation editor. Settings → Writing in components can switch it back to one character.
 

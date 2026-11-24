@@ -801,7 +801,8 @@ A view is a saved query that updates as your notes change.
   - Shapes and the ink library stay in notes; the board has its own cards and pan · zoom.
   - **In its image cell** a whiteboard is cropped to what is drawn, like a cropped image: the cell takes the drawing's shape. A click still opens the whole board. **Whole page** on the cell shows the full page instead.
 - **In pen mode** nothing on the paper reacts to the pen hovering over it — no frames, grips or buttons appear. Switch the ✎ pill to pan (move) to see them.
-- **In a component's text,** the iPad's Scribble turns handwriting straight into typed text.
+- **In a component's text,** the iPad's Scribble turns handwriting straight into typed text. On ink that lies over a component, the pen writes more ink.
+- **If the pen does not write:** add `#touchlog` to the end of the address. A small log in the corner says, for each pen touch, whether it wrote and why not (pen mode off, on a component's text, on a button), how many points a stroke had, and when the iPad took a Pencil touch without passing it to the page. On the iPad, try once with Settings → Apple Pencil → Scribble off, and with the Quick Note corner gesture off: if the pen then always writes, the iPad was taking the strokes.
 - **Your palm is ignored** while the pen writes.
 - **The ink bar** (top left; **✎ Pen** turns it on):
 
