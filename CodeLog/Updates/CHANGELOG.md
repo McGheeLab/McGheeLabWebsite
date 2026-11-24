@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.106] — 2026-11-20 — Scientia: search says an experiment note's stage and run — the quick list (Planning, Run, Analysis in its column; "Run 2" as a chip), the Atlas and the note pickers ("30 kPa series — Analysis · Run 2"); Settings → Experiment series → In search, the stage and run
+
+Gabe, 20 Nov: "the search function should show if the experiment note is planning, run, or analysis, and shows the run on it too."
+
+App only.
+
+### Changed
+- **The quick search list:** an experiment's note shows its stage (Planning, Run, Analysis, Synthesis) where the type was, and its run as a chip. Typing "analysis" or "run 2" finds it (`19-activity.js`).
+- **The Atlas:** a note's dot reads "30 kPa series — Analysis · Run 2". The note's card and caption in its bubble say the same, and so does a component's caption.
+- **The note pickers** (`/open`, Move to…, lenses) list notes the same way (`CMD.KINDS.note`).
+- **New in `13c-chain.js`:** `CHAIN.stageRun(d)` and `CHAIN.listTitle(d)`. The run follows `CHAIN.runNo`: a run of a series, or any run past the first.
+
+### Added
+- **Settings → Experiment series → *In search, the stage and run*** (on). Off: the name alone, as before. The preview shows the search rows.
+
+### Tests
+| Test | Result |
+|---|---|
+| `v105_t`, lab and plain builds:<br>- list titles: "30 kPa series — Analysis · Run 2", "— Run 2", "— Planning · Run 1", a lone experiment "— Planning", a plain note unchanged;<br>- the quick list (typed for real): six rows with Planning, Run, Analysis and Run 1 or Run 2;<br>- "30 kPa analysis run 2" finds that note alone;<br>- the Atlas dot's label; the note picker;<br>- the switch off: the name and type alone;<br>- the preview follows, and the switch goes on again with a real click | 12/12 · 12/12 |
+| `v97_t` · `v102_t` · `v104_t` · `cg_t` · `comp85_t` | 12/12 · 11/11 · 19/19 · 28/28 · 22/22 |
+| `ad49_t` · `ah48_t` (the Atlas's section row, since moved to the Compendiums tab) | 4/6 · 5/8, the same on V4.104 without this change |
+
+
 ## [V4.105] — 2026-11-20 — Scientia: ink is see-through (no card under it, whatever the look) and can be clicked through — a click on its empty part reaches the component beneath; Settings → Ink & shapes → Click through ink
 
 Gabe, 20 Nov: "The ink background should be invisible/see through. You may interact with components overlaid by ink components."

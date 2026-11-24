@@ -74,6 +74,17 @@ const CHAIN = {
   },
   /** The chip: "Run 3", with the series' name in its tooltip. */
   runChip(d, cls) { const n = CHAIN.runNo(d); if (!n) return null; return h('span.run-chip' + (cls ? '.' + cls : ''), { title: 'Run ' + n + ' of the series “' + CHAIN.baseOf(CHAIN.name(d)) + '”' }, 'Run ' + n); },
+  /* ---------- V4.106 (Gabe: "the search function should show if the experiment note is planning, run, or analysis, and shows the run on it too"):
+     an experiment's notes all carry its name, so a list of notes says which is which ---------- */
+  /** "Planning · Run 3", "Run 3", "Analysis · Run 3", "Synthesis": the note's stage, and its run where runNo shows one (the Run note's own is just
+      "Run 3"); '' for a note with no stage, or with Settings → Experiment series → In search, the stage and run off. */
+  stageRun(d) {
+    if (!d) return ''; try { if (FEAT.tune('expseries', 'search') === false) return ''; } catch (e) { }
+    const p = prof(d.type), st = p && p.stage; if (!st) return ''; const n = CHAIN.runNo(d);
+    return n ? (st === 'Run' ? 'Run ' + n : st + ' · Run ' + n) : st;
+  },
+  /** A note's title in a list of notes (the Atlas, the note pickers): "30 kPa series — Analysis · Run 3". */
+  listTitle(d) { const t = (d && d.title) || 'Untitled', s = CHAIN.stageRun(d); return s ? t + ' — ' + s : t; },
   /** Once: a title ending in "Run N" (V4.15's names) loses it; the number stays on the notes (`run`). */
   migrateRuns() {
     if (settings().expRunTitles497) return; let n = 0;
