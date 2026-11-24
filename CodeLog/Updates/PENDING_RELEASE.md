@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (203 changes — ready to push)
+## Pending (204 changes — ready to push)
+
+- **Fixed (V4.103):** in a series of experiments, the "Continue a series" hint and the series' Synthesis name each run by its number again ("Run 1, Run 2"); the Synthesis no longer shows "Run 1" beside its title. Opening a component in a note you have never opened now centres it, as everywhere else.
 
 - **BME 466 Module 9, "The Squeeze and the Pull" (V4.102):** the module on muscle is on the site, ready to add to the class page: the ring of muscle round a blood vessel that decides where the blood goes (and why a frightened hand goes cold), the calf and its tendon, and what a long stretch before a sprint costs, with fifteen simulations for the whiteboard. Homework 5's practice problems now link to its worked examples.
 
