@@ -793,6 +793,8 @@ A view is a saved query that updates as your notes change.
 
 ### The pen and the ink bar
 - **The pen writes ink** the way the lab's whiteboard does: a smooth line through every point, its width easing with pressure, round ends. Strokes written close together gather into one **ink component**. It moves, connects, takes timers and labels like any component.
+  - **It is see-through:** no card under it, and a click on its empty part reaches what lies beneath; a click on a stroke picks the ink (Settings → Ink & shapes → *Click through ink*).
+  - **A dotted outline** shows all of an ink component while the pointer is over any part of it, and while it is selected. None shows while the pen writes.
 - **On a whiteboard** (an image panel's ✎ Whiteboard) the pen is the same pen: the ink bar sits under the whiteboard's title, and its colours, widths, ◧ fill, pressure, ↶ ↷, the back of the pen (it erases whole strokes there) and two- and three-finger taps all work on the board.
   - **The lasso** works there too: ◌ in the bar, or hold the pen's barrel button. Loop around ink and cards; drag inside to move, a corner to scale; the bar under it has Copy, Duplicate, ⇋ ⇵ flip, Pen ↔ Highlighter, ◧ Fill / Unfill, Delete. A colour or width from the ink bar restyles the selection. A barrel tap on it copies; a barrel tap elsewhere pastes. Ctrl+C / Ctrl+V, Delete, Esc.
   - Shapes and the ink library stay in notes; the board has its own cards and pan · zoom.

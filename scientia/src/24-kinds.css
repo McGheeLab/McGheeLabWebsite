@@ -505,7 +505,8 @@ body.f-off-demos .ft-n .dm{display:none}
 .pv-inkthru{position:relative;display:grid;gap:6px;margin-bottom:6px}
 .pv-inkthru .pvb.pv-hit{outline:2px solid var(--teal);outline-offset:1px}
 .pv-inkov{position:absolute;left:34%;top:6px;width:58%;height:70px;border:1.5px dashed transparent;border-radius:4px;pointer-events:none}
-.pv-inkthru.solid .pv-inkov{border-color:var(--ink-3)}
+.pv-inkthru.solid .pv-inkov{border-color:var(--ink-3);border-style:dotted}
+.pv-inkov.hov{border-style:dotted;border-color:color-mix(in srgb,var(--ink) 55%,transparent)} .pv-inkthru.solid .pv-inkov.hov{border-color:var(--ink-2)}   /* V4.108 */
 .pv-inkptr{position:absolute;left:12%;top:40px;font-size:15px;color:var(--ink)}
 .pv-ink{display:grid;gap:6px} .pv-inkbar{display:flex;gap:4px;flex-wrap:wrap;font-size:11px} .pv-inkbar span{border:1px solid var(--rule-2);border-radius:6px;padding:2px 8px;background:var(--surface);color:var(--ink-2)} .pv-inkbar .on{background:var(--ink);color:var(--paper)}
 .pv-pen{display:grid;gap:5px;font-size:12px} .pv-pen div{display:flex;justify-content:space-between;gap:10px;border-bottom:1px dashed var(--rule);padding-bottom:4px} .pv-pen span{color:var(--ink-3)}

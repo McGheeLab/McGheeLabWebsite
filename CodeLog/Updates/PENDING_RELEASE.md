@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (208 changes — ready to push)
+## Pending (209 changes — ready to push)
+
+- **Ink (V4.108):** point at handwriting and a dotted outline shows all of it; it stays while the ink is selected. No outline appears while you write with the pen, and the ink never has a white card behind it.
 
 - **Resizing (V4.107):** hold Shift while you drag a component's edge, and it grows or shrinks one grid square at a time, the way Shift already moves it. The same holds for a web page's, a PDF's and a table's size handle.
 
