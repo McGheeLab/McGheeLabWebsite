@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (210 changes — ready to push)
+## Pending (211 changes — ready to push)
+
+- **Super- and subscripts (V4.110):** after typing ^2 or CO_2, what you type next stays raised (or lowered) until you type ^ (or _) again — 10⁻¹², x₁₂. The same in the equation editor. Settings → Writing in components can switch it back to one character.
 
 - **Fingers in pen mode (V4.109):** fixed — after a while of writing with the pen, a finger could no longer move the note until you left it and came back. A finger now always pans again; a palm resting on the screen still does nothing.
 
