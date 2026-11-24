@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (214 changes — ready to push)
+## Pending (215 changes — ready to push)
+
+- **Your notebook on any device (V4.114):** keeping the notebook on a device now works the same on an iPad, an iPhone, an Android phone, a Mac, a Windows PC or a Chromebook — Settings shows the exact install steps for the device you are on.
 
 - **The notebook on your iPad (V4.113):** you can now keep the lab notebook on a device so it works without a connection — Settings → Notebook & devices → Keep it on this device, then on the iPad Share → Add to Home Screen. What you write offline goes to the lab cloud when you are back online.
 
