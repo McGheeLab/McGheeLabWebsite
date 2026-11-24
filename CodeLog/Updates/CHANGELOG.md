@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.111] — 2026-11-23 — Scientia: the iPad pen — strokes the iPad’s Scribble took are kept for the page where the pen writes ink; the live line is drawn once a frame with every sample kept; the pen writes again on ink lying over a component; a cancelled stroke on an HTML page is kept; #touchlog says why a pen touch did not write
+
+Gabe, 23 Nov: "Get a fix for an iPad pen. As of now, it seems like the pen does not write well. The fix might be universal SVG strokes for all pencil modes. Do research on that and find the best way to tackle this." Then: "sometimes, the pen won't write on the screen"
+
+App only.
+
+### Fixed
+- **On a note:**
+  - where the pen writes ink, the Pencil's touch is stopped as it starts, as tldraw and Excalidraw do, so the iPad's Scribble no longer takes the stroke. In a component's text it is still Scribble's.
+  - the pen writes again on the empty part of ink lying over a component. Since V4.105 it found the component's text there and wrote nothing (`INK.writeWhy`, `INK.inkUnder`).
+- **The live stroke:** every sample is kept, but the line is drawn once a frame instead of being recomputed whole on every pen event. Safari sends up to 240 a second and drops events when frames run late.
+- **On an HTML page:** a stroke the system cancels is kept, not thrown away. The Pencil's touch is stopped as it starts, and the line is drawn once a frame.
+- **On the whiteboard:** the Pencil's touch on the drawing surface is stopped as it starts (`board/pen.js`; the lab's engine unchanged).
+
+### Added
+- **`#touchlog`** in the address also says why each pen touch did or did not write, each stroke's points, moves and time, and a Pencil touch that came with no pen `pointerdown`. The manual says to try it, and to try once with Scribble off.
+
+### Tests
+| Test | Result |
+|---|---|
+| `v111_t`, lab and plain builds (real pen events; stylus touches made in the page — Chrome has no `touchType`):<br>- the pen on ink lying over a card writes; in a card's text with no ink, nothing (Scribble's);<br>- 40 moves inside one frame: every sample kept, the line drawn once;<br>- the Scribble guard stops a stylus touch on bare paper and on ink over a card, not in a card's text, not a finger, not out of pen mode;<br>- `#touchlog` lines;<br>- an HTML page: a cancelled stroke kept (31 points sent), the line drawn once a frame, the guard | 11/11 · 11/11; without the change 6/11 (no stroke on ink over a card; 40 draws for 40 moves; no guard; no log; the cancelled stroke dropped, 30 draws) |
+| `v111b_t`, lab and plain builds: the whiteboard opens with the notebook's pen; a stylus touch on its canvas is stopped, a finger and a button not; no error | 8/8 · 8/8 |
+| `v104_t` · `v107_t` · `v108_t` · `v110_t`, lab · plain | 19/19 · 19/19; 17/17 · 18/18; 12/12 · 12/12; 19/19 · 19/19 |
+
+
 ## [V4.110] — 2026-11-23 — Scientia: super- and subscripts stay on until you type ^ (or _) again — in a component (10^-12^ → 10⁻¹², x_12_ → x₁₂) and in the equation editor; Settings → Writing in components → Super- and subscripts stay on
 
 Gabe, 23 Nov: "Superscripts or subscripts need to remain in that notation until the user hits that key shortcut again."
