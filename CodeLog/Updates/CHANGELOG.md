@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.109] — 2026-11-23 — Scientia: fix — in pen mode, fingers keep panning the note: a touch whose lift never reached the paper (the iPad sends it to the ink stroke the hand rested on, which the pen's next stroke had drawn again) no longer counts as a palm for as long as the note is open
+
+Gabe, 23 Nov: "another bug: after some time on a note canvas, while in pen mode, your fingers stop being able to pan on the note. You have to exit out of the note and re enter it to be able to pan again"
+
+App only.
+
+### Fixed
+- **Fingers stopped panning in pen mode** until the note was opened again. The paper keeps the touches it is following: palms until they lift, and fingers down. A touch left the list only when its lift reached the paper.
+  - The iPad sends a lift to the element the touch began on.
+  - A pen stroke draws the ink's strokes again.
+  - So a hand resting on earlier writing lost its lift, stayed a "palm", and every finger after it was taken as part of that hand.
+  - A lost lift from a finger tapping a component made the next finger pinch with it instead.
+- **Now:** the first finger on the glass (`isPrimary`: no other touch down) forgets every touch still remembered (`T.fresh`, 13zf).
+  - A palm really resting still counts: a finger put down beside it is not the first.
+  - Two fingers still pinch.
+
+### Tests
+| Test | Result |
+|---|---|
+| `v108_t`, lab and plain builds (real touch and pen events; the lost lift made by stopping that one pointerup before the page hears it):<br>- a palm on the writing while the pen writes, its lift lost: the next finger pans, and the one after;<br>- a finger the pen turned into a palm, cancelled and lost: the next finger pans;<br>- a finger on a component, its lift lost: the next finger pans, with no pinch;<br>- a palm really resting: a finger beside it does not pan; once it lifts, a finger pans;<br>- two fingers pinch | 12/12 · 12/12; before the fix 9/12 (0 px after a lost palm lift, twice; a 124% zoom from a pinch with a finger gone) |
+| `fingerpan_probe` (lifts that do arrive: a palm on the writing, on the paper, cancelled; re-entering) | all pan, as before |
+| `fe_t1` (pills, touch, 1024 px) | 21/24 · 21/24, the same with and without this change (older expectations: the Quick cast's order before V4.93) |
+
+
 ## [V4.108] — 2026-11-23 — Scientia: ink — a dotted outline round all of it while the pointer is over any part of it, and while it is selected; none while the pen writes; see-through at all times (checked by pixels, light and dark)
 
 Gabe, 23 Nov: "The ink board is white, when I said it should be transparent (it currently is when the pen is writing) at all times. When hovering over the ink board you should be able to see a dotted outline of the entire board. The same when clicking on it. During the pen writing, you should not see any outline."
