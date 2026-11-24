@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.114] — 2026-11-24 — Scientia: the notebook kept on any device — the card names the device and gives its own install steps (iPad, iPhone, Android, Mac, Windows, Chromebook; Safari, Chrome, Edge, Samsung Internet, Firefox), tested on eight emulated devices sharing one lab cloud
+
+Gabe, 24 Nov: "It should be universal across devices. It should work on an iPad, a computer, an iPhone, etc..."
+
+App only.
+
+### Changed
+- **The card in Settings → Notebook & devices** (and in the phone layout's ⋯ More) gives this device's own install steps (`OFFLINE.kind`, `OFFLINE.how`):
+  - **iPad and iPhone:** Share → Add to Home Screen, then sign in inside the installed app.
+  - **Android:** Chrome, Samsung Internet or Firefox.
+  - **Mac:** Safari's Add to Dock, or Chrome/Edge's install icon.
+  - **Windows, Chromebook, Linux:** Chrome/Edge's install icon.
+  - **Firefox on a computer:** cannot install, but works offline once kept.
+- **The card's words:** it says the same holds on every kind of device and names this one; the line sending Windows computers to the desktop app is gone.
+- **The lab banner's *How*** shows the same steps. On the lab site the status says "Paired with the lab cloud".
+- **The install banner** steps aside while the card is shown; on a phone it covered the card.
+- **Settings → Features** and **MANUAL §21** list the steps for each kind of device.
+
+### Tests
+| Test | Result |
+|---|---|
+| `v114_t` — the website build against the local stand-in lab cloud; one fresh browser per device (Chrome's engine; each device's identity, screen and touch emulated): iPhone, iPad, Android phone, Mac (Safari), Mac (Chrome), Windows PC (Edge), Chromebook, Firefox (Windows). Each:<br>- signs in and loads the notebook from the cloud;<br>- the card where that device shows Settings (the phone's ⋯ More, or Settings → Notebook & devices), with its own install steps and fitting the screen;<br>- the banner stepped aside;<br>- Keep it (a real tap/click);<br>- an offline start (no server, cloud blocked) with the notes and the view drawn.<br>The iPhone writes a note, edits it offline and the edit reaches the cloud; the iPad receives it; the lab banner's How shows the iPhone's steps | 42/42 |
+| `v113_t` · `fw_t34` | 13/13 · 24/24 |
+| Lab harnesses v3869 · v3880 | 287/287 · 13/13 |
+
+
 ## [V4.113] — 2026-11-24 — Scientia: the lab notebook kept on this device — it opens and works offline and syncs back to the lab cloud: Settings → Notebook & devices → Keep it on this device (the site's service worker, the notebook's files and sign-in kept, persistent storage), an install manifest, Settings → Features → The notebook on this device
 
 Gabe, 24 Nov: "Look into the most straightforward way to have the lab notebook loaded locally onto a device with sync back to the lab cloud. Research ways of doing it, and let's add it to the settings."
