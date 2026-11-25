@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.115] — 2026-11-24 — Scientia: the lab app on a computer keeps its own settings, apart from Scientia In Situ (the private app), which had sealed its notebook folder and left Open on my computer with nothing to sync; a sealed folder is now named, with one click to a fresh folder the lab cloud fills
+
+Gabe, 24 Nov: "The button Open my computer does not work. It opens a local window with no lab notebook sync, which is the one I need to download as a local app, since I don't want the full website as the app, just the notebook"
+
+App, the desktop server and its launcher.
+
+### Bug Fixes
+- **Open on my computer opened a window with no lab notebook.** The lab app and the private app read the same settings, `%APPDATA%\ScientiaInSitu\config.json`, so the private app had opened and sealed the lab app's notebook folder, and the lab app had nothing to open or sync.
+  - **Now:** the lab app keeps its own settings in `%APPDATA%\ScientiaInSitu Lab` (`service.py` → `SIS_CONFIG`). They are made once from the shared ones, with the connection to the lab and the notebook folder.
+  - **A folder the private app has sealed or locked is never taken:** it gets a fresh `Documents\Scientia Lab Notebook`, which the lab cloud fills. The shared settings stay the private app's.
+- **A sealed folder is no longer silent:**
+  - the lab site's ping says `sealed`, and *Open on my computer* tells the person;
+  - the local app shows why, with **Use a new folder for this notebook** (one click) or **Choose another folder…** (`SYNC.hello` reads the 423; `DEVICES.screen('sealed')`; `/api/notebook` gives `suggest`).
+
+### Tests
+| Test | Result |
+|---|---|
+| `v115_service_t` (`service.py`'s `lab_settings`, temp folders):<br>- an open folder is kept, with its connection and sync state;<br>- sealed / locked / no settings: a fresh Documents\Scientia Lab Notebook, the connection only;<br>- the shared settings untouched; the next start changes nothing;<br>- a name the private app holds gives "… 2" | 12/12 |
+| `v115_t` — the real `serve.py` (settings in a temp folder) with a notebook folder the private app sealed:<br>- the ping says sealed;<br>- the app shows why, with the two ways out;<br>- one real click: the fresh folder is the notebook, the page starts again with it, no longer sealed, a note written there;<br>- the sealed folder untouched;<br>- *Open on my computer* tells the person | 6/6 |
+| `v113_t` · `v108_t` lab · plain | 13/13 · 12/12 · 12/12 |
+| Lab harnesses v3869 · v3880 | 287/287 · 13/13 |
+
+
 ## [V4.114] — 2026-11-24 — Scientia: the notebook kept on any device — the card names the device and gives its own install steps (iPad, iPhone, Android, Mac, Windows, Chromebook; Safari, Chrome, Edge, Samsung Internet, Firefox), tested on eight emulated devices sharing one lab cloud
 
 Gabe, 24 Nov: "It should be universal across devices. It should work on an iPad, a computer, an iPhone, etc..."

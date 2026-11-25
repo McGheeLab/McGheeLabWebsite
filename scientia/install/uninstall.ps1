@@ -23,7 +23,7 @@ $setup = Join-Path $Root 'python-setup.exe'
 if (Test-Path $setup) { Start-Process -FilePath $setup -ArgumentList '/quiet', '/uninstall' -Wait -ErrorAction SilentlyContinue }
 
 $nb = $null
-try { $nb = (Get-Content (Join-Path $env:APPDATA 'ScientiaInSitu\config.json') -Raw | ConvertFrom-Json).notebook } catch {}
+foreach ($c in @('ScientiaInSitu Lab\config.json', 'ScientiaInSitu\config.json')) { if (-not $nb) { try { $nb = (Get-Content (Join-Path $env:APPDATA $c) -Raw | ConvertFrom-Json).notebook } catch {} } }   # V4.115: the lab app's own settings first
 # the folder itself, once this script has ended
 Start-Process -FilePath 'cmd.exe' -ArgumentList '/c', "timeout /t 3 >nul & rmdir /s /q `"$Root`"" -WindowStyle Hidden
 Add-Type -AssemblyName PresentationFramework

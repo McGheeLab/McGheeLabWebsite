@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (215 changes — ready to push)
+## Pending (216 changes — ready to push)
+
+- **Open on my computer (V4.115):** fixed — on a computer that also has Scientia In Situ (the private app), the lab app opened with no notebook, because the two shared their settings and the private app had locked the lab notebook's folder. The lab app now keeps its own settings and its own folder, which the lab cloud fills.
 
 - **Your notebook on any device (V4.114):** keeping the notebook on a device now works the same on an iPad, an iPhone, an Android phone, a Mac, a Windows PC or a Chromebook — Settings shows the exact install steps for the device you are on.
 

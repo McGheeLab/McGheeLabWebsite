@@ -47,6 +47,66 @@ def note(msg):
     with log_file() as f: f.write('%s  %s\n' % (time.strftime('%Y-%m-%d %H:%M:%S'), msg))
 
 
+# ---------------- this app's own settings (V4.115) ----------------
+# Gabe, 24 Nov: "The button Open my computer does not work. It opens a local window with no lab notebook sync." Scientia In Situ
+# (the private app) reads %APPDATA%\ScientiaInSitu\config.json too, so each app opened the notebook folder the other had chosen:
+# the private app sealed the lab app's notebook with its lock, and the lab app was left with nothing to sync. The lab app keeps its
+# settings in a folder of its own, %APPDATA%\ScientiaInSitu Lab, made from the shared one the first time: the connection to the
+# lab (cloud.json) and the notebook folder — unless the private app has sealed it; then a fresh one, Documents\Scientia Lab
+# Notebook, which the lab cloud fills. The shared folder is left as it is, for the private app.
+def sealed_folder(p):
+    """the private app's: sealed by its lock, or carrying its lock (.scientia/access.json) even while open"""
+    if os.path.isfile(os.path.join(p, '.scientia', 'access.json')): return True
+    try:
+        with open(os.path.join(p, '.scientia', 'record.json'), 'rb') as f: return f.read(8) == b'SiSLock1'
+    except OSError:
+        return False
+
+
+def documents():
+    if os.environ.get('SIS_DOCUMENTS'): return os.environ['SIS_DOCUMENTS']
+    if os.name == 'nt':
+        try:
+            import ctypes
+            buf = ctypes.create_unicode_buffer(260)
+            if ctypes.windll.shell32.SHGetFolderPathW(None, 5, None, 0, buf) == 0 and buf.value: return buf.value   # CSIDL_PERSONAL (follows a moved Documents)
+        except Exception:
+            pass
+    return os.path.join(os.path.expanduser('~'), 'Documents')
+
+
+def fresh_folder():
+    base = os.path.join(documents(), 'Scientia Lab Notebook'); p, i = base, 2
+    while os.path.exists(p) and (sealed_folder(p) or (os.listdir(p) and not os.path.isdir(os.path.join(p, '.scientia')))): p, i = base + ' ' + str(i), i + 1
+    os.makedirs(p, exist_ok=True)
+    return p
+
+
+def lab_settings():
+    home = os.environ.get('APPDATA') or os.path.expanduser('~')
+    old = os.path.join(home, 'ScientiaInSitu') if os.name == 'nt' else os.path.join(os.path.expanduser('~'), '.config', 'scientia-in-situ')
+    new = os.path.join(home, 'ScientiaInSitu Lab') if os.name == 'nt' else os.path.join(os.path.expanduser('~'), '.config', 'scientia-in-situ-lab')
+    cfg = os.path.join(new, 'config.json')
+    if os.path.isfile(cfg): return cfg
+    os.makedirs(new, exist_ok=True)
+    try:
+        with open(os.path.join(old, 'config.json'), encoding='utf-8') as f: o = json.load(f) or {}
+    except (OSError, ValueError):
+        o = {}
+    nb = o.get('notebook'); keep = bool(nb) and os.path.isdir(nb) and not sealed_folder(nb)
+    if not keep: nb = fresh_folder()
+    for name in ['cloud.json'] + (['devices.json', 'sessions.json', 'shadow.json'] if keep else []):
+        s = os.path.join(old, name)
+        if os.path.isfile(s): shutil.copy2(s, os.path.join(new, name))
+    recent = [x for x in (o.get('recent') or []) if isinstance(x, str) and os.path.isdir(x) and not sealed_folder(x)] if keep else []
+    recent = [nb] + [x for x in recent if x != nb]
+    tmp = cfg + '.tmp'
+    with open(tmp, 'w', encoding='utf-8') as f: f.write(json.dumps({'notebook': nb, 'recent': recent[:8]}, indent=1))
+    os.replace(tmp, cfg)
+    note('settings of its own: %s — notebook folder %s%s' % (new, nb, '' if keep else (' (new: Scientia In Situ, the private app, had sealed the earlier one)' if o.get('notebook') else ' (new)')))
+    return cfg
+
+
 # ---------------- updates ----------------
 def installed():
     try:
@@ -135,6 +195,9 @@ def restart_self():
 def main():
     if running(): return
     env = dict(os.environ, SIS_NOBROWSER='1', SIS_SERVICE='1', PYTHONUTF8='1')
+    if not env.get('SIS_CONFIG'):
+        try: env['SIS_CONFIG'] = lab_settings()   # V4.115: its own settings, apart from the private app's
+        except Exception as e: note('settings of its own: not made (%s) — the shared ones are used' % e)
     wait, auto = 2.0, installed() is not None
     if auto and not os.path.isfile(STATUS): status(state='current')
     next_check = time.time() + FIRST

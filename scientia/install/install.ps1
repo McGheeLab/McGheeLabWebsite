@@ -4,7 +4,9 @@
 #     silently, into %LOCALAPPDATA%\ScientiaInSitu\python
 #   • starts with Windows (HKCU\...\Run), so this computer and the lab cloud stay in step from login to shutdown
 #   • scientia:// links start it (the lab site's "Open on my computer" button), and a Start menu entry opens it
-#   • the notebook folder stays where it is (%APPDATA%\ScientiaInSitu\config.json); a new user gets Documents\Scientia Notebook
+#   • the notebook folder stays where it is (%APPDATA%\ScientiaInSitu\config.json); a new user gets Documents\Scientia Notebook.
+#     V4.115: the app then keeps settings of its own (%APPDATA%\ScientiaInSitu Lab, made by service.py from these), apart from
+#     Scientia In Situ's (the private app's), and never a notebook folder that app has locked
 # Uninstall: Settings → The lab → Remove Scientia from this computer, or "Uninstall Scientia" in the Start menu.
 param([string]$From = $PSScriptRoot)
 $ErrorActionPreference = 'Stop'

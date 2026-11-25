@@ -55,6 +55,7 @@ const THISPC = {
     const want = THISPC.target(), tab = window.open('', '_blank');   // opened in the click, so no popup blocker
     if (tab) THISPC.waiting(tab, 'Opening Scientia on this computer…');
     let p = await THISPC.ping();
+    if (p && p.sealed) toast('Scientia on this computer needs a notebook folder of its own — the tab that opens shows how (one click)', 7000);   // V4.115
     if (p && p.connected) { THISPC.installed(true); THISPC.checkUpdate(p); if (tab) tab.location.href = THISPC.local() + '/scientia.html' + want; else location.href = THISPC.local() + '/scientia.html' + want; return; }
     if (!p && THISPC.installed()) {
       if (tab) { THISPC.waiting(tab, 'Starting Scientia on this computer…'); tab.location.href = 'scientia://start'; }
